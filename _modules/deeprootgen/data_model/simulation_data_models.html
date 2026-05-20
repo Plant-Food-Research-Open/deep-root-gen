@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>deeprootgen.data_model.simulation_data_models &mdash; DeepRootGen 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../../../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../../../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../../../_static/documentation_options.js?v=01f34227"></script>
+        <script src="../../../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../../index.html" class="icon icon-home">
+            DeepRootGen
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../api_reference/index.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../changelogs/changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">DeepRootGen</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">deeprootgen.data_model.simulation_data_models</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for deeprootgen.data_model.simulation_data_models</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;Contains Pydantic data models for the simulation</span>
+
+<span class="sd">Several Pydantic data models are defined for different</span>
+<span class="sd">root system architecture simulation procedures.</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+
+<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+
+
+<span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
+    <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
+
+
+<div class="viewcode-block" id="RootType">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootType">[docs]</a>
+<span class="k">class</span> <span class="nc">RootType</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
+    <span class="n">STRUCTURAL</span> <span class="o">=</span> <span class="s2">&quot;structural&quot;</span>
+    <span class="n">FINE</span> <span class="o">=</span> <span class="s2">&quot;fine&quot;</span>
+    <span class="n">PRIMARY</span> <span class="o">=</span> <span class="s2">&quot;primary&quot;</span>
+    <span class="n">SECONDARY</span> <span class="o">=</span> <span class="s2">&quot;secondary&quot;</span>
+    <span class="n">OUTER</span> <span class="o">=</span> <span class="s2">&quot;outer&quot;</span>
+    <span class="n">INNER</span> <span class="o">=</span> <span class="s2">&quot;inner&quot;</span></div>
+
+
+
+<div class="viewcode-block" id="RootTypeModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootTypeModel">[docs]</a>
+<span class="k">class</span> <span class="nc">RootTypeModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The root type data model for classifying roots.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">root_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">order_type</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">position_type</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="RootNodeModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootNodeModel">[docs]</a>
+<span class="k">class</span> <span class="nc">RootNodeModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The node data model for the hierarchical graph representation of the root system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">node_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">plant_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">parent_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">organ_id</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">x</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">y</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">z</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">order</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">segment_rank</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">diameter</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">length</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">root_tissue_density</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">root_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;base&quot;</span>
+    <span class="n">order_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;base&quot;</span>
+    <span class="n">position_type</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;base&quot;</span>
+    <span class="n">simulation_tag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span>
+    <span class="n">invalid_root</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span></div>
+
+
+
+<div class="viewcode-block" id="RootEdgeModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootEdgeModel">[docs]</a>
+<span class="k">class</span> <span class="nc">RootEdgeModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The edge data model for the hierarchical graph representation of the root system.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">parent_id</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">child_id</span><span class="p">:</span> <span class="nb">int</span></div>
+
+
+
+<div class="viewcode-block" id="RootSimulationModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootSimulationModel">[docs]</a>
+<span class="k">class</span> <span class="nc">RootSimulationModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root system architecture simulation data model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">random_seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">max_order</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">root_ratio</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">fine_root_threshold</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">outer_root_num</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">inner_root_num</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">min_primary_length</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_primary_length</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">base_diameter</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">diameter_reduction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">apex_diameter</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">min_sec_root_num</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">max_sec_root_num</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">growth_sec_root</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">min_sec_root_length</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">max_sec_root_length</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">segments_per_root</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">length_reduction</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">root_vary</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">interbranch_distance</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">mechanical_constraints</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">root_tissue_density</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">gravitropism</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">t</span><span class="p">:</span> <span class="nb">int</span>
+    <span class="n">origin_min</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-3</span>
+    <span class="n">origin_max</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-2</span>
+    <span class="n">enable_soil</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">soil_layer_height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">soil_layer_width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">soil_n_layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">soil_n_cols</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_val_attempts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">simulation_tag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span>
+    <span class="n">no_root_zone</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-4</span>
+    <span class="n">floor_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">ceiling_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.9</span></div>
+
+
+
+<div class="viewcode-block" id="ParameterIntervalModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.ParameterIntervalModel">[docs]</a>
+<span class="k">class</span> <span class="nc">ParameterIntervalModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The parameter specification data model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">lower_bound</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">upper_bound</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">data_type</span><span class="p">:</span> <span class="nb">str</span></div>
+
+
+
+<div class="viewcode-block" id="SummaryStatisticsModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.SummaryStatisticsModel">[docs]</a>
+<span class="k">class</span> <span class="nc">SummaryStatisticsModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The summary statistics data model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">statistic_name</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">statistic_value</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">z_lower_bound</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span>
+    <span class="n">z_upper_bound</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.0</span></div>
+
+
+
+<div class="viewcode-block" id="StatisticsComparisonModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.StatisticsComparisonModel">[docs]</a>
+<span class="k">class</span> <span class="nc">StatisticsComparisonModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;The data model for comparing synthetic and observed data.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">summary_statistics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">distance_metrics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">include_parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">exclude_parameters</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">input_columns</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">output_columns</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">stat_by_soil_layer</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">stat_by_soil_column</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">use_summary_statistics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">True</span></div>
+
+
+
+<div class="viewcode-block" id="RootCalibrationIntervals">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationIntervals">[docs]</a>
+<span class="k">class</span> <span class="nc">RootCalibrationIntervals</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root system architecture calibration interval data model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">max_order</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">root_ratio</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">fine_root_threshold</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">outer_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">inner_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">min_primary_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">max_primary_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">base_diameter</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">diameter_reduction</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">apex_diameter</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">min_sec_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">max_sec_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">growth_sec_root</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">min_sec_root_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">max_sec_root_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">segments_per_root</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">length_reduction</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">root_vary</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">interbranch_distance</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">mechanical_constraints</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">root_tissue_density</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">gravitropism</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">t</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span></div>
+
+
+
+<div class="viewcode-block" id="RootCalibrationModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationModel">[docs]</a>
+<span class="k">class</span> <span class="nc">RootCalibrationModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    The root system architecture calibration data model.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        BaseModel (BaseModel):</span>
+<span class="sd">            The Pydantic Base model class.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">random_seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span>
+    <span class="n">parameter_intervals</span><span class="p">:</span> <span class="n">RootCalibrationIntervals</span>
+    <span class="n">calibration_parameters</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">bool</span> <span class="o">|</span> <span class="nb">float</span> <span class="o">|</span> <span class="nb">int</span> <span class="o">|</span> <span class="nb">str</span><span class="p">]</span>
+    <span class="n">summary_statistics</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">SummaryStatisticsModel</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">observed_data</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">RootNodeModel</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">observed_data_content</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">raw_edge_content</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">statistics_comparison</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">StatisticsComparisonModel</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">origin_min</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-3</span>
+    <span class="n">origin_max</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-2</span>
+    <span class="n">enable_soil</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">bool</span><span class="p">]</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">soil_layer_height</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">soil_layer_width</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">soil_n_layers</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">soil_n_cols</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">max_val_attempts</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="mi">50</span>
+    <span class="n">simulation_tag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span>
+    <span class="n">no_root_zone</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-4</span>
+    <span class="n">floor_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.4</span>
+    <span class="n">ceiling_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.9</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, James Bristow.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

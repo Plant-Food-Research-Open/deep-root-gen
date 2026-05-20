@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calibration &mdash; DeepRootGen 0.1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=01f34227"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Data Model" href="data_model.html" />
+    <link rel="prev" title="API Reference" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            DeepRootGen
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Reference</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Calibration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.calibration.model_versioning">Model Versioning</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.model_versioning.AbcModel"><code class="docutils literal notranslate"><span class="pre">AbcModel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor"><code class="docutils literal notranslate"><span class="pre">GraphFlowFeatureExtractor</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.model_versioning.OptimisationModel"><code class="docutils literal notranslate"><span class="pre">OptimisationModel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.model_versioning.SensitivityAnalysisModel"><code class="docutils literal notranslate"><span class="pre">SensitivityAnalysisModel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.model_versioning.SnpeModel"><code class="docutils literal notranslate"><span class="pre">SnpeModel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.model_versioning.SurrogateModel"><code class="docutils literal notranslate"><span class="pre">SurrogateModel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.model_versioning.log_model"><code class="docutils literal notranslate"><span class="pre">log_model()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.calibration.parameters">Parameters</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.parameters.PriorCollection"><code class="docutils literal notranslate"><span class="pre">PriorCollection</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.parameters.get_simulation_parameters"><code class="docutils literal notranslate"><span class="pre">get_simulation_parameters()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.parameters.lhc_sample"><code class="docutils literal notranslate"><span class="pre">lhc_sample()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.calibration.summary_statistics">Summary Statistics</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.summary_statistics.calculate_summary_statistic_discrepancy"><code class="docutils literal notranslate"><span class="pre">calculate_summary_statistic_discrepancy()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.summary_statistics.calculate_summary_statistics"><code class="docutils literal notranslate"><span class="pre">calculate_summary_statistics()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.summary_statistics.get_calibration_summary_stats"><code class="docutils literal notranslate"><span class="pre">get_calibration_summary_stats()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.summary_statistics.run_calibration_simulation"><code class="docutils literal notranslate"><span class="pre">run_calibration_simulation()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.calibration.surrogates">Surrogates</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.surrogates.EarlyStopper"><code class="docutils literal notranslate"><span class="pre">EarlyStopper</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.surrogates.SingleTaskVariationalGPModel"><code class="docutils literal notranslate"><span class="pre">SingleTaskVariationalGPModel</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.calibration.surrogates.prepare_surrogate_data"><code class="docutils literal notranslate"><span class="pre">prepare_surrogate_data()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="data_model.html">Data Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="form.html">Form</a></li>
+<li class="toctree-l2"><a class="reference internal" href="io.html">Input/Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="model.html">Model</a></li>
+<li class="toctree-l2"><a class="reference internal" href="spatial.html">Spatial</a></li>
+<li class="toctree-l2"><a class="reference internal" href="pipeline.html">Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="statistics.html">Statistics</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../changelogs/changelog.html">Changelog</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">DeepRootGen</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">API Reference</a></li>
+      <li class="breadcrumb-item active">Calibration</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/api_reference/calibration.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="calibration">
+<h1>Calibration<a class="headerlink" href="#calibration" title="Link to this heading"></a></h1>
+<section id="module-deeprootgen.calibration.model_versioning">
+<span id="model-versioning"></span><h2>Model Versioning<a class="headerlink" href="#module-deeprootgen.calibration.model_versioning" title="Link to this heading"></a></h2>
+<p>Contains MLflow compatible models for versioning and deployment.</p>
+<p>This module defines MLflow compatible models for versioning and deployment as microservices.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.AbcModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.model_versioning.</span></span><span class="sig-name descname"><span class="pre">AbcModel</span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#AbcModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.AbcModel" title="Link to this definition"></a></dt>
+<dd><p>An Approximate Bayesian Computation calibration model.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.AbcModel.load_context">
+<span class="sig-name descname"><span class="pre">load_context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#AbcModel.load_context"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.AbcModel.load_context" title="Link to this definition"></a></dt>
+<dd><p>Load the model context.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.AbcModel.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#AbcModel.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.AbcModel.predict" title="Link to this definition"></a></dt>
+<dd><p>Make a model prediction.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+<dt>model_input (pd.DataFrame):</dt><dd><p>The model input data.</p>
+</dd>
+<dt>params (dict, optional):</dt><dd><p>Optional model parameters. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>ValueError:</dt><dd><p>Error raised when the calibrator has not been loaded.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>pd.DataFrame:</dt><dd><p>The model prediction.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.model_versioning.</span></span><span class="sig-name descname"><span class="pre">GraphFlowFeatureExtractor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">theta_dim</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">organ_keys</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">hidden_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">transforms</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">organ_features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#GraphFlowFeatureExtractor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor" title="Link to this definition"></a></dt>
+<dd><p>A graph feature extractor for density estimation.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor.encode">
+<span class="sig-name descname"><span class="pre">encode</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#GraphFlowFeatureExtractor.encode"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor.encode" title="Link to this definition"></a></dt>
+<dd><p>Construct graph embeddings from nodes and edges.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>x (torch.Tensor):</dt><dd><p>The node features.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>torch.Tensor:</dt><dd><p>The graph embeddings.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor.flow">
+<span class="sig-name descname"><span class="pre">flow</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tensor</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Distribution</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#GraphFlowFeatureExtractor.flow"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor.flow" title="Link to this definition"></a></dt>
+<dd><p>Evaluate the normalising flow.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>x (torch.Tensor):</dt><dd><p>The node and edge data.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>dist.Distribution:</dt><dd><p>The normalising flow.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">theta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#GraphFlowFeatureExtractor.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.GraphFlowFeatureExtractor.forward" title="Link to this definition"></a></dt>
+<dd><p>The forward pass.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>theta (torch.Tensor):</dt><dd><p>The batch of parameter vectors.</p>
+</dd>
+<dt>x (torch.Tensor):</dt><dd><p>The batch tensor data.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>torch.Tensor:</dt><dd><p>The normalising flow.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.OptimisationModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.model_versioning.</span></span><span class="sig-name descname"><span class="pre">OptimisationModel</span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#OptimisationModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.OptimisationModel" title="Link to this definition"></a></dt>
+<dd><p>An optimisation calibration model.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.OptimisationModel.load_context">
+<span class="sig-name descname"><span class="pre">load_context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#OptimisationModel.load_context"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.OptimisationModel.load_context" title="Link to this definition"></a></dt>
+<dd><p>Load the model context.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.OptimisationModel.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#OptimisationModel.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.OptimisationModel.predict" title="Link to this definition"></a></dt>
+<dd><p>Make a model prediction.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+<dt>model_input (pd.DataFrame):</dt><dd><p>The model input data.</p>
+</dd>
+<dt>params (dict, optional):</dt><dd><p>Optional model parameters. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>ValueError:</dt><dd><p>Error raised when the calibrator has not been loaded.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>pd.DataFrame:</dt><dd><p>The model prediction.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SensitivityAnalysisModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.model_versioning.</span></span><span class="sig-name descname"><span class="pre">SensitivityAnalysisModel</span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SensitivityAnalysisModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SensitivityAnalysisModel" title="Link to this definition"></a></dt>
+<dd><p>A sensitivity analysis calibration model.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SensitivityAnalysisModel.load_context">
+<span class="sig-name descname"><span class="pre">load_context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SensitivityAnalysisModel.load_context"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SensitivityAnalysisModel.load_context" title="Link to this definition"></a></dt>
+<dd><p>Load the model context.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SensitivityAnalysisModel.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SensitivityAnalysisModel.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SensitivityAnalysisModel.predict" title="Link to this definition"></a></dt>
+<dd><p>Make a model prediction.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+<dt>model_input (pd.DataFrame):</dt><dd><p>The model input data.</p>
+</dd>
+<dt>params (dict, optional):</dt><dd><p>Optional model parameters. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>ValueError:</dt><dd><p>Error raised when the calibrator has not been loaded.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>pd.DataFrame:</dt><dd><p>The model prediction.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SnpeModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.model_versioning.</span></span><span class="sig-name descname"><span class="pre">SnpeModel</span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SnpeModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SnpeModel" title="Link to this definition"></a></dt>
+<dd><p>A Sequential neural posterior estimation calibration model.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SnpeModel.load_context">
+<span class="sig-name descname"><span class="pre">load_context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SnpeModel.load_context"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SnpeModel.load_context" title="Link to this definition"></a></dt>
+<dd><p>Load the model context.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SnpeModel.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SnpeModel.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SnpeModel.predict" title="Link to this definition"></a></dt>
+<dd><p>Make a model prediction.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+<dt>model_input (pd.DataFrame):</dt><dd><p>The model input data.</p>
+</dd>
+<dt>params (dict, optional):</dt><dd><p>Optional model parameters. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>ValueError:</dt><dd><p>Error raised when the calibrator has not been loaded.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>pd.DataFrame:</dt><dd><p>The model prediction.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SurrogateModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.model_versioning.</span></span><span class="sig-name descname"><span class="pre">SurrogateModel</span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SurrogateModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SurrogateModel" title="Link to this definition"></a></dt>
+<dd><p>A surrogate calibration model.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SurrogateModel.load_context">
+<span class="sig-name descname"><span class="pre">load_context</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SurrogateModel.load_context"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SurrogateModel.load_context" title="Link to this definition"></a></dt>
+<dd><p>Load the model context.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.SurrogateModel.predict">
+<span class="sig-name descname"><span class="pre">predict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">context</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Context</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_input</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">params</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#SurrogateModel.predict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.SurrogateModel.predict" title="Link to this definition"></a></dt>
+<dd><p>Make a model prediction.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>context (Context):</dt><dd><p>The model context.</p>
+</dd>
+<dt>model_input (pd.DataFrame):</dt><dd><p>The model input data.</p>
+</dd>
+<dt>params (dict, optional):</dt><dd><p>Optional model parameters. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>ValueError:</dt><dd><p>Error raised when the calibrator has not been loaded.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>pd.DataFrame:</dt><dd><p>The model prediction.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.model_versioning.log_model">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.model_versioning.</span></span><span class="sig-name descname"><span class="pre">log_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">task</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationModel" title="deeprootgen.data_model.simulation_data_models.RootCalibrationModel"><span class="pre">RootCalibrationModel</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">calibration_model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PythonModel</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">artifacts</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">simulation_uuid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">signature_x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">signature_y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/model_versioning.html#log_model"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.model_versioning.log_model" title="Link to this definition"></a></dt>
+<dd><p>Log the calibrator model to the registry.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>task (str):</dt><dd><p>The name of the current task for the experiment.</p>
+</dd>
+<dt>input_parameters (RootCalibrationModel):</dt><dd><p>The root calibration data model.</p>
+</dd>
+<dt>calibration_model (mlflow.pyfunc.PythonModel):</dt><dd><p>The calibrator to log.</p>
+</dd>
+<dt>artifacts (dict):</dt><dd><p>Experiment artifacts to log.</p>
+</dd>
+<dt>simulation_uuid (str):</dt><dd><p>The simulation uuid.</p>
+</dd>
+<dt>signature_x (pd.DataFrame | np.ndarray | list | None, optional):</dt><dd><p>The signature for data inputs. Defaults to None.</p>
+</dd>
+<dt>signature_y (pd.DataFrame | np.ndarray | list | None, optional):</dt><dd><p>The signature for data outputs. Defaults to None.</p>
+</dd>
+<dt>model_config (dict, optional):</dt><dd><p>The model configuration. Defaults to None.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-deeprootgen.calibration.parameters">
+<span id="parameters"></span><h2>Parameters<a class="headerlink" href="#module-deeprootgen.calibration.parameters" title="Link to this heading"></a></h2>
+<p>Contains utilities for working with simulation parameters and their distributions.</p>
+<p>This module defines various utlities for working with distributions of simulation parameters.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.parameters.PriorCollection">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.parameters.</span></span><span class="sig-name descname"><span class="pre">PriorCollection</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">priors</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Distribution</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/calibration/parameters.html#PriorCollection"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.parameters.PriorCollection" title="Link to this definition"></a></dt>
+<dd><p>A wrapper around a collection of priors.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.parameters.PriorCollection.sample">
+<span class="sig-name descname"><span class="pre">sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">batch_shape</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">()</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tensor</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/parameters.html#PriorCollection.sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.parameters.PriorCollection.sample" title="Link to this definition"></a></dt>
+<dd><p>Sample from the priors.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>batch_shape (tuple, optional):</dt><dd><p>The batch shape of the sampled priors. Defaults to ().</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>torch.Tensor:</dt><dd><p>The sampled priors.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.parameters.get_simulation_parameters">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.parameters.</span></span><span class="sig-name descname"><span class="pre">get_simulation_parameters</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter_form_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'calibration_form'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/parameters.html#get_simulation_parameters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.parameters.get_simulation_parameters" title="Link to this definition"></a></dt>
+<dd><p>Get a list of available simulation parameters and labels.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>parameter_form_name (str, optional):</dt><dd><p>The name of the parameter form components specification. Defaults to “simulation_form”.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>list[dict]:</dt><dd><p>A list of available simulation parameters and labels.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.parameters.lhc_sample">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.parameters.</span></span><span class="sig-name descname"><span class="pre">lhc_sample</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationModel" title="deeprootgen.data_model.simulation_data_models.RootCalibrationModel"><span class="pre">RootCalibrationModel</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/parameters.html#lhc_sample"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.parameters.lhc_sample" title="Link to this definition"></a></dt>
+<dd><p>Sample from the parameter space.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>input_parameters (RootCalibrationModel):</dt><dd><p>The root calibration data model.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>pd.DataFrame:</dt><dd><p>The sample dataframe.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-deeprootgen.calibration.summary_statistics">
+<span id="summary-statistics"></span><h2>Summary Statistics<a class="headerlink" href="#module-deeprootgen.calibration.summary_statistics" title="Link to this heading"></a></h2>
+<p>Contains utilities for calibrating models from summary statistics.</p>
+<p>This module defines utility functions for calibrating simulation models from summary statistics.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.summary_statistics.calculate_summary_statistic_discrepancy">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.summary_statistics.</span></span><span class="sig-name descname"><span class="pre">calculate_summary_statistic_discrepancy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter_specs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationModel" title="deeprootgen.data_model.simulation_data_models.RootCalibrationModel"><span class="pre">RootCalibrationModel</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">statistics_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.SummaryStatisticsModel" title="deeprootgen.data_model.simulation_data_models.SummaryStatisticsModel"><span class="pre">SummaryStatisticsModel</span></a><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">distances</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="statistics.html#deeprootgen.statistics.distance_metrics.DistanceMetricBase" title="deeprootgen.statistics.distance_metrics.DistanceMetricBase"><span class="pre">DistanceMetricBase</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/summary_statistics.html#calculate_summary_statistic_discrepancy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.summary_statistics.calculate_summary_statistic_discrepancy" title="Link to this definition"></a></dt>
+<dd><p>Calculate the discrepancy between simulated and observed data.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>parameter_specs (dict):</dt><dd><p>The simulation parameter specification.</p>
+</dd>
+<dt>input_parameters (RootCalibrationModel):</dt><dd><p>The root calibration data model.</p>
+</dd>
+<dt>statistics_list (list[SummaryStatisticsModel]):</dt><dd><p>The list of summary statistics.</p>
+</dd>
+<dt>distances (list[DistanceMetricBase]):</dt><dd><p>The distance metric object.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>float:</dt><dd><p>The discrepancy between simulated and observed data.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.summary_statistics.calculate_summary_statistics">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.summary_statistics.</span></span><span class="sig-name descname"><span class="pre">calculate_summary_statistics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter_specs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationModel" title="deeprootgen.data_model.simulation_data_models.RootCalibrationModel"><span class="pre">RootCalibrationModel</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">statistics_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.SummaryStatisticsModel" title="deeprootgen.data_model.simulation_data_models.SummaryStatisticsModel"><span class="pre">SummaryStatisticsModel</span></a><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/summary_statistics.html#calculate_summary_statistics"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.summary_statistics.calculate_summary_statistics" title="Link to this definition"></a></dt>
+<dd><p>Calculate summary statistics for observed and simulated data.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>parameter_specs (dict):</dt><dd><p>The simulation parameter specification.</p>
+</dd>
+<dt>input_parameters (RootCalibrationModel):</dt><dd><p>The root calibration data model.</p>
+</dd>
+<dt>statistics_list (list[SummaryStatisticsModel]):</dt><dd><p>The list of summary statistics.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>tuple:</dt><dd><p>The simulated and observed data.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.summary_statistics.get_calibration_summary_stats">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.summary_statistics.</span></span><span class="sig-name descname"><span class="pre">get_calibration_summary_stats</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationModel" title="deeprootgen.data_model.simulation_data_models.RootCalibrationModel"><span class="pre">RootCalibrationModel</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/summary_statistics.html#get_calibration_summary_stats"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.summary_statistics.get_calibration_summary_stats" title="Link to this definition"></a></dt>
+<dd><p>Extract summary statistics needed for model calibration.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>input_parameters (RootCalibrationModel):</dt><dd><p>The root calibration data model.</p>
+</dd>
+</dl>
+</dd>
+<dt>Raises:</dt><dd><dl class="simple">
+<dt>ValueError:</dt><dd><p>Error thrown when the summary statistic list is empty.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>tuple:</dt><dd><p>The calibration distance metric and summary statistics.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.summary_statistics.run_calibration_simulation">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.summary_statistics.</span></span><span class="sig-name descname"><span class="pre">run_calibration_simulation</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter_specs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">input_parameters</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="data_model.html#deeprootgen.data_model.simulation_data_models.RootCalibrationModel" title="deeprootgen.data_model.simulation_data_models.RootCalibrationModel"><span class="pre">RootCalibrationModel</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/summary_statistics.html#run_calibration_simulation"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.summary_statistics.run_calibration_simulation" title="Link to this definition"></a></dt>
+<dd><p>Run a simulation for model calibration purposes.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>parameter_specs (dict):</dt><dd><p>The simulation parameter specification.</p>
+</dd>
+<dt>input_parameters (RootCalibrationModel):</dt><dd><p>The root calibration data model.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>tuple:</dt><dd><p>The simulation and its parameters.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-deeprootgen.calibration.surrogates">
+<span id="surrogates"></span><h2>Surrogates<a class="headerlink" href="#module-deeprootgen.calibration.surrogates" title="Link to this heading"></a></h2>
+<p>Contains methods for implementing surrogate models for the root generator.</p>
+<p>This module defines various utlities and methods for working with surrogate models.</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.surrogates.EarlyStopper">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.surrogates.</span></span><span class="sig-name descname"><span class="pre">EarlyStopper</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">patience</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_delta</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/calibration/surrogates.html#EarlyStopper"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.surrogates.EarlyStopper" title="Link to this definition"></a></dt>
+<dd><p>Early stopping for training.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.calibration.surrogates.SingleTaskVariationalGPModel">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.surrogates.</span></span><span class="sig-name descname"><span class="pre">SingleTaskVariationalGPModel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inducing_points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/calibration/surrogates.html#SingleTaskVariationalGPModel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.surrogates.SingleTaskVariationalGPModel" title="Link to this definition"></a></dt>
+<dd><p>A variational Gaussian process for single task regression.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.calibration.surrogates.SingleTaskVariationalGPModel.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tensor</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">MultivariateNormal</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/surrogates.html#SingleTaskVariationalGPModel.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.surrogates.SingleTaskVariationalGPModel.forward" title="Link to this definition"></a></dt>
+<dd><p>The forward pass.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>x (torch.Tensor):</dt><dd><p>The input data.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>gpytorch.distributions.MultivariateNormal:</dt><dd><p>A multivariate Gaussian distribution.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.calibration.surrogates.prepare_surrogate_data">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.calibration.surrogates.</span></span><span class="sig-name descname"><span class="pre">prepare_surrogate_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">sample_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_names</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1024</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="../_modules/deeprootgen/calibration/surrogates.html#prepare_surrogate_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.calibration.surrogates.prepare_surrogate_data" title="Link to this definition"></a></dt>
+<dd><p>Prepare data for training the surrogate model.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>sample_df (pd.DataFrame):</dt><dd><p>The dataframe of sample simulation data.</p>
+</dd>
+<dt>output_names (list[str], optional):</dt><dd><p>The list of output names. Defaults to None.</p>
+</dd>
+<dt>batch_size (int, optional):</dt><dd><p>The tensor data batch size. Defaults to 1024.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>tuple:</dt><dd><p>The processed data for the surrogate.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="API Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="data_model.html" class="btn btn-neutral float-right" title="Data Model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, James Bristow.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
