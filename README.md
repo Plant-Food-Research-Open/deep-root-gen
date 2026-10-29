@@ -17,6 +17,7 @@ Website: [DeepRootGen](https://jbris.github.io/deep-root-gen/)
 - [DeepRootGen](#deeprootgen)
 - [Table of contents](#table-of-contents)
 - [Introduction](#introduction)
+- [Development](#development)
 - [Data Schema](#data-schema)
 - [Contacts](#contacts)
   
@@ -24,28 +25,53 @@ Website: [DeepRootGen](https://jbris.github.io/deep-root-gen/)
 
 This repository contains an implementation of a simulation model for generating a synthetic root system architecture, for the estimation of root parameters as informed by observational data collected from the field.
 
+# Development
+
+Use this repository as an independent Codex project. Start with the
+[development and setup guide](docs/DEVELOPMENT.md),
+[architecture/code map](docs/ARCHITECTURE.md),
+[review notes](docs/REVIEW_NOTES.md), and [agent instructions](AGENTS.md).
+
+The project requires Python `>=3.10,<3.11` and the Poetry lockfile. Full runtime
+tests were unavailable in the 2026-10-28 documentation review. The existing
+pytest test is a dummy; its pass does not validate model or inference behaviour.
+The guide separates executed metadata/syntax checks from unexecuted setup recipes.
+
 # Data Schema
 
-The primary purpose of DeepRootGen is to output a synthetic root system into a tabular data format. The tabular data are composed of several columns:
+The current `RootSystemGraph.as_df()` export is a pair of node and edge tables.
+`pipeline/experiment.py` saves these as separate CSV artifacts. The node schema
+is defined by `RootNodeModel` in `deeprootgen/data_model/simulation_data_models.py`.
 
-| Column       | Type       | Description                                                                                                                                                                     |
-| ------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| id           | Discrete   | A unique ID for each row.                                                                                                                                                       |
-| plant_id     | Discrete   | A unique ID for each plant.                                                                                                                                                     |
-| organ_id     | Discrete   | A unique ID for each root.                                                                                                                                                      |
-| order        | Discrete   | The plant order. A first order root grows from the plant base,  second order roots emerge from first order roots, third order  roots emerge from second order roots, and so on. |
-| root_type    | Discrete   | The root type classification. Can be one of 1 = Structural Root or 2 = Fine Root.                                                                                               |
-| segment_rank | Discrete   | The rank number for each root segment. A small rank refers to  segments that are close to the root base, while a large rank  refers to roots that are near the root apex.       |
-| parent       | Discrete   | The parent organ of the root segment. The parent node of the organ within the GroIMP graph. Used by the XEG reader to  recursively import the synthetic root data.              |
-| coordinates  | Continuous | The combined 3D coordinates (x, y, and z) of each root segment.                                                                                                                 |
-| diameter     | Continuous | The root segment diameter.                                                                                                                                                      |
-| length       | Continuous | The root segment length.                                                                                                                                                        |
-| x            | Continuous | The x coordinate of the root segment.                                                                                                                                           |
-| y            | Continuous | The y coordinate of the root segment.                                                                                                                                           |
-| z            | Continuous | The z coordinate of the root segment.                                                                                                                                           |
+| Node column | Meaning |
+|---|---|
+| `node_id` | Unique graph node ID. |
+| `parent_id` | Parent node ID; the base node defaults to sentinel `-1`. |
+| `plant_id` | Plant identifier. |
+| `organ_id` | Root organ identifier. |
+| `order` | Root order, with base node order zero. |
+| `segment_rank` | Segment rank within the organ. |
+| `x`, `y`, `z` | Separate spatial coordinates. |
+| `diameter`, `length` | Stored segment dimensions. |
+| `root_tissue_density` | Root tissue density. |
+| `root_type` | String classification such as `structural`, `fine`, or `base`. |
+| `order_type`, `position_type` | Additional string classifications. |
+| `simulation_tag` | Simulation grouping tag. |
+| `invalid_root` | Invalid-root flag retained in the exported table. |
+
+The edge table contains `parent_id` and `child_id`. Forms and statistic labels
+use centimetres for geometry, g/cm³ for tissue density and grams for weight;
+the tables do not carry a separate units column. Verify units and invalid-root
+policy before comparing with observations.
+
+Older descriptions used `id`, `parent`, combined `coordinates`, numeric root
+types and a GroIMP/XEG import convention. Those are not the current exported
+field names/types. Inspect a downstream consumer before claiming compatibility
+or translating identifiers. This documentation correction does not change
+serialization or scientific code.
 
 # Contacts
 
 - DeepRootGen Developer: James Bristow 
 - DeepRootGen Project Supervisor: Junqi Zhu
-- Crop System Modeller: Xiumei Yang 
+- Crop System Modeller: Xiumei Yang
