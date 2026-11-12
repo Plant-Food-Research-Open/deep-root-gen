@@ -1,7 +1,7 @@
 services:
 
   optimisation:
-    image: ghcr.io/Plant-Food-Research-Open/deep-root-gen:${APP_VERSION}
+    image: ghcr.io/plant-food-research-open/deep-root-gen:${APP_VERSION}
     restart: always
     stop_grace_period: 10s
     environment:
@@ -29,7 +29,7 @@ services:
       bentoml serve --host 0.0.0.0 -p 3000 deployments.optimisation_service:svc
 
   sensitivity_analysis:
-    image: ghcr.io/Plant-Food-Research-Open/deep-root-gen:${APP_VERSION}
+    image: ghcr.io/plant-food-research-open/deep-root-gen:${APP_VERSION}
     restart: always
     stop_grace_period: 10s
     environment:
@@ -57,7 +57,7 @@ services:
       bentoml serve --host 0.0.0.0 -p 3000 deployments.sensitivity_analysis_service:svc
 
   abc:
-    image: ghcr.io/Plant-Food-Research-Open/deep-root-gen:${APP_VERSION}
+    image: ghcr.io/plant-food-research-open/deep-root-gen:${APP_VERSION}
     restart: always
     stop_grace_period: 10s
     environment:
@@ -85,7 +85,7 @@ services:
       bentoml serve --host 0.0.0.0 -p 3000 deployments.abc_service:svc
 
   snpe:
-    image: ghcr.io/Plant-Food-Research-Open/deep-root-gen:${APP_VERSION}
+    image: ghcr.io/plant-food-research-open/deep-root-gen:${APP_VERSION}
     restart: always
     stop_grace_period: 10s
     environment:
@@ -113,7 +113,7 @@ services:
       bentoml serve --host 0.0.0.0 -p 3000 deployments.snpe_service:svc
 
   surrogate:
-    image: ghcr.io/Plant-Food-Research-Open/deep-root-gen:${APP_VERSION}
+    image: ghcr.io/plant-food-research-open/deep-root-gen:${APP_VERSION}
     restart: always
     stop_grace_period: 10s
     environment:

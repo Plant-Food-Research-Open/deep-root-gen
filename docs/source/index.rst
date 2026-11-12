@@ -6,6 +6,7 @@ DeepRootGen
    :caption: Contents:
 
    introduction/index.rst
+   usage/index.rst
    api_reference/index.rst
    changelogs/changelog.rst
 
