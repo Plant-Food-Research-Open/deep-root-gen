@@ -7,6 +7,7 @@ DeepRootGen
 
    introduction/index.rst
    usage/index.rst
+   faqs.rst
    api_reference/index.rst
    changelogs/changelog.rst
 
