@@ -3,6 +3,7 @@
 This module defines utility functions for calibrating simulation models from summary statistics.
 """
 
+from deeprootgen.statistics.summary_statistics import RootLengthDensity
 import numpy as np
 import pandas as pd
 
@@ -17,7 +18,7 @@ from ..statistics import (
     get_distance_metric_func,
     get_summary_statistic_func,
 )
-
+from ..statistics.spatial_rld import calculate_core_rld
 
 def get_calibration_summary_stats(input_parameters: RootCalibrationModel) -> tuple:
     """Extract summary statistics needed for model calibration.
@@ -159,33 +160,67 @@ def calculate_summary_statistics(
     simulated_values = []
     kwargs = dict(root_tissue_density=simulation_parameters.root_tissue_density)
 
+
     for statistic in statistics_list:
         statistic_name = statistic.statistic_name
 
-        if statistic_name == "root_dry_mass_by_diameter":
-            raise NotImplementedError(
-                "Diameter-class calibration requires "
-                "class-specific observed statistics."
+        if statistic_name == "root_length_density":
+            is_spatial = any(
+                value is not None
+                for value in (
+                    statistic.x,
+                    statistic.y,
+                    statistic.core_radius,
+                )
             )
 
-        statistic_func = get_summary_statistic_func(
-            statistic_name
-        )
+            if is_spatial:
+                if any(
+                    value is None
+                    for value in (
+                        statistic.x,
+                        statistic.y,
+                        statistic.core_radius,
+                    )
+                ):
+                    raise ValueError(
+                        "Spatial RLD requires x, y and core_radius."
+                    )
 
-        kwargs = {
-            "root_tissue_density":
-                simulation_parameters.root_tissue_density
-        }
+                statistic_value = calculate_core_rld(
+                    node_df,
+                    x=statistic.x,
+                    y=statistic.y,
+                    z_lower_bound=statistic.z_lower_bound,
+                    z_upper_bound=statistic.z_upper_bound,
+                    core_radius=statistic.core_radius,
+                    diameter_max_mm=statistic.diameter_max_mm,
+                    plant_id=statistic.plant_id,
+                )
 
-        if statistic_name == "root_length_density":
-            kwargs["soil_df"] = soil_df
+            else:
+                # Existing whole-grid RLD calculation.
+                # soil_df must be generated beforehand.
+                statistic_value = RootLengthDensity(
+                    soil_df=soil_df
+                ).calculate(node_df)
 
-        statistic_instance = statistic_func(**kwargs)
-        statistic_value = statistic_instance.calculate(node_df)
+        else:
+            statistic_func = get_summary_statistic_func(
+                statistic_name
+            )
+
+            statistic_instance = statistic_func(
+                root_tissue_density=(
+                    simulation_parameters.root_tissue_density
+                )
+            )
+
+            statistic_value = statistic_instance.calculate(
+                node_df
+            )
 
         if not np.isscalar(statistic_value):
-            # Preserve the existing exclusion of
-            # non-scalar summary statistics.
             continue
 
         observed_values.append(statistic.statistic_value)

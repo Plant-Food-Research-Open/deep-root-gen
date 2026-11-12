@@ -5,6 +5,7 @@ from .distance_metrics import (
 )
 from .summary_statistics import get_summary_statistic_func, get_summary_statistics
 from .root_grid_aggregation import aggregate_root_grid
+from .spatial_rld import calculate_core_rld
 
 __all__ = [
     "DistanceMetricBase",
@@ -13,4 +14,5 @@ __all__ = [
     "get_summary_statistic_func",
     "get_summary_statistics",
     "aggregate_root_grid", 
+    "calculate_core_rld",
 ]

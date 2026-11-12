@@ -144,11 +144,22 @@ class SummaryStatisticsModel(BaseModel):
             The Pydantic Base model class.
     """
 
+class SummaryStatisticsModel(BaseModel):
     statistic_name: str
     statistic_value: float
+
     z_lower_bound: Optional[float] = 0.0
     z_upper_bound: Optional[float] = 0.0
 
+    # Spatial soil-core observations
+    sample_id: Optional[str] = None
+    plant_id: Optional[int] = None
+    x: Optional[float] = None
+    y: Optional[float] = None
+    core_radius: Optional[float] = None
+
+    # Optional restriction to smaller root diameters
+    diameter_max_mm: Optional[float] = None
 
 class StatisticsComparisonModel(BaseModel):
     """The data model for comparing synthetic and observed data.

@@ -733,12 +733,10 @@ class RootOrgan:
         lengths = np.array(lengths)
 
         coordinates = self.get_coordinates(False)
-        new_coordinate = self.init_segment_coordinates(1, new_length)
-        new_coordinate += coordinates[-1]
         new_coordinate = (
             self.get_coordinates()[-1]
             + self.init_segment_coordinates(
-                1, np.array([new_length])
+                1, new_length
             )[0]
         )
         coordinates.append(new_coordinate)
