@@ -121,22 +121,75 @@ def calculate_summary_statistics(
     )
 
     node_df, _ = simulation.G.as_df()
+    # Build a soil grid if RLD is being calibrated.
+    rld_requested = any(
+        s.statistic_name == "root_length_density"
+        for s in statistics_list
+    )
+
+    soil_df = None
+
+    if rld_requested:
+        dimensions = [
+            input_parameters.soil_layer_height,
+            input_parameters.soil_layer_width,
+            input_parameters.soil_n_layers,
+            input_parameters.soil_n_cols,
+        ]
+
+        if any(v is None or v <= 0 for v in dimensions):
+            raise ValueError(
+                "RLD calibration requires valid soil dimensions."
+            )
+
+        soil_df = simulation.soil.create_soil_grid(
+            input_parameters.soil_layer_height,
+            input_parameters.soil_n_layers,
+            input_parameters.soil_layer_width,
+            input_parameters.soil_n_cols,
+        )
+
+        # Only for the original Soil implementation.
+        soil_df = soil_df.rename(
+            columns={"y": "z", "z": "y"}
+        )
+
+
     observed_values = []
     simulated_values = []
     kwargs = dict(root_tissue_density=simulation_parameters.root_tissue_density)
 
     for statistic in statistics_list:
         statistic_name = statistic.statistic_name
-        statistic_func = get_summary_statistic_func(statistic_name)
+
+        if statistic_name == "root_dry_mass_by_diameter":
+            raise NotImplementedError(
+                "Diameter-class calibration requires "
+                "class-specific observed statistics."
+            )
+
+        statistic_func = get_summary_statistic_func(
+            statistic_name
+        )
+
+        kwargs = {
+            "root_tissue_density":
+                simulation_parameters.root_tissue_density
+        }
+
+        if statistic_name == "root_length_density":
+            kwargs["soil_df"] = soil_df
+
         statistic_instance = statistic_func(**kwargs)
         statistic_value = statistic_instance.calculate(node_df)
 
-        # @TODO calculate by depth and horizontal distance
-        if isinstance(statistic_value, tuple) or isinstance(statistic_value, list):
+        if not np.isscalar(statistic_value):
+            # Preserve the existing exclusion of
+            # non-scalar summary statistics.
             continue
 
         observed_values.append(statistic.statistic_value)
-        simulated_values.append(statistic_value)
+        simulated_values.append(float(statistic_value))
 
     observed = np.array(observed_values).flatten()
     simulated = np.array(simulated_values).flatten()

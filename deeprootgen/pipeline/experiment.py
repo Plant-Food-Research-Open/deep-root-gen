@@ -11,6 +11,7 @@ import os.path as osp
 import uuid
 from datetime import datetime
 
+from deeprootgen.statistics.summary_statistics import RootDryMassByDiameter, RootLengthDensity
 import mlflow
 import networkx as nx
 import numpy as np
@@ -24,6 +25,7 @@ from ydata_profiling import ProfileReport
 from ..data_model import RootSimulationModel
 from ..model import RootSystemSimulation
 from ..statistics import get_summary_statistic_func, get_summary_statistics
+from ..statistics.root_grid_aggregation import aggregate_root_grid
 
 OUT_DIR = osp.join("/app", "outputs")
 
@@ -193,6 +195,7 @@ def log_simulation(
     node_df, edge_df = simulation.G.as_df()
     G = simulation.G.as_networkx()
     time_now = get_datetime_now()
+    os.makedirs(OUT_DIR, exist_ok=True)
 
     outfile = osp.join(OUT_DIR, f"{time_now}-{task}_nodes.csv")
     node_df.to_csv(outfile, index=False)
@@ -218,32 +221,180 @@ def log_simulation(
     profile.to_file(outfile)
     mlflow.log_artifact(outfile)
 
-    kwargs = dict(root_tissue_density=input_parameters.root_tissue_density)
+    # Calculate and log summary statistics.
     statistic_names = []
     statistic_values = []
-    summary_statistics = get_summary_statistics()
-    for summary_statistic in summary_statistics:
-        statistic_name = summary_statistic["value"]
-        statistic_func = get_summary_statistic_func(statistic_name)
-        statistic_instance = statistic_func(**kwargs)
-        statistic_value = statistic_instance.calculate(node_df)
 
-        # @TODO calculate by depth and horizontal distance
-        if isinstance(statistic_value, tuple) or isinstance(statistic_value, tuple):
-            statistic_name = f"average_{statistic_name}"
-            statistic_value = np.array(statistic_value).flatten().mean()
+
+    # Check whether soil dimensions are available.
+    soil_dimensions = [
+        input_parameters.soil_layer_height,
+        input_parameters.soil_layer_width,
+        input_parameters.soil_n_layers,
+        input_parameters.soil_n_cols,
+    ]
+    has_soil_grid = all(
+        value is not None and value > 0
+        for value in soil_dimensions
+    )
+
+    soil_df = None
+
+    if has_soil_grid:
+        soil_df = simulation.soil.create_soil_grid(
+            input_parameters.soil_layer_height,
+            input_parameters.soil_n_layers,
+            input_parameters.soil_layer_width,
+            input_parameters.soil_n_cols,
+        )
+
+        # Required for the original Soil implementation,
+        # which uses y as the vertical axis.
+        # Remove if you have already corrected Soil.
+        soil_df = soil_df.rename(
+            columns={"y": "z", "z": "y"}
+        )
+
+    for statistic in get_summary_statistics():
+        statistic_name = statistic["value"]
+
+        # Spatial root length density.
+        if statistic_name == "root_length_density":
+            if soil_df is None:
+                print(
+                    "Skipping RLD: soil dimensions not configured."
+                )
+                continue
+
+            rld = RootLengthDensity(soil_df=soil_df)
+
+            # Calculate voxel lengths once.
+            voxels = rld.calculate_per_voxel(node_df)
+
+            spatial_results = {
+                "voxels": voxels,
+                "rows": rld.aggregate(voxels, "row"),
+                "columns": rld.aggregate(voxels, "column"),
+                "layers": rld.aggregate(voxels, "layer"),
+            }
+
+            # Log each spatial resolution as an artifact.
+            for resolution, result in spatial_results.items():
+                outfile = osp.join(
+                    OUT_DIR,
+                    f"{time_now}-{task}_rld_{resolution}.csv",
+                )
+                result.to_csv(outfile, index=False)
+                mlflow.log_artifact(outfile)
+
+            # Whole-grid RLD is a scalar MLflow metric.
+            statistic_value = float(
+                voxels["root_length_cm"].sum()
+                / voxels["soil_volume_cm3"].sum()
+            )
+
+        # Root dry mass distribution.
+        elif statistic_name == "root_dry_mass_by_diameter":
+            mass_stat = RootDryMassByDiameter(
+                diameter_bins_mm=[0, 1, 3, np.inf],
+                root_tissue_density=None,
+            )
+
+            mass_df = mass_stat.calculate_df(node_df)
+
+            outfile = osp.join(
+                OUT_DIR,
+                f"{time_now}-{task}_dry_mass_by_diameter.csv",
+            )
+            mass_df.to_csv(outfile, index=False)
+            mlflow.log_artifact(outfile)
+
+            # The class distribution is not a scalar metric.
+            continue
+
+        # Existing summary statistics.
+        else:
+            statistic_func = get_summary_statistic_func(
+                statistic_name
+            )
+
+            statistic_instance = statistic_func(
+                root_tissue_density=(
+                    input_parameters.root_tissue_density
+                )
+            )
+
+            statistic_value = statistic_instance.calculate(
+                node_df
+            )
+
+            # Preserve existing behaviour for tuple results.
+            if isinstance(statistic_value, tuple):
+                statistic_name = f"average_{statistic_name}"
+                statistic_value = float(
+                    np.asarray(statistic_value).flatten().mean()
+                )
+
+            elif not np.isscalar(statistic_value):
+                continue
+
+        statistic_value = float(statistic_value)
+
+        if not np.isfinite(statistic_value):
+            continue
 
         statistic_names.append(statistic_name)
         statistic_values.append(statistic_value)
+
         mlflow.log_metric(statistic_name, statistic_value)
 
-    statistic_df = pd.DataFrame(
-        {"statistic_name": statistic_names, "statistic_value": statistic_values}
+    statistic_df = pd.DataFrame({
+        "statistic_name": statistic_names,
+        "statistic_value": statistic_values,
+    })
+
+    outfile = osp.join(
+        OUT_DIR,
+        f"{time_now}-{task}_summary_statistics.csv",
     )
-    outfile = osp.join(OUT_DIR, f"{time_now}-{task}_summary_statistics.csv")
     statistic_df.to_csv(outfile, index=False)
     mlflow.log_artifact(outfile)
 
+    # Export aggregated root architecture by soil voxel.
+    soil_dimensions = [
+        input_parameters.soil_layer_height,
+        input_parameters.soil_layer_width,
+        input_parameters.soil_n_layers,
+        input_parameters.soil_n_cols,
+    ]
+
+    if all(v is not None and v > 0 for v in soil_dimensions):
+        soil_df = simulation.soil.create_soil_grid(
+            input_parameters.soil_layer_height,
+            input_parameters.soil_n_layers,
+            input_parameters.soil_layer_width,
+            input_parameters.soil_n_cols,
+        )
+
+        # Remove if the Soil coordinate convention
+        # has already been corrected.
+        soil_df = soil_df.rename(
+            columns={"y": "z", "z": "y"}
+        )
+
+        grid_df, totals_df = aggregate_root_grid(
+            node_df, soil_df
+        )
+
+        for name, data in {
+            "root_grid_aggregates": grid_df,
+            "root_biomass_totals": totals_df,
+        }.items():
+            outfile = osp.join(
+                OUT_DIR, f"{time_now}-{task}_{name}.csv"
+            )
+            data.to_csv(outfile, index=False)
+            mlflow.log_artifact(outfile)
 
 def load_form_parameters(
     list_of_contents: list, list_of_names: list, form_name: str, task: str = ""

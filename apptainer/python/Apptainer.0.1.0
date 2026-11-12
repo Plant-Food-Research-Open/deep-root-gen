@@ -1,5 +1,5 @@
 Bootstrap: docker
-From: ghcr.io/jbris/deep-root-gen:0.1.0
+From: ghcr.io/Plant-Food-Research-Open/deep-root-gen:0.1.0
 
 %labels
     Maintainer james.bristow@plantandfood.co.nz

@@ -4,11 +4,11 @@
 
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Tests](https://github.com/JBris/deep-root-gen/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/JBris/deep-root-gen/actions/workflows/tests.yaml)
-[![Documentation](https://github.com/JBris/deep-root-gen/actions/workflows/docs.yaml/badge.svg?branch=main)](https://github.com/JBris/deep-root-gen/actions/workflows/docs.yaml)
-[![Build](https://github.com/JBris/deep-root-gen/actions/workflows/docker-build.yaml/badge.svg?branch=main)](https://github.com/JBris/deep-root-gen/actions/workflows/docker-build.yaml)
+[![Tests](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/tests.yaml)
+[![Documentation](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docs.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docs.yaml)
+[![Build](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docker-build.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docker-build.yaml)
 
-Website: [DeepRootGen](https://jbris.github.io/deep-root-gen/)
+Website: [DeepRootGen](https://Plant-Food-Research-Open.github.io/deep-root-gen/)
 
 *A simulation model for the digital reconstruction of 3D root system architectures. Integrated with a simulation-based inference generative deep learning model.*
 

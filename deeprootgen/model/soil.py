@@ -56,7 +56,11 @@ class Soil:
         zv *= voxel_width * (n_cols - 1)
         zv -= voxel_width / 2 * (n_cols - 1)
 
-        soil_df = pd.DataFrame({"x": xv, "y": yv, "z": zv})
+        soil_df = pd.DataFrame({
+            "x": xv,
+            "y": zv,
+            "z": yv,
+        })
         return soil_df
 
     def create_soil_fig(self, soil_df: pd.DataFrame) -> go.Figure:
@@ -75,11 +79,13 @@ class Soil:
                 go.Scatter3d(
                     name="soil",
                     x=soil_df["x"],
-                    y=soil_df["z"],
-                    z=soil_df["y"],
+                    y=soil_df["y"],
+                    z=soil_df["z"],
                     mode="markers",
                     marker=dict(
-                        size=4, color="brown", colorscale="brwnyl", opacity=0.5
+                        size=4,
+                        color="brown",
+                        opacity=0.5,
                     ),
                 )
             ]

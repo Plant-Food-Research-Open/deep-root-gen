@@ -200,31 +200,37 @@ class RootOrgan:
             np.ndarray:
                 The 3D root segment coordinates.
         """
-        coordinates = [np.repeat(0, 3)]
+        coordinates = [np.zeros(3)]
         root_vary = self.input_parameters.root_vary
-        y_rotations = self.rng.uniform(-root_vary, root_vary, segments_per_root)
-        z_rotations = self.rng.uniform(-root_vary, root_vary, segments_per_root)
-        # noise = self.rng.uniform(1e-4, 1e-3, segments_per_root)
 
-        for i in range(lengths.shape[0]):
-            segment_length = lengths[i]
-            coord = np.array([np.repeat(segment_length, 3)])
-            homogenous_coordinates = make_homogenous(coord)
-            y_rotate = y_rotations[i]
-            z_rotate = z_rotations[i]
-            current_coord = coordinates[i]
-            transformation_matrix = get_transform_matrix(
-                pitch=y_rotate, yaw=z_rotate, translation=current_coord
-            )
-            transformed_coordinates = (
-                transformation_matrix[:-1] @ homogenous_coordinates
-            )
-            coord = transformed_coordinates.T[0]
-            coordinates.append(coord)
+        y_rotations = self.rng.uniform(
+            -root_vary, root_vary, segments_per_root
+        )
+        z_rotations = self.rng.uniform(
+            -root_vary, root_vary, segments_per_root
+        )
 
-        coordinates = np.array(coordinates)
+        for i, segment_length in enumerate(lengths):
+            displacement = np.full(
+                (1, 3), segment_length / np.sqrt(3.0)
+            )
+
+            homogeneous = make_homogenous(displacement)
+
+            transform = get_transform_matrix(
+                pitch=y_rotations[i],
+                yaw=z_rotations[i],
+                translation=coordinates[-1],
+            )
+
+            endpoint = (transform @ homogeneous)[:3, 0]
+            coordinates.append(endpoint)
+
+        coordinates = np.asarray(coordinates)
+
         coordinates[:, 2] *= -1
-        return coordinates
+        return coordinates[1:]
+
 
     def calculate_mass(self) -> float:
         """Calculate the mass of the root organ.
@@ -332,12 +338,13 @@ class RootOrgan:
         """
         diameters = self.init_diameters(segments_per_root, apex_diameter)
         lengths = self.init_lengths(segments_per_root)
-        coordinates = self.init_segment_coordinates(segments_per_root, lengths)
 
         parent_data = self.parent_node.node_data
         parent_order = parent_data.order
         diameters += parent_data.diameter * 0.1**parent_order
         lengths += parent_data.length * 0.1**parent_order
+
+        coordinates = self.init_segment_coordinates(segments_per_root, lengths)
 
         avg_diameter = diameters.mean(axis=0)
         if avg_diameter > self.fine_root_threshold:
@@ -596,9 +603,7 @@ class RootOrgan:
             np.ndarray:
                 The local origin.
         """
-        node_data = self.segments[0].node_data
-        origin = np.array([node_data.x, node_data.y, node_data.z])
-        return origin
+        return self.get_parent_origin()
 
     def get_apex_coordinates(self) -> np.ndarray:
         """Get the apex coordinates of the current root.
@@ -671,9 +676,9 @@ class RootOrgan:
 
         iter_count = 0
         coordinates = self.get_coordinates()
-        if np.any(coordinates[:, 2] > no_root_zone):
-            coordinates[:, 2] *= -1
-            self.set_coordinates(coordinates)
+        # if np.any(coordinates[:, 2] > no_root_zone):
+        #     coordinates[:, 2] *= -1
+        #     self.set_coordinates(coordinates)
 
         while np.any(coordinates[:, 2] > no_root_zone):
             if iter_count > max_attempts:
@@ -684,9 +689,19 @@ class RootOrgan:
 
         # Remove detached roots
         if current_order > 1:
-            local_origin = np.around(self.get_local_origin())
-            parent_coordinates = np.around(self.get_parent_origin())
-            if np.any(np.not_equal(local_origin, parent_coordinates)):
+            parent_coordinates = self.get_parent_origin()
+            first_segment = self.segments[0]
+            first_coordinates = self.get_coordinates()[0]
+            distance = np.linalg.norm(
+                first_coordinates - parent_coordinates
+            )
+
+            expected_length = first_segment.node_data.length
+            if not np.isclose(
+                distance, expected_length,
+                rtol=1e-5,
+                atol=1e-6,
+            ):
                 return self.cascading_set_invalid_root()
 
     def grow(
@@ -720,7 +735,12 @@ class RootOrgan:
         coordinates = self.get_coordinates(False)
         new_coordinate = self.init_segment_coordinates(1, new_length)
         new_coordinate += coordinates[-1]
-        new_coordinate = new_coordinate[1, :]
+        new_coordinate = (
+            self.get_coordinates()[-1]
+            + self.init_segment_coordinates(
+                1, np.array([new_length])
+            )[0]
+        )
         coordinates.append(new_coordinate)
         coordinates = np.array(coordinates)
 
@@ -1224,7 +1244,87 @@ class RootSystemSimulation:
                 The simulation results.
         """
         self.init_organs(input_parameters)
-        self.grow(self, input_parameters)
+        # self.grow(self, input_parameters)
         self.position_secondary_roots(input_parameters)
         self.position_primary_roots(input_parameters)
+        self.apply_gravitropism(input_parameters.gravitropism)
         self.validate(input_parameters, pitch=60)
+
+
+    def apply_gravitropism(self, gravitropism: float) -> None:
+        """Apply gravitropic bending to the root system.
+
+        Args:
+            gravitropism (float):
+                Gravitropic strength between 0 and 1.
+                0 = no gravitropic response.
+                1 = all segments directed vertically downward.
+        """
+        if not 0 <= gravitropism <= 1:
+            raise ValueError("gravitropism must be between 0 and 1.")
+
+        if gravitropism == 0:
+            return
+
+        gravity = np.array([0.0, 0.0, -1.0])
+
+        # Preserve original coordinates before modifying the graph.
+        original = {
+            node.node_data.node_id: np.array(
+                [
+                    node.node_data.x,
+                    node.node_data.y,
+                    node.node_data.z,
+                ],
+                dtype=float,
+            )
+            for node in self.G.nodes
+        }
+
+        updated = {}
+
+        # Nodes are stored in parent-before-child order.
+        for node in self.G.nodes:
+            data = node.node_data
+            node_id = data.node_id
+            parent_id = data.parent_id
+
+            if parent_id not in original:
+                updated[node_id] = original[node_id].copy()
+                continue
+
+            # Original segment displacement.
+            displacement = (
+                original[node_id] - original[parent_id]
+            )
+
+            length = np.linalg.norm(displacement)
+
+            if length < 1e-12:
+                updated[node_id] = updated[parent_id].copy()
+                continue
+
+            direction = displacement / length
+
+            # Bias segment direction towards gravity.
+            direction = (
+                (1 - gravitropism) * direction
+                + gravitropism * gravity
+            )
+
+            norm = np.linalg.norm(direction)
+
+            if norm < 1e-12:
+                direction = gravity.copy()
+            else:
+                direction /= norm
+
+            # Preserve geometric segment length.
+            updated[node_id] = (
+                updated[parent_id] + length * direction
+            )
+
+        # Update root node coordinates.
+        for node in self.G.nodes:
+            data = node.node_data
+            data.x, data.y, data.z = updated[data.node_id]
