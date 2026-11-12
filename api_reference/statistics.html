@@ -79,6 +79,8 @@
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.ConvexHullVolume"><code class="docutils literal notranslate"><span class="pre">ConvexHullVolume</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.DepthDistribution"><code class="docutils literal notranslate"><span class="pre">DepthDistribution</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.RadialDistribution"><code class="docutils literal notranslate"><span class="pre">RadialDistribution</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter"><code class="docutils literal notranslate"><span class="pre">RootDryMassByDiameter</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.RootLengthDensity"><code class="docutils literal notranslate"><span class="pre">RootLengthDensity</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.SummaryStatisticBase"><code class="docutils literal notranslate"><span class="pre">SummaryStatisticBase</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.TotalDiameter"><code class="docutils literal notranslate"><span class="pre">TotalDiameter</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.TotalLength"><code class="docutils literal notranslate"><span class="pre">TotalLength</span></code></a></li>
@@ -632,6 +634,87 @@
 </dl>
 </dd>
 </dl>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootDryMassByDiameter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.statistics.summary_statistics.</span></span><span class="sig-name descname"><span class="pre">RootDryMassByDiameter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">diameter_bins_mm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_tissue_density</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootDryMassByDiameter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter" title="Link to this definition"></a></dt>
+<dd><p>Root dry mass grouped by root diameter class.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.calculate">
+<span class="sig-name descname"><span class="pre">calculate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootDryMassByDiameter.calculate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.calculate" title="Link to this definition"></a></dt>
+<dd><p>Calculate root dry mass (g) in each diameter class.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.calculate_df">
+<span class="sig-name descname"><span class="pre">calculate_df</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootDryMassByDiameter.calculate_df"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.calculate_df" title="Link to this definition"></a></dt>
+<dd><p>Return a dataframe of root dry mass by diameter.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.get_xy_comparison_data">
+<span class="sig-name descname"><span class="pre">get_xy_comparison_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n_elements</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootDryMassByDiameter.get_xy_comparison_data"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.get_xy_comparison_data" title="Link to this definition"></a></dt>
+<dd><p>Get summary statistic data for comparing against another summary statistic.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>df (pd.DataFrame):</dt><dd><p>The dataframe of root data.</p>
+</dd>
+<dt>n_elements (int, optional):</dt><dd><p>The number of elements for the comparison. Defaults to 10.</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><dl class="simple">
+<dt>np.ndarray:</dt><dd><p>The comparison data.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.visualise">
+<span class="sig-name descname"><span class="pre">visualise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Figure</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootDryMassByDiameter.visualise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.visualise" title="Link to this definition"></a></dt>
+<dd><p>Visualise dry mass by diameter class.</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootLengthDensity">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">deeprootgen.statistics.summary_statistics.</span></span><span class="sig-name descname"><span class="pre">RootLengthDensity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">soil_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length_source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'recorded'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">root_types</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootLengthDensity"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootLengthDensity" title="Link to this definition"></a></dt>
+<dd><p>Root length density within a 3D soil voxel grid.</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootLengthDensity.aggregate">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">aggregate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">voxels</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">by</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootLengthDensity.aggregate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootLengthDensity.aggregate" title="Link to this definition"></a></dt>
+<dd><p>Aggregate voxel RLD by row, column, or layer.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate">
+<span class="sig-name descname"><span class="pre">calculate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootLengthDensity.calculate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate" title="Link to this definition"></a></dt>
+<dd><p>Whole-grid root length density.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate_per_voxel">
+<span class="sig-name descname"><span class="pre">calculate_per_voxel</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">DataFrame</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootLengthDensity.calculate_per_voxel"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate_per_voxel" title="Link to this definition"></a></dt>
+<dd><p>Calculate RLD for every soil voxel.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate_statistic_per_layer">
+<span class="sig-name descname"><span class="pre">calculate_statistic_per_layer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layer_decrement</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">10</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootLengthDensity.calculate_statistic_per_layer"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate_statistic_per_layer" title="Link to this definition"></a></dt>
+<dd><p>Compatibility with the existing base-class interface.</p>
+<p>Uses actual soil grid layers, not layer_decrement.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="deeprootgen.statistics.summary_statistics.RootLengthDensity.visualise">
+<span class="sig-name descname"><span class="pre">visualise</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">_</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Figure</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/summary_statistics.html#RootLengthDensity.visualise"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.summary_statistics.RootLengthDensity.visualise" title="Link to this definition"></a></dt>
+<dd><p>Visualise RLD using the actual soil depth layers.</p>
 </dd></dl>
 
 </dd></dl>

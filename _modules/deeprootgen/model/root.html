@@ -288,31 +288,37 @@
 <span class="sd">            np.ndarray:</span>
 <span class="sd">                The 3D root segment coordinates.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">coordinates</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">3</span><span class="p">)]</span>
+        <span class="n">coordinates</span> <span class="o">=</span> <span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">3</span><span class="p">)]</span>
         <span class="n">root_vary</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_parameters</span><span class="o">.</span><span class="n">root_vary</span>
-        <span class="n">y_rotations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">root_vary</span><span class="p">,</span> <span class="n">root_vary</span><span class="p">,</span> <span class="n">segments_per_root</span><span class="p">)</span>
-        <span class="n">z_rotations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="o">-</span><span class="n">root_vary</span><span class="p">,</span> <span class="n">root_vary</span><span class="p">,</span> <span class="n">segments_per_root</span><span class="p">)</span>
-        <span class="c1"># noise = self.rng.uniform(1e-4, 1e-3, segments_per_root)</span>
 
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">lengths</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]):</span>
-            <span class="n">segment_length</span> <span class="o">=</span> <span class="n">lengths</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">coord</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">np</span><span class="o">.</span><span class="n">repeat</span><span class="p">(</span><span class="n">segment_length</span><span class="p">,</span> <span class="mi">3</span><span class="p">)])</span>
-            <span class="n">homogenous_coordinates</span> <span class="o">=</span> <span class="n">make_homogenous</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
-            <span class="n">y_rotate</span> <span class="o">=</span> <span class="n">y_rotations</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">z_rotate</span> <span class="o">=</span> <span class="n">z_rotations</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">current_coord</span> <span class="o">=</span> <span class="n">coordinates</span><span class="p">[</span><span class="n">i</span><span class="p">]</span>
-            <span class="n">transformation_matrix</span> <span class="o">=</span> <span class="n">get_transform_matrix</span><span class="p">(</span>
-                <span class="n">pitch</span><span class="o">=</span><span class="n">y_rotate</span><span class="p">,</span> <span class="n">yaw</span><span class="o">=</span><span class="n">z_rotate</span><span class="p">,</span> <span class="n">translation</span><span class="o">=</span><span class="n">current_coord</span>
-            <span class="p">)</span>
-            <span class="n">transformed_coordinates</span> <span class="o">=</span> <span class="p">(</span>
-                <span class="n">transformation_matrix</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">@</span> <span class="n">homogenous_coordinates</span>
-            <span class="p">)</span>
-            <span class="n">coord</span> <span class="o">=</span> <span class="n">transformed_coordinates</span><span class="o">.</span><span class="n">T</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-            <span class="n">coordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">coord</span><span class="p">)</span>
+        <span class="n">y_rotations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span>
+            <span class="o">-</span><span class="n">root_vary</span><span class="p">,</span> <span class="n">root_vary</span><span class="p">,</span> <span class="n">segments_per_root</span>
+        <span class="p">)</span>
+        <span class="n">z_rotations</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span>
+            <span class="o">-</span><span class="n">root_vary</span><span class="p">,</span> <span class="n">root_vary</span><span class="p">,</span> <span class="n">segments_per_root</span>
+        <span class="p">)</span>
 
-        <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coordinates</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">segment_length</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">lengths</span><span class="p">):</span>
+            <span class="n">displacement</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span>
+                <span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">),</span> <span class="n">segment_length</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="mf">3.0</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="n">homogeneous</span> <span class="o">=</span> <span class="n">make_homogenous</span><span class="p">(</span><span class="n">displacement</span><span class="p">)</span>
+
+            <span class="n">transform</span> <span class="o">=</span> <span class="n">get_transform_matrix</span><span class="p">(</span>
+                <span class="n">pitch</span><span class="o">=</span><span class="n">y_rotations</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                <span class="n">yaw</span><span class="o">=</span><span class="n">z_rotations</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+                <span class="n">translation</span><span class="o">=</span><span class="n">coordinates</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+            <span class="p">)</span>
+
+            <span class="n">endpoint</span> <span class="o">=</span> <span class="p">(</span><span class="n">transform</span> <span class="o">@</span> <span class="n">homogeneous</span><span class="p">)[:</span><span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">]</span>
+            <span class="n">coordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">endpoint</span><span class="p">)</span>
+
+        <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">coordinates</span><span class="p">)</span>
+
         <span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
-        <span class="k">return</span> <span class="n">coordinates</span></div>
+        <span class="k">return</span> <span class="n">coordinates</span><span class="p">[</span><span class="mi">1</span><span class="p">:]</span></div>
+
 
 
 <div class="viewcode-block" id="RootOrgan.calculate_mass">
@@ -429,12 +435,13 @@
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="n">diameters</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_diameters</span><span class="p">(</span><span class="n">segments_per_root</span><span class="p">,</span> <span class="n">apex_diameter</span><span class="p">)</span>
         <span class="n">lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_lengths</span><span class="p">(</span><span class="n">segments_per_root</span><span class="p">)</span>
-        <span class="n">coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_segment_coordinates</span><span class="p">(</span><span class="n">segments_per_root</span><span class="p">,</span> <span class="n">lengths</span><span class="p">)</span>
 
         <span class="n">parent_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_node</span><span class="o">.</span><span class="n">node_data</span>
         <span class="n">parent_order</span> <span class="o">=</span> <span class="n">parent_data</span><span class="o">.</span><span class="n">order</span>
         <span class="n">diameters</span> <span class="o">+=</span> <span class="n">parent_data</span><span class="o">.</span><span class="n">diameter</span> <span class="o">*</span> <span class="mf">0.1</span><span class="o">**</span><span class="n">parent_order</span>
         <span class="n">lengths</span> <span class="o">+=</span> <span class="n">parent_data</span><span class="o">.</span><span class="n">length</span> <span class="o">*</span> <span class="mf">0.1</span><span class="o">**</span><span class="n">parent_order</span>
+
+        <span class="n">coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_segment_coordinates</span><span class="p">(</span><span class="n">segments_per_root</span><span class="p">,</span> <span class="n">lengths</span><span class="p">)</span>
 
         <span class="n">avg_diameter</span> <span class="o">=</span> <span class="n">diameters</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">avg_diameter</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">fine_root_threshold</span><span class="p">:</span>
@@ -726,9 +733,7 @@
 <span class="sd">            np.ndarray:</span>
 <span class="sd">                The local origin.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">node_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">segments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">node_data</span>
-        <span class="n">origin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">node_data</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">node_data</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">node_data</span><span class="o">.</span><span class="n">z</span><span class="p">])</span>
-        <span class="k">return</span> <span class="n">origin</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parent_origin</span><span class="p">()</span></div>
 
 
 <div class="viewcode-block" id="RootOrgan.get_apex_coordinates">
@@ -816,9 +821,9 @@
 
         <span class="n">iter_count</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="n">coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">no_root_zone</span><span class="p">):</span>
-            <span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">*=</span> <span class="o">-</span><span class="mi">1</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">set_coordinates</span><span class="p">(</span><span class="n">coordinates</span><span class="p">)</span>
+        <span class="c1"># if np.any(coordinates[:, 2] &gt; no_root_zone):</span>
+        <span class="c1">#     coordinates[:, 2] *= -1</span>
+        <span class="c1">#     self.set_coordinates(coordinates)</span>
 
         <span class="k">while</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">coordinates</span><span class="p">[:,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">no_root_zone</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">iter_count</span> <span class="o">&gt;</span> <span class="n">max_attempts</span><span class="p">:</span>
@@ -829,9 +834,19 @@
 
         <span class="c1"># Remove detached roots</span>
         <span class="k">if</span> <span class="n">current_order</span> <span class="o">&gt;</span> <span class="mi">1</span><span class="p">:</span>
-            <span class="n">local_origin</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_local_origin</span><span class="p">())</span>
-            <span class="n">parent_coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">around</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">get_parent_origin</span><span class="p">())</span>
-            <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">not_equal</span><span class="p">(</span><span class="n">local_origin</span><span class="p">,</span> <span class="n">parent_coordinates</span><span class="p">)):</span>
+            <span class="n">parent_coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_parent_origin</span><span class="p">()</span>
+            <span class="n">first_segment</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">segments</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">first_coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">distance</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span>
+                <span class="n">first_coordinates</span> <span class="o">-</span> <span class="n">parent_coordinates</span>
+            <span class="p">)</span>
+
+            <span class="n">expected_length</span> <span class="o">=</span> <span class="n">first_segment</span><span class="o">.</span><span class="n">node_data</span><span class="o">.</span><span class="n">length</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span>
+                <span class="n">distance</span><span class="p">,</span> <span class="n">expected_length</span><span class="p">,</span>
+                <span class="n">rtol</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span>
+                <span class="n">atol</span><span class="o">=</span><span class="mf">1e-6</span><span class="p">,</span>
+            <span class="p">):</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">cascading_set_invalid_root</span><span class="p">()</span></div>
 
 
@@ -868,7 +883,12 @@
         <span class="n">coordinates</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
         <span class="n">new_coordinate</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_segment_coordinates</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">new_length</span><span class="p">)</span>
         <span class="n">new_coordinate</span> <span class="o">+=</span> <span class="n">coordinates</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-        <span class="n">new_coordinate</span> <span class="o">=</span> <span class="n">new_coordinate</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="p">:]</span>
+        <span class="n">new_coordinate</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">get_coordinates</span><span class="p">()[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">init_segment_coordinates</span><span class="p">(</span>
+                <span class="mi">1</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">new_length</span><span class="p">])</span>
+            <span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="p">)</span>
         <span class="n">coordinates</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">new_coordinate</span><span class="p">)</span>
         <span class="n">coordinates</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">coordinates</span><span class="p">)</span>
 
@@ -1405,10 +1425,93 @@
 <span class="sd">                The simulation results.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">init_organs</span><span class="p">(</span><span class="n">input_parameters</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">grow</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">input_parameters</span><span class="p">)</span>
+        <span class="c1"># self.grow(self, input_parameters)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">position_secondary_roots</span><span class="p">(</span><span class="n">input_parameters</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">position_primary_roots</span><span class="p">(</span><span class="n">input_parameters</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">apply_gravitropism</span><span class="p">(</span><span class="n">input_parameters</span><span class="o">.</span><span class="n">gravitropism</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">input_parameters</span><span class="p">,</span> <span class="n">pitch</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="RootSystemSimulation.apply_gravitropism">
+<a class="viewcode-back" href="../../../api_reference/model.html#deeprootgen.model.root.RootSystemSimulation.apply_gravitropism">[docs]</a>
+    <span class="k">def</span> <span class="nf">apply_gravitropism</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">gravitropism</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Apply gravitropic bending to the root system.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            gravitropism (float):</span>
+<span class="sd">                Gravitropic strength between 0 and 1.</span>
+<span class="sd">                0 = no gravitropic response.</span>
+<span class="sd">                1 = all segments directed vertically downward.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">gravitropism</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;gravitropism must be between 0 and 1.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">gravitropism</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="n">gravity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">1.0</span><span class="p">])</span>
+
+        <span class="c1"># Preserve original coordinates before modifying the graph.</span>
+        <span class="n">original</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="n">node</span><span class="o">.</span><span class="n">node_data</span><span class="o">.</span><span class="n">node_id</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">node_data</span><span class="o">.</span><span class="n">x</span><span class="p">,</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">node_data</span><span class="o">.</span><span class="n">y</span><span class="p">,</span>
+                    <span class="n">node</span><span class="o">.</span><span class="n">node_data</span><span class="o">.</span><span class="n">z</span><span class="p">,</span>
+                <span class="p">],</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">G</span><span class="o">.</span><span class="n">nodes</span>
+        <span class="p">}</span>
+
+        <span class="n">updated</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="c1"># Nodes are stored in parent-before-child order.</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">G</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">node_data</span>
+            <span class="n">node_id</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">node_id</span>
+            <span class="n">parent_id</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">parent_id</span>
+
+            <span class="k">if</span> <span class="n">parent_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">original</span><span class="p">:</span>
+                <span class="n">updated</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">original</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Original segment displacement.</span>
+            <span class="n">displacement</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">original</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span> <span class="o">-</span> <span class="n">original</span><span class="p">[</span><span class="n">parent_id</span><span class="p">]</span>
+            <span class="p">)</span>
+
+            <span class="n">length</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">displacement</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">length</span> <span class="o">&lt;</span> <span class="mf">1e-12</span><span class="p">:</span>
+                <span class="n">updated</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span> <span class="o">=</span> <span class="n">updated</span><span class="p">[</span><span class="n">parent_id</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+                <span class="k">continue</span>
+
+            <span class="n">direction</span> <span class="o">=</span> <span class="n">displacement</span> <span class="o">/</span> <span class="n">length</span>
+
+            <span class="c1"># Bias segment direction towards gravity.</span>
+            <span class="n">direction</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">gravitropism</span><span class="p">)</span> <span class="o">*</span> <span class="n">direction</span>
+                <span class="o">+</span> <span class="n">gravitropism</span> <span class="o">*</span> <span class="n">gravity</span>
+            <span class="p">)</span>
+
+            <span class="n">norm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">direction</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">norm</span> <span class="o">&lt;</span> <span class="mf">1e-12</span><span class="p">:</span>
+                <span class="n">direction</span> <span class="o">=</span> <span class="n">gravity</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">direction</span> <span class="o">/=</span> <span class="n">norm</span>
+
+            <span class="c1"># Preserve geometric segment length.</span>
+            <span class="n">updated</span><span class="p">[</span><span class="n">node_id</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="n">updated</span><span class="p">[</span><span class="n">parent_id</span><span class="p">]</span> <span class="o">+</span> <span class="n">length</span> <span class="o">*</span> <span class="n">direction</span>
+            <span class="p">)</span>
+
+        <span class="c1"># Update root node coordinates.</span>
+        <span class="k">for</span> <span class="n">node</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">G</span><span class="o">.</span><span class="n">nodes</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">node</span><span class="o">.</span><span class="n">node_data</span>
+            <span class="n">data</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">z</span> <span class="o">=</span> <span class="n">updated</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">node_id</span><span class="p">]</span></div>
 </div>
 
 </pre></div>

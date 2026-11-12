@@ -135,7 +135,11 @@
         <span class="n">zv</span> <span class="o">*=</span> <span class="n">voxel_width</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_cols</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
         <span class="n">zv</span> <span class="o">-=</span> <span class="n">voxel_width</span> <span class="o">/</span> <span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">n_cols</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
 
-        <span class="n">soil_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">xv</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">yv</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="n">zv</span><span class="p">})</span>
+        <span class="n">soil_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+            <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">xv</span><span class="p">,</span>
+            <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">zv</span><span class="p">,</span>
+            <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="n">yv</span><span class="p">,</span>
+        <span class="p">})</span>
         <span class="k">return</span> <span class="n">soil_df</span></div>
 
 
@@ -157,11 +161,13 @@
                 <span class="n">go</span><span class="o">.</span><span class="n">Scatter3d</span><span class="p">(</span>
                     <span class="n">name</span><span class="o">=</span><span class="s2">&quot;soil&quot;</span><span class="p">,</span>
                     <span class="n">x</span><span class="o">=</span><span class="n">soil_df</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">],</span>
-                    <span class="n">y</span><span class="o">=</span><span class="n">soil_df</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">],</span>
-                    <span class="n">z</span><span class="o">=</span><span class="n">soil_df</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">],</span>
+                    <span class="n">y</span><span class="o">=</span><span class="n">soil_df</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">],</span>
+                    <span class="n">z</span><span class="o">=</span><span class="n">soil_df</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">],</span>
                     <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;markers&quot;</span><span class="p">,</span>
                     <span class="n">marker</span><span class="o">=</span><span class="nb">dict</span><span class="p">(</span>
-                        <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;brown&quot;</span><span class="p">,</span> <span class="n">colorscale</span><span class="o">=</span><span class="s2">&quot;brwnyl&quot;</span><span class="p">,</span> <span class="n">opacity</span><span class="o">=</span><span class="mf">0.5</span>
+                        <span class="n">size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+                        <span class="n">color</span><span class="o">=</span><span class="s2">&quot;brown&quot;</span><span class="p">,</span>
+                        <span class="n">opacity</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
                     <span class="p">),</span>
                 <span class="p">)</span>
             <span class="p">]</span>

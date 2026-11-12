@@ -204,22 +204,75 @@
     <span class="p">)</span>
 
     <span class="n">node_df</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">simulation</span><span class="o">.</span><span class="n">G</span><span class="o">.</span><span class="n">as_df</span><span class="p">()</span>
+    <span class="c1"># Build a soil grid if RLD is being calibrated.</span>
+    <span class="n">rld_requested</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
+        <span class="n">s</span><span class="o">.</span><span class="n">statistic_name</span> <span class="o">==</span> <span class="s2">&quot;root_length_density&quot;</span>
+        <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">statistics_list</span>
+    <span class="p">)</span>
+
+    <span class="n">soil_df</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">if</span> <span class="n">rld_requested</span><span class="p">:</span>
+        <span class="n">dimensions</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_layer_height</span><span class="p">,</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_layer_width</span><span class="p">,</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_n_layers</span><span class="p">,</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_n_cols</span><span class="p">,</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">v</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">v</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">dimensions</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;RLD calibration requires valid soil dimensions.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">soil_df</span> <span class="o">=</span> <span class="n">simulation</span><span class="o">.</span><span class="n">soil</span><span class="o">.</span><span class="n">create_soil_grid</span><span class="p">(</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_layer_height</span><span class="p">,</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_n_layers</span><span class="p">,</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_layer_width</span><span class="p">,</span>
+            <span class="n">input_parameters</span><span class="o">.</span><span class="n">soil_n_cols</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Only for the original Soil implementation.</span>
+        <span class="n">soil_df</span> <span class="o">=</span> <span class="n">soil_df</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span>
+            <span class="n">columns</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="s2">&quot;y&quot;</span><span class="p">}</span>
+        <span class="p">)</span>
+
+
     <span class="n">observed_values</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">simulated_values</span> <span class="o">=</span> <span class="p">[]</span>
     <span class="n">kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">root_tissue_density</span><span class="o">=</span><span class="n">simulation_parameters</span><span class="o">.</span><span class="n">root_tissue_density</span><span class="p">)</span>
 
     <span class="k">for</span> <span class="n">statistic</span> <span class="ow">in</span> <span class="n">statistics_list</span><span class="p">:</span>
         <span class="n">statistic_name</span> <span class="o">=</span> <span class="n">statistic</span><span class="o">.</span><span class="n">statistic_name</span>
-        <span class="n">statistic_func</span> <span class="o">=</span> <span class="n">get_summary_statistic_func</span><span class="p">(</span><span class="n">statistic_name</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">statistic_name</span> <span class="o">==</span> <span class="s2">&quot;root_dry_mass_by_diameter&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span>
+                <span class="s2">&quot;Diameter-class calibration requires &quot;</span>
+                <span class="s2">&quot;class-specific observed statistics.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">statistic_func</span> <span class="o">=</span> <span class="n">get_summary_statistic_func</span><span class="p">(</span>
+            <span class="n">statistic_name</span>
+        <span class="p">)</span>
+
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;root_tissue_density&quot;</span><span class="p">:</span>
+                <span class="n">simulation_parameters</span><span class="o">.</span><span class="n">root_tissue_density</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">statistic_name</span> <span class="o">==</span> <span class="s2">&quot;root_length_density&quot;</span><span class="p">:</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;soil_df&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">soil_df</span>
+
         <span class="n">statistic_instance</span> <span class="o">=</span> <span class="n">statistic_func</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">statistic_value</span> <span class="o">=</span> <span class="n">statistic_instance</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">node_df</span><span class="p">)</span>
 
-        <span class="c1"># @TODO calculate by depth and horizontal distance</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">statistic_value</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">statistic_value</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isscalar</span><span class="p">(</span><span class="n">statistic_value</span><span class="p">):</span>
+            <span class="c1"># Preserve the existing exclusion of</span>
+            <span class="c1"># non-scalar summary statistics.</span>
             <span class="k">continue</span>
 
         <span class="n">observed_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">statistic</span><span class="o">.</span><span class="n">statistic_value</span><span class="p">)</span>
-        <span class="n">simulated_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">statistic_value</span><span class="p">)</span>
+        <span class="n">simulated_values</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">statistic_value</span><span class="p">))</span>
 
     <span class="n">observed</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">observed_values</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
     <span class="n">simulated</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">simulated_values</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>

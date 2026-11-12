@@ -795,6 +795,453 @@
 
 
 
+
+<div class="viewcode-block" id="RootLengthDensity">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootLengthDensity">[docs]</a>
+<span class="k">class</span> <span class="nc">RootLengthDensity</span><span class="p">(</span><span class="n">SummaryStatisticBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Root length density within a 3D soil voxel grid.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">soil_df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">length_source</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;recorded&quot;</span><span class="p">,</span>
+        <span class="n">root_types</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">_</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">statistic</span> <span class="o">=</span> <span class="s2">&quot;Root length density&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;cm/cm^3&quot;</span>
+
+        <span class="k">if</span> <span class="n">length_source</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">{</span><span class="s2">&quot;recorded&quot;</span><span class="p">,</span> <span class="s2">&quot;geometric&quot;</span><span class="p">}:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;length_source must be &#39;recorded&#39; or &#39;geometric&#39;&quot;</span>
+            <span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">length_source</span> <span class="o">=</span> <span class="n">length_source</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root_types</span> <span class="o">=</span> <span class="n">root_types</span>
+
+        <span class="c1"># Grid points define voxel boundaries.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">edges</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">soil_df</span><span class="p">[</span><span class="n">axis</span><span class="p">]</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">axis</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid soil grid coordinates.&quot;</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">shape</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">e</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">soil_volume</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">prod</span><span class="p">([</span><span class="n">e</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">e</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">])</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_voxel_lengths</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Allocate root segment lengths to intersected voxels.&quot;&quot;&quot;</span>
+
+        <span class="n">required</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;node_id&quot;</span><span class="p">,</span> <span class="s2">&quot;parent_id&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span> <span class="s2">&quot;length&quot;</span>
+        <span class="p">}</span>
+        <span class="n">missing</span> <span class="o">=</span> <span class="n">required</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">missing</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Missing columns: </span><span class="si">{</span><span class="nb">sorted</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="n">nodes</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;node_id&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Select children with known parent coordinates.</span>
+        <span class="n">children</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+            <span class="n">df</span><span class="p">[</span><span class="s2">&quot;parent_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">nodes</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">if</span> <span class="s2">&quot;invalid_root&quot;</span> <span class="ow">in</span> <span class="n">children</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">children</span> <span class="o">=</span> <span class="n">children</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+                <span class="o">~</span><span class="n">children</span><span class="p">[</span><span class="s2">&quot;invalid_root&quot;</span><span class="p">]</span>
+                <span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
+                <span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="p">]</span>
+
+        <span class="k">if</span> <span class="s2">&quot;order&quot;</span> <span class="ow">in</span> <span class="n">children</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">children</span> <span class="o">=</span> <span class="n">children</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">children</span><span class="p">[</span><span class="s2">&quot;order&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_types</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">children</span> <span class="o">=</span> <span class="n">children</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+                <span class="n">children</span><span class="p">[</span><span class="s2">&quot;root_type&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">root_types</span><span class="p">)</span>
+            <span class="p">]</span>
+
+        <span class="n">grid</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">eps</span> <span class="o">=</span> <span class="mf">1e-12</span>
+
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">children</span><span class="o">.</span><span class="n">itertuples</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+            <span class="n">parent</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">parent_id</span><span class="p">]</span>
+
+            <span class="n">a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">parent</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">parent</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">parent</span><span class="o">.</span><span class="n">z</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span>
+            <span class="p">)</span>
+            <span class="n">b</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span>
+                <span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">x</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">y</span><span class="p">,</span> <span class="n">row</span><span class="o">.</span><span class="n">z</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span>
+            <span class="p">)</span>
+
+            <span class="n">displacement</span> <span class="o">=</span> <span class="n">b</span> <span class="o">-</span> <span class="n">a</span>
+            <span class="n">geometric_length</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
+                <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">displacement</span><span class="p">)</span>
+            <span class="p">)</span>
+
+            <span class="n">segment_length</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="nb">float</span><span class="p">(</span><span class="n">row</span><span class="o">.</span><span class="n">length</span><span class="p">)</span>
+                <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">length_source</span> <span class="o">==</span> <span class="s2">&quot;recorded&quot;</span>
+                <span class="k">else</span> <span class="n">geometric_length</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">segment_length</span><span class="p">)</span> <span class="ow">or</span> <span class="n">segment_length</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid segment length.&quot;</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">segment_length</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="k">if</span> <span class="n">geometric_length</span> <span class="o">&lt;=</span> <span class="n">eps</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Node </span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">node_id</span><span class="si">}</span><span class="s2"> has positive length &quot;</span>
+                    <span class="s2">&quot;but coincident endpoints.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="c1"># Clip segment against the soil grid bounding box.</span>
+            <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="o">=</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span>
+
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">edges</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">displacement</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">&lt;=</span> <span class="n">eps</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">a</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">edges</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> <span class="n">a</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">&gt;</span> <span class="n">edges</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+                        <span class="n">hi</span> <span class="o">=</span> <span class="o">-</span><span class="mf">1.0</span>
+                        <span class="k">break</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="n">ts</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">edges</span><span class="p">[[</span><span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">-</span> <span class="n">a</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                    <span class="p">)</span> <span class="o">/</span> <span class="n">displacement</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+
+                    <span class="n">lo</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">lo</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">min</span><span class="p">(</span><span class="n">ts</span><span class="p">)))</span>
+                    <span class="n">hi</span> <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">hi</span><span class="p">,</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">max</span><span class="p">(</span><span class="n">ts</span><span class="p">)))</span>
+
+            <span class="k">if</span> <span class="n">hi</span> <span class="o">-</span> <span class="n">lo</span> <span class="o">&lt;=</span> <span class="n">eps</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># Find intersections with internal voxel boundaries.</span>
+            <span class="n">cuts</span> <span class="o">=</span> <span class="p">[</span><span class="n">lo</span><span class="p">,</span> <span class="n">hi</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">edges</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">):</span>
+                <span class="k">if</span> <span class="nb">abs</span><span class="p">(</span><span class="n">displacement</span><span class="p">[</span><span class="n">j</span><span class="p">])</span> <span class="o">&gt;</span> <span class="n">eps</span><span class="p">:</span>
+                    <span class="n">t</span> <span class="o">=</span> <span class="p">(</span>
+                        <span class="n">edges</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="o">-</span> <span class="n">a</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+                    <span class="p">)</span> <span class="o">/</span> <span class="n">displacement</span><span class="p">[</span><span class="n">j</span><span class="p">]</span>
+
+                    <span class="n">cuts</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span>
+                        <span class="n">t</span><span class="p">[</span>
+                            <span class="p">(</span><span class="n">t</span> <span class="o">&gt;</span> <span class="n">lo</span> <span class="o">+</span> <span class="n">eps</span><span class="p">)</span>
+                            <span class="o">&amp;</span> <span class="p">(</span><span class="n">t</span> <span class="o">&lt;</span> <span class="n">hi</span> <span class="o">-</span> <span class="n">eps</span><span class="p">)</span>
+                        <span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+                    <span class="p">)</span>
+
+            <span class="n">cuts</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sort</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">cuts</span><span class="p">))</span>
+
+            <span class="c1"># Allocate each subsegment to its containing voxel.</span>
+            <span class="k">for</span> <span class="n">t0</span><span class="p">,</span> <span class="n">t1</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">cuts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span> <span class="n">cuts</span><span class="p">[</span><span class="mi">1</span><span class="p">:]):</span>
+                <span class="k">if</span> <span class="n">t1</span> <span class="o">-</span> <span class="n">t0</span> <span class="o">&lt;=</span> <span class="n">eps</span><span class="p">:</span>
+                    <span class="k">continue</span>
+
+                <span class="n">midpoint</span> <span class="o">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">displacement</span> <span class="o">*</span> <span class="p">(</span>
+                    <span class="p">(</span><span class="n">t0</span> <span class="o">+</span> <span class="n">t1</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+                <span class="p">)</span>
+
+                <span class="n">idx</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span>
+                    <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span>
+                        <span class="n">np</span><span class="o">.</span><span class="n">searchsorted</span><span class="p">(</span>
+                            <span class="n">edges</span><span class="p">,</span> <span class="n">midpoint</span><span class="p">[</span><span class="n">j</span><span class="p">],</span> <span class="n">side</span><span class="o">=</span><span class="s2">&quot;right&quot;</span>
+                        <span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span>
+                        <span class="mi">0</span><span class="p">,</span>
+                        <span class="nb">len</span><span class="p">(</span><span class="n">edges</span><span class="p">)</span> <span class="o">-</span> <span class="mi">2</span><span class="p">,</span>
+                    <span class="p">))</span>
+                    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">edges</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">edges</span><span class="p">)</span>
+                <span class="p">)</span>
+
+                <span class="n">grid</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">+=</span> <span class="p">(</span>
+                    <span class="p">(</span><span class="n">t1</span> <span class="o">-</span> <span class="n">t0</span><span class="p">)</span> <span class="o">*</span> <span class="n">segment_length</span>
+                <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">grid</span>
+
+<div class="viewcode-block" id="RootLengthDensity.calculate">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Whole-grid root length density.&quot;&quot;&quot;</span>
+        <span class="n">root_length</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_lengths</span><span class="p">(</span><span class="n">df</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="n">root_length</span> <span class="o">/</span> <span class="bp">self</span><span class="o">.</span><span class="n">soil_volume</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RootLengthDensity.calculate_per_voxel">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate_per_voxel">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_per_voxel</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate RLD for every soil voxel.&quot;&quot;&quot;</span>
+        <span class="n">lengths</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_voxel_lengths</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="n">ix</span><span class="p">,</span> <span class="n">iy</span><span class="p">,</span> <span class="n">iz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">indices</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">shape</span>
+        <span class="p">)</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+        <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">edges</span>
+
+        <span class="n">volumes</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">x</span><span class="p">)[</span><span class="n">ix</span><span class="p">]</span>
+            <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">y</span><span class="p">)[</span><span class="n">iy</span><span class="p">]</span>
+            <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">z</span><span class="p">)[</span><span class="n">iz</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+            <span class="s2">&quot;column&quot;</span><span class="p">:</span> <span class="n">ix</span><span class="p">,</span>
+            <span class="s2">&quot;row&quot;</span><span class="p">:</span> <span class="n">iy</span><span class="p">,</span>
+            <span class="s2">&quot;layer&quot;</span><span class="p">:</span> <span class="n">iz</span><span class="p">,</span>
+            <span class="s2">&quot;x_min&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="n">ix</span><span class="p">],</span>
+            <span class="s2">&quot;x_max&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="n">ix</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;y_min&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">[</span><span class="n">iy</span><span class="p">],</span>
+            <span class="s2">&quot;y_max&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">[</span><span class="n">iy</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;z_min&quot;</span><span class="p">:</span> <span class="n">z</span><span class="p">[</span><span class="n">iz</span><span class="p">],</span>
+            <span class="s2">&quot;z_max&quot;</span><span class="p">:</span> <span class="n">z</span><span class="p">[</span><span class="n">iz</span> <span class="o">+</span> <span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;root_length_cm&quot;</span><span class="p">:</span> <span class="n">lengths</span><span class="o">.</span><span class="n">ravel</span><span class="p">(),</span>
+            <span class="s2">&quot;soil_volume_cm3&quot;</span><span class="p">:</span> <span class="n">volumes</span><span class="p">,</span>
+            <span class="s2">&quot;rld_cm_cm3&quot;</span><span class="p">:</span> <span class="n">lengths</span><span class="o">.</span><span class="n">ravel</span><span class="p">()</span> <span class="o">/</span> <span class="n">volumes</span><span class="p">,</span>
+        <span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="RootLengthDensity.aggregate">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootLengthDensity.aggregate">[docs]</a>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">aggregate</span><span class="p">(</span>
+        <span class="n">voxels</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">by</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Aggregate voxel RLD by row, column, or layer.&quot;&quot;&quot;</span>
+
+        <span class="n">groups</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;row&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;row&quot;</span><span class="p">,</span> <span class="s2">&quot;y_min&quot;</span><span class="p">,</span> <span class="s2">&quot;y_max&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;column&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;column&quot;</span><span class="p">,</span> <span class="s2">&quot;x_min&quot;</span><span class="p">,</span> <span class="s2">&quot;x_max&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;layer&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;layer&quot;</span><span class="p">,</span> <span class="s2">&quot;z_min&quot;</span><span class="p">,</span> <span class="s2">&quot;z_max&quot;</span><span class="p">],</span>
+        <span class="p">}</span>
+
+        <span class="k">if</span> <span class="n">by</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">groups</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;by must be &#39;row&#39;, &#39;column&#39;, or &#39;layer&#39;&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">result</span> <span class="o">=</span> <span class="n">voxels</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span>
+            <span class="n">groups</span><span class="p">[</span><span class="n">by</span><span class="p">],</span> <span class="n">as_index</span><span class="o">=</span><span class="kc">False</span>
+        <span class="p">)[</span>
+            <span class="p">[</span><span class="s2">&quot;root_length_cm&quot;</span><span class="p">,</span> <span class="s2">&quot;soil_volume_cm3&quot;</span><span class="p">]</span>
+        <span class="p">]</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+
+        <span class="n">result</span><span class="p">[</span><span class="s2">&quot;rld_cm_cm3&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;root_length_cm&quot;</span><span class="p">]</span>
+            <span class="o">/</span> <span class="n">result</span><span class="p">[</span><span class="s2">&quot;soil_volume_cm3&quot;</span><span class="p">]</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">by</span> <span class="o">==</span> <span class="s2">&quot;layer&quot;</span><span class="p">:</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;depth_top_cm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;z_max&quot;</span><span class="p">]</span>
+            <span class="n">result</span><span class="p">[</span><span class="s2">&quot;depth_bottom_cm&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="n">result</span><span class="p">[</span><span class="s2">&quot;z_min&quot;</span><span class="p">]</span>
+
+            <span class="n">result</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(</span>
+                <span class="s2">&quot;depth_top_cm&quot;</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result</span></div>
+
+
+    <span class="k">def</span> <span class="nf">calculate_per_row</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_per_voxel</span><span class="p">(</span><span class="n">df</span><span class="p">),</span> <span class="s2">&quot;row&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calculate_per_column</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_per_voxel</span><span class="p">(</span><span class="n">df</span><span class="p">),</span> <span class="s2">&quot;column&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">calculate_per_layer</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">aggregate</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">calculate_per_voxel</span><span class="p">(</span><span class="n">df</span><span class="p">),</span> <span class="s2">&quot;layer&quot;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="RootLengthDensity.calculate_statistic_per_layer">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootLengthDensity.calculate_statistic_per_layer">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_statistic_per_layer</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span>
+        <span class="n">layer_decrement</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Compatibility with the existing base-class interface.</span>
+
+<span class="sd">        Uses actual soil grid layers, not layer_decrement.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">layers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_per_layer</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">layers</span><span class="p">[</span><span class="s2">&quot;rld_cm_cm3&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+            <span class="n">layers</span><span class="p">[</span><span class="s2">&quot;z_max&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span>
+        <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="RootLengthDensity.visualise">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootLengthDensity.visualise">[docs]</a>
+    <span class="k">def</span> <span class="nf">visualise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Visualise RLD using the actual soil depth layers.&quot;&quot;&quot;</span>
+        <span class="n">layers</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_per_layer</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="n">fig</span> <span class="o">=</span> <span class="n">px</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span>
+            <span class="n">layers</span><span class="p">,</span>
+            <span class="n">x</span><span class="o">=</span><span class="s2">&quot;rld_cm_cm3&quot;</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="s2">&quot;depth_top_cm&quot;</span><span class="p">,</span>
+            <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Root length density by soil layer&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_layout</span><span class="p">(</span>
+            <span class="n">xaxis_title</span><span class="o">=</span><span class="s2">&quot;RLD (cm/cm³)&quot;</span><span class="p">,</span>
+            <span class="n">yaxis_title</span><span class="o">=</span><span class="s2">&quot;Soil depth (cm)&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="n">fig</span><span class="o">.</span><span class="n">update_yaxes</span><span class="p">(</span><span class="n">autorange</span><span class="o">=</span><span class="s2">&quot;reversed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">fig</span></div>
+</div>
+
+
+
+<div class="viewcode-block" id="RootDryMassByDiameter">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter">[docs]</a>
+<span class="k">class</span> <span class="nc">RootDryMassByDiameter</span><span class="p">(</span><span class="n">SummaryStatisticBase</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Root dry mass grouped by root diameter class.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">diameter_bins_mm</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">],</span>
+        <span class="n">root_tissue_density</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">_</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">statistic</span> <span class="o">=</span> <span class="s2">&quot;Root dry mass by diameter&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">unit</span> <span class="o">=</span> <span class="s2">&quot;g&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">diameter_bins_mm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span>
+            <span class="n">diameter_bins_mm</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root_tissue_density</span> <span class="o">=</span> <span class="n">root_tissue_density</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diameter_bins_mm</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span>
+            <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">diameter_bins_mm</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">&lt;</span> <span class="mi">0</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">diameter_bins_mm</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid diameter bins.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="p">(</span>
+            <span class="n">root_tissue_density</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+            <span class="ow">and</span> <span class="n">root_tissue_density</span> <span class="o">&lt;=</span> <span class="mi">0</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;RTD must be positive.&quot;</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RootDryMassByDiameter.calculate">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.calculate">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Calculate root dry mass (g) in each diameter class.&quot;&quot;&quot;</span>
+        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="s2">&quot;invalid_root&quot;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+                <span class="o">~</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;invalid_root&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
+            <span class="p">]</span>
+
+        <span class="k">if</span> <span class="s2">&quot;order&quot;</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">df</span><span class="p">[</span><span class="s2">&quot;order&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
+
+        <span class="n">diameter_cm</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;diameter&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+        <span class="n">length_cm</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;length&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_tissue_density</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">rtd</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;root_tissue_density&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span>
+                <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span>
+            <span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">rtd</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root_tissue_density</span>
+
+        <span class="c1"># Cylindrical root segment volume (cm3).</span>
+        <span class="n">volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">diameter_cm</span> <span class="o">/</span> <span class="mi">2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">length_cm</span>
+
+        <span class="c1"># Root dry mass (g).</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="n">volume</span> <span class="o">*</span> <span class="n">rtd</span>
+
+        <span class="c1"># Convert root diameters from cm to mm.</span>
+        <span class="n">diameter_mm</span> <span class="o">=</span> <span class="n">diameter_cm</span> <span class="o">*</span> <span class="mi">10</span>
+
+        <span class="n">mass_per_class</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">histogram</span><span class="p">(</span>
+            <span class="n">diameter_mm</span><span class="p">,</span>
+            <span class="n">bins</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">diameter_bins_mm</span><span class="p">,</span>
+            <span class="n">weights</span><span class="o">=</span><span class="n">mass</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">mass_per_class</span></div>
+
+
+<div class="viewcode-block" id="RootDryMassByDiameter.calculate_df">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.calculate_df">[docs]</a>
+    <span class="k">def</span> <span class="nf">calculate_df</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a dataframe of root dry mass by diameter.&quot;&quot;&quot;</span>
+        <span class="n">mass</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+            <span class="s2">&quot;diameter_min_mm&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">diameter_bins_mm</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;diameter_max_mm&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">diameter_bins_mm</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
+            <span class="s2">&quot;dry_mass_g&quot;</span><span class="p">:</span> <span class="n">mass</span><span class="p">,</span>
+        <span class="p">})</span></div>
+
+
+<div class="viewcode-block" id="RootDryMassByDiameter.get_xy_comparison_data">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.get_xy_comparison_data">[docs]</a>
+    <span class="k">def</span> <span class="nf">get_xy_comparison_data</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">n_elements</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">10</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">:</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">df</span><span class="p">)[:</span><span class="n">n_elements</span><span class="p">]</span></div>
+
+
+<div class="viewcode-block" id="RootDryMassByDiameter.visualise">
+<a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.RootDryMassByDiameter.visualise">[docs]</a>
+    <span class="k">def</span> <span class="nf">visualise</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="o">**</span><span class="n">_</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Visualise dry mass by diameter class.&quot;&quot;&quot;</span>
+        <span class="n">results</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">calculate_df</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="n">labels</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">lo</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">–</span><span class="si">{</span><span class="n">hi</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">hi</span><span class="p">)</span>
+                <span class="k">else</span> <span class="sa">f</span><span class="s2">&quot;≥</span><span class="si">{</span><span class="n">lo</span><span class="si">:</span><span class="s2">g</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">lo</span><span class="p">,</span> <span class="n">hi</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+                <span class="n">results</span><span class="p">[</span><span class="s2">&quot;diameter_min_mm&quot;</span><span class="p">],</span>
+                <span class="n">results</span><span class="p">[</span><span class="s2">&quot;diameter_max_mm&quot;</span><span class="p">],</span>
+            <span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">px</span><span class="o">.</span><span class="n">bar</span><span class="p">(</span>
+            <span class="n">x</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
+            <span class="n">y</span><span class="o">=</span><span class="n">results</span><span class="p">[</span><span class="s2">&quot;dry_mass_g&quot;</span><span class="p">],</span>
+            <span class="n">labels</span><span class="o">=</span><span class="p">{</span>
+                <span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="s2">&quot;Root diameter (mm)&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="s2">&quot;Root dry mass (g)&quot;</span><span class="p">,</span>
+            <span class="p">},</span>
+            <span class="n">title</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">statistic</span><span class="p">,</span>
+        <span class="p">)</span></div>
+</div>
+
+
 <div class="viewcode-block" id="get_summary_statistic_func">
 <a class="viewcode-back" href="../../../api_reference/statistics.html#deeprootgen.statistics.summary_statistics.get_summary_statistic_func">[docs]</a>
 <span class="k">def</span> <span class="nf">get_summary_statistic_func</span><span class="p">(</span><span class="n">summary_statistic</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">:</span>
@@ -824,12 +1271,14 @@
 <span class="sd">            A list of available summary statistics and labels.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">summary_statistics</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="s2">&quot;root_dry_mass_by_diameter&quot;</span><span class="p">,</span>
         <span class="s2">&quot;total_volume&quot;</span><span class="p">,</span>
         <span class="s2">&quot;average_volume&quot;</span><span class="p">,</span>
         <span class="s2">&quot;total_length&quot;</span><span class="p">,</span>
         <span class="s2">&quot;average_length&quot;</span><span class="p">,</span>
         <span class="s2">&quot;total_diameter&quot;</span><span class="p">,</span>
         <span class="s2">&quot;average_diameter&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;root_length_density&quot;</span><span class="p">,</span>
         <span class="c1"># &quot;total_specific_root_length&quot;,</span>
         <span class="c1"># &quot;average_specific_root_length&quot;,</span>
         <span class="s2">&quot;total_weight&quot;</span><span class="p">,</span>
