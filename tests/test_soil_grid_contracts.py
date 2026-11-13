@@ -10,12 +10,17 @@ import pytest
 from deeprootgen.model.soil import Soil
 
 
-@pytest.mark.parametrize("layer_height,n_layers,layer_width,n_cols", [
-    (5.0, 1, 5.0, 1),
-    (10.0, 2, 5.0, 3),
-    (3.0, 4, 2.0, 2),
-])
-def test_soil_grid_has_finite_xyz_coordinates(layer_height, n_layers, layer_width, n_cols):
+@pytest.mark.parametrize(
+    "layer_height,n_layers,layer_width,n_cols",
+    [
+        (5.0, 1, 5.0, 1),
+        (10.0, 2, 5.0, 3),
+        (3.0, 4, 2.0, 2),
+    ],
+)
+def test_soil_grid_has_finite_xyz_coordinates(
+    layer_height, n_layers, layer_width, n_cols
+):
     df = Soil().create_soil_grid(layer_height, n_layers, layer_width, n_cols)
     assert isinstance(df, pd.DataFrame)
     assert not df.empty

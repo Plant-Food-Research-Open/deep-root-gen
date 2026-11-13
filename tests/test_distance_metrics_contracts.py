@@ -48,8 +48,10 @@ def _construct(name):
         elif pname in ("alpha", "quantile", "q"):
             kwargs[pname] = 0.5
         else:
-            pytest.fail(f"{name} has an unknown required constructor argument: {pname}. "
-                        "Update the test fixture to match the module's public API.")
+            pytest.fail(
+                f"{name} has an unknown required constructor argument: {pname}. "
+                "Update the test fixture to match the module's public API."
+            )
     return cls(**kwargs)
 
 

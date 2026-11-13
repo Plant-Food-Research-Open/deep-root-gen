@@ -1,4 +1,5 @@
 """Tests for Prefect/MLflow run metadata logging without a live backend."""
+
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -7,15 +8,23 @@ import pytest
 for dependency in ("mlflow", "prefect"):
     pytest.importorskip(dependency)
 
-from deeprootgen.pipeline import workflow as subject
+from deeprootgen.pipeline import workflow as subject  # noqa: E402
 
 
-@pytest.mark.parametrize("hosts,expected_app,expected_mlflow", [
-    ({}, "http://localhost:8000", "http://localhost:5000"),
-    ({"APP_USER_HOST": "https://roots.example.org",
-      "APP_MLFLOW_USER_HOST": "https://mlflow.example.org"},
-     "https://roots.example.org", "https://mlflow.example.org"),
-])
+@pytest.mark.parametrize(
+    "hosts,expected_app,expected_mlflow",
+    [
+        ({}, "http://localhost:8000", "http://localhost:5000"),
+        (
+            {
+                "APP_USER_HOST": "https://roots.example.org",
+                "APP_MLFLOW_USER_HOST": "https://mlflow.example.org",
+            },
+            "https://roots.example.org",
+            "https://mlflow.example.org",
+        ),
+    ],
+)
 def test_log_experiment_details_creates_markdown_artifact(
     monkeypatch, hosts, expected_app, expected_mlflow
 ):
@@ -23,9 +32,13 @@ def test_log_experiment_details_creates_markdown_artifact(
         monkeypatch.delenv(key, raising=False)
     for key, value in hosts.items():
         monkeypatch.setenv(key, value)
-    monkeypatch.setattr(subject.mlflow, "active_run", lambda: SimpleNamespace(
-        info=SimpleNamespace(experiment_id="exp-3", run_id="run-4")
-    ))
+    monkeypatch.setattr(
+        subject.mlflow,
+        "active_run",
+        lambda: SimpleNamespace(
+            info=SimpleNamespace(experiment_id="exp-3", run_id="run-4")
+        ),
+    )
     artifact = Mock()
     monkeypatch.setattr(subject, "create_markdown_artifact", artifact)
 

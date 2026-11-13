@@ -41,6 +41,7 @@ class EarlyStopper:
 
         return self.counter >= self.patience
 
+
 class SingleTaskVariationalGPModel(ApproximateGP):
     """A variational Gaussian process for single task regression."""
 
