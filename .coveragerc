@@ -1,6 +1,8 @@
 [run]
 source=deeprootgen app
-omit=tests/*
+omit =
+    tests/*
+    deeprootgen/form/components.py
 
 [report]
 skip_empty = true

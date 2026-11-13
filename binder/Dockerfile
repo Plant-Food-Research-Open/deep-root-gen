@@ -20,7 +20,9 @@ RUN adduser --disabled-password \
     --uid ${NB_UID} \
     ${NB_USER} \
     && mv /app/* ${HOME} \
-    && chown -R ${NB_UID} ${HOME}
+    && chown -R ${NB_UID} ${HOME} \
+    && mv ${HOME}/deeprootgen /app/ 
+
 
 USER ${NB_USER}
 
