@@ -21,7 +21,7 @@
   "interbranch_distance": 0.0078,
   "mechanical_constraints": 0.5,
   "root_tissue_density": 0.05,
-  "gravitropism": 7.5,
+  "gravitropism": 0.1,
   "t": 0,
   "enable_soil": false,
   "simulation_tag": "synthetic-smoke-seed42"

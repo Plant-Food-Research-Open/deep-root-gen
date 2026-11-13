@@ -1,5 +1,38 @@
 # Running DeepRootGen
 
+## Upstream 1.0 integration (13 November 2026)
+
+The approved PFR upstream update at `80315af` is integrated with the local
+runtime setup. Both textual conflicts were resolved by retaining the useful
+content from each side. The source changes include the upstream 1.0 branching
+and spatial-RLD interfaces, not merely container changes.
+
+The complete merged suite passes **376 tests**, including opt-in simulation
+integration, using the retained Python 3.10.20 host environment. This host
+environment has not been reinstalled against the new lock. The synthetic
+fixtures and simulation/deployment forms now use gravitropism `0.1`, matching
+the upstream integration fixture and required `[0, 1]` domain. This is a
+diagnostic input, not a calibrated value or a conversion of the old `7.5`.
+The local configured output-directory behavior is preserved and tested.
+
+**Calibration limitation:** the upstream calibration form still contains old
+gravity slider defaults `4–9` and bounds `1–10`, incompatible with the new
+model domain. Calibration and existing saved parameter files are not qualified.
+Do not launch optimization from those defaults; scientific search ranges need
+a separate decision. No observation fitting or calibration was performed.
+
+The local Compose image now defaults to
+`deeprootgen-local:upstream-80315af`; the old `runtime-ui` image and historical
+volumes are retained. The local recipe preserves non-root execution and
+loopback-only service ports; the upstream production recipe is also present
+but should not be launched blindly on an exposed interface.
+
+The remaining sections describe the historical October qualification, not
+new evidence for the 1.0 model. In particular, its old lock hash and four-test
+summary apply only to that earlier revision.
+
+## Historical October setup and qualification
+
 Qualified on **30 October 2026**, on branch `codex/deeprootgen-runtime-ui`,
 based on source revision `39b942ff77098d52cf56cbed43d63c0e10fbbc14`.
 The runtime changes are uncommitted development work. Use this guide instead of

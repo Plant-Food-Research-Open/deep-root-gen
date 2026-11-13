@@ -3,6 +3,7 @@
 This module defines utility functions for calibrating simulation models from summary statistics.
 """
 
+from deeprootgen.statistics.summary_statistics import RootLengthDensity
 import numpy as np
 import pandas as pd
 
@@ -17,6 +18,7 @@ from ..statistics import (
     get_distance_metric_func,
     get_summary_statistic_func,
 )
+from ..statistics.spatial_rld import calculate_core_rld
 
 
 def get_calibration_summary_stats(input_parameters: RootCalibrationModel) -> tuple:
@@ -121,22 +123,91 @@ def calculate_summary_statistics(
     )
 
     node_df, _ = simulation.G.as_df()
+    # Build a soil grid if RLD is being calibrated.
+    rld_requested = any(
+        s.statistic_name == "root_length_density" for s in statistics_list
+    )
+
+    soil_df = None
+
+    if rld_requested:
+        dimensions = [
+            input_parameters.soil_layer_height,
+            input_parameters.soil_layer_width,
+            input_parameters.soil_n_layers,
+            input_parameters.soil_n_cols,
+        ]
+
+        if any(v is None or v <= 0 for v in dimensions):
+            raise ValueError("RLD calibration requires valid soil dimensions.")
+
+        soil_df = simulation.soil.create_soil_grid(
+            input_parameters.soil_layer_height,
+            input_parameters.soil_n_layers,
+            input_parameters.soil_layer_width,
+            input_parameters.soil_n_cols,
+        )
+
+        # Only for the original Soil implementation.
+        soil_df = soil_df.rename(columns={"y": "z", "z": "y"})
+
     observed_values = []
     simulated_values = []
-    kwargs = dict(root_tissue_density=simulation_parameters.root_tissue_density)
 
     for statistic in statistics_list:
         statistic_name = statistic.statistic_name
-        statistic_func = get_summary_statistic_func(statistic_name)
-        statistic_instance = statistic_func(**kwargs)
-        statistic_value = statistic_instance.calculate(node_df)
 
-        # @TODO calculate by depth and horizontal distance
-        if isinstance(statistic_value, tuple) or isinstance(statistic_value, list):
+        if statistic_name == "root_length_density":
+            is_spatial = any(
+                value is not None
+                for value in (
+                    statistic.x,
+                    statistic.y,
+                    statistic.core_radius,
+                )
+            )
+
+            if is_spatial:
+                if any(
+                    value is None
+                    for value in (
+                        statistic.x,
+                        statistic.y,
+                        statistic.core_radius,
+                    )
+                ):
+                    raise ValueError("Spatial RLD requires x, y and core_radius.")
+
+                statistic_value = calculate_core_rld(
+                    node_df,
+                    x=statistic.x,
+                    y=statistic.y,
+                    z_lower_bound=statistic.z_lower_bound,
+                    z_upper_bound=statistic.z_upper_bound,
+                    core_radius=statistic.core_radius,
+                    diameter_max_mm=statistic.diameter_max_mm,
+                    plant_id=statistic.plant_id,
+                )
+
+            else:
+                # Existing whole-grid RLD calculation.
+                # soil_df must be generated beforehand.
+                statistic_value = RootLengthDensity(soil_df=soil_df).calculate(node_df)
+
+        else:
+            statistic_func = get_summary_statistic_func(statistic_name)
+
+            statistic_instance = statistic_func(
+                root_tissue_density=(simulation_parameters.root_tissue_density)
+            )
+
+            statistic_value = statistic_instance.calculate(node_df)
+
+        if not np.isscalar(statistic_value):
             continue
 
         observed_values.append(statistic.statistic_value)
-        simulated_values.append(statistic_value)
+        simulated_values.append(float(statistic_value))
 
     observed = np.array(observed_values).flatten()
     simulated = np.array(simulated_values).flatten()

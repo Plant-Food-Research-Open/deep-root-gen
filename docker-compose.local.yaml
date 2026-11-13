@@ -1,5 +1,5 @@
 x-runtime: &runtime
-  image: deeprootgen-local:runtime-ui
+  image: ${DRG_LOCAL_IMAGE:-deeprootgen-local:upstream-80315af}
   pull_policy: never
   init: true
   restart: "no"

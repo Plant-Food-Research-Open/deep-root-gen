@@ -171,3 +171,5 @@ slurm-*.out
 .env.local
 .env.local.*
 !.env.local.example
+md_report.md
+coverage.json

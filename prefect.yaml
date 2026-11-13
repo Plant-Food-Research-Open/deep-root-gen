@@ -15,7 +15,7 @@ push:
 # pull section allows you to provide instructions for cloning this project in remote locations
 pull:
 - prefect.deployments.steps.git_clone:
-    repository: git@github.com:JBris/deep-root-gen.git
+    repository: git@github.com:Plant-Food-Research-Open/deep-root-gen.git
     branch: main
     access_token:
 

@@ -19,7 +19,7 @@ root_vary: 30.0
 interbranch_distance: 0.0078
 mechanical_constraints: 0.5
 root_tissue_density: 0.05
-gravitropism: 7.5
+gravitropism: 0.1
 t: 0
 enable_soil: false
 soil_layer_height: 0
