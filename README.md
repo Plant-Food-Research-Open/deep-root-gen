@@ -7,7 +7,7 @@
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Plant-Food-Research-Open/deep-root-gen/HEAD?urlpath=lab/tree/notebooks/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![Coverage](https://plant-food-research-open.github.io/deep-root-gen/badges/coverage.svg)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/test.yaml)
+[![Coverage](https://plant-food-research-open.github.io/deep-root-gen/badges/coverage.svg)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/tests.yaml)
 [![Lint](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/lint.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/lint.yaml)
 [![Tests](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/tests.yaml)
 [![Documentation](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docs.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docs.yaml)
