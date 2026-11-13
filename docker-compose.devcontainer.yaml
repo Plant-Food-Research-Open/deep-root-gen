@@ -1,0 +1,9 @@
+version: "3.9"
+
+services:
+  deeprootgen:
+    image: ghcr.io/plant-food-research-open/deep-root-gen:${APP_VERSION}
+    command: sleep infinity
+    volumes:
+      - .:/app
+    tty: true

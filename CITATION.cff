@@ -1,4 +1,3 @@
-
 cff-version: 1.2.0
 message: "If you use DeepRootGen in your research, please cite this software using these metadata."
 type: software
@@ -22,8 +21,8 @@ authors:
     given-names: "Junqi"
     orcid: "https://orcid.org/0000-0002-9093-651X"
 title: "DeepRootGen: A stochastic framework for three-dimensional root system architecture simulation and reconstruction"
-version: 0.1.0
-date-released: 2024-08-17
+version: 1.0.0
+date-released: 2026-11-13
 license: GPL-3.0
 url: "https://github.com/Plant-Food-Research-Open/deep-root-gen"
 repository-code: "https://github.com/Plant-Food-Research-Open/deep-root-gen"

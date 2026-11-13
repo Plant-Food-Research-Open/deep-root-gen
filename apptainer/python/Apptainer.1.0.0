@@ -1,9 +1,9 @@
 Bootstrap: docker
-From: ghcr.io/Plant-Food-Research-Open/deep-root-gen:0.1.0
+From: ghcr.io/Plant-Food-Research-Open/deep-root-gen:1.0.0
 
 %labels
-    Maintainer james.bristow@plantandfood.co.nz
-    Version 0.1.0
+    Maintainer junqi.zhu@bioeconomy.nz
+    Version 1.0.0
 
 %post
     prefect config set PREFECT_API_ENABLE_HTTP2=false

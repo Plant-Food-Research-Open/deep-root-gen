@@ -7,7 +7,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 project = "DeepRootGen"
 copyright = "2024, James Bristow"
 author = "James Bristow"
-release = "0.1.0"
+release = "1.0.0"
 
 extensions = [
     "sphinx.ext.autodoc",
