@@ -56,11 +56,13 @@ class Soil:
         zv *= voxel_width * (n_cols - 1)
         zv -= voxel_width / 2 * (n_cols - 1)
 
-        soil_df = pd.DataFrame({
-            "x": xv,
-            "y": zv,
-            "z": yv,
-        })
+        soil_df = pd.DataFrame(
+            {
+                "x": xv,
+                "y": zv,
+                "z": yv,
+            }
+        )
         return soil_df
 
     def create_soil_fig(self, soil_df: pd.DataFrame) -> go.Figure:

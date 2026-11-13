@@ -35,9 +35,7 @@ def calculate_core_rld(
         Root length density (cm/cm3).
     """
     if core_radius <= 0 or z_upper_bound <= z_lower_bound:
-        raise ValueError(
-            "Require radius > 0 and upper depth > lower depth."
-        )
+        raise ValueError("Require radius > 0 and upper depth > lower depth.")
 
     if diameter_max_mm is not None and diameter_max_mm <= 0:
         raise ValueError("diameter_max_mm must be positive.")
@@ -46,8 +44,13 @@ def calculate_core_rld(
         raise ValueError("Invalid length_source.")
 
     required = {
-        "node_id", "parent_id", "x", "y", "z",
-        "diameter", "length",
+        "node_id",
+        "parent_id",
+        "x",
+        "y",
+        "z",
+        "diameter",
+        "length",
     }
     missing = required - set(node_df.columns)
 
@@ -58,35 +61,27 @@ def calculate_core_rld(
 
     # Exclude invalid roots and their disconnected descendants.
     if "invalid_root" in nodes:
-        nodes = nodes.loc[
-            ~nodes["invalid_root"].fillna(False).astype(bool)
-        ]
+        nodes = nodes.loc[~nodes["invalid_root"].fillna(False).astype(bool)]
 
     if plant_id is not None:
         nodes = nodes.loc[nodes["plant_id"] == plant_id]
 
     parents = nodes.set_index("node_id", verify_integrity=True)
 
-    children = nodes.loc[
-        nodes["parent_id"].isin(parents.index)
-    ]
+    children = nodes.loc[nodes["parent_id"].isin(parents.index)]
 
     if "order" in children:
         children = children.loc[children["order"] > 0]
 
     # Match the diameter range included in field measurements.
     if diameter_max_mm is not None:
-        children = children.loc[
-            children["diameter"] * 10 <= diameter_max_mm
-        ]
+        children = children.loc[children["diameter"] * 10 <= diameter_max_mm]
 
     if children.empty:
         return 0.0
 
     # Parent and child coordinates define straight segments.
-    start = parents.loc[
-        children["parent_id"], ["x", "y", "z"]
-    ].to_numpy(dtype=float)
+    start = parents.loc[children["parent_id"], ["x", "y", "z"]].to_numpy(dtype=float)
 
     end = children[["x", "y", "z"]].to_numpy(dtype=float)
 
@@ -102,12 +97,8 @@ def calculate_core_rld(
     if np.any(~np.isfinite(lengths)) or np.any(lengths < 0):
         raise ValueError("Invalid segment lengths.")
 
-    if np.any(
-        (geometric_lengths < 1e-12) & (lengths > 1e-12)
-    ):
-        raise ValueError(
-            "Positive segment length with coincident endpoints."
-        )
+    if np.any((geometric_lengths < 1e-12) & (lengths > 1e-12)):
+        raise ValueError("Positive segment length with coincident endpoints.")
 
     # Parameterise each segment as start + t * d,
     # with 0 <= t <= 1.
@@ -150,19 +141,14 @@ def calculate_core_rld(
     # Intersect with the observed soil depth interval.
     vertical = np.abs(dz) > 1e-12
 
-    valid[~vertical] &= (
-        (start[~vertical, 2] >= z_lower_bound)
-        & (start[~vertical, 2] <= z_upper_bound)
+    valid[~vertical] &= (start[~vertical, 2] >= z_lower_bound) & (
+        start[~vertical, 2] <= z_upper_bound
     )
 
     if np.any(vertical):
-        a = (
-            z_lower_bound - start[vertical, 2]
-        ) / dz[vertical]
+        a = (z_lower_bound - start[vertical, 2]) / dz[vertical]
 
-        b = (
-            z_upper_bound - start[vertical, 2]
-        ) / dz[vertical]
+        b = (z_upper_bound - start[vertical, 2]) / dz[vertical]
 
         t_enter[vertical] = np.maximum(
             t_enter[vertical],
@@ -181,14 +167,8 @@ def calculate_core_rld(
         0,
     )
 
-    root_length_in_core = float(
-        np.dot(fractions, lengths)
-    )
+    root_length_in_core = float(np.dot(fractions, lengths))
 
-    core_volume = (
-        np.pi
-        * core_radius**2
-        * (z_upper_bound - z_lower_bound)
-    )
+    core_volume = np.pi * core_radius**2 * (z_upper_bound - z_lower_bound)
 
     return root_length_in_core / core_volume

@@ -1,5 +1,5 @@
-Using DeepRootGen
-=================
+Usage
+=====
 
 DeepRootGen can be run either as a complete Docker Compose application or
 independently as a Python simulation model.

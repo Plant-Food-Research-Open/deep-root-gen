@@ -143,8 +143,6 @@ class SummaryStatisticsModel(BaseModel):
         BaseModel (BaseModel):
             The Pydantic Base model class.
     """
-
-class SummaryStatisticsModel(BaseModel):
     statistic_name: str
     statistic_value: float
 
@@ -160,6 +158,7 @@ class SummaryStatisticsModel(BaseModel):
 
     # Optional restriction to smaller root diameters
     diameter_max_mm: Optional[float] = None
+
 
 class StatisticsComparisonModel(BaseModel):
     """The data model for comparing synthetic and observed data.

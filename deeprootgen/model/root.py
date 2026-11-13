@@ -54,7 +54,9 @@ class RootOrgan:
         self.rng = rng
         self.invalid_root = False
 
-    def init_diameters(self, segments_per_root: int, apex_diameter: float) -> np.ndarray:
+    def init_diameters(
+        self, segments_per_root: int, apex_diameter: float
+    ) -> np.ndarray:
         diameter_reduction = 1 - self.input_parameters.diameter_reduction
         base_diameter = self.base_diameter * diameter_reduction ** (
             self.parent_node.node_data.order
@@ -66,7 +68,7 @@ class RootOrgan:
     def init_lengths(self, segments_per_root: int) -> np.ndarray:
         order = self.parent_node.node_data.order + 1
         if order > 1:
-            reduction_factor = self.length_reduction ** self.parent_node.node_data.order
+            reduction_factor = self.length_reduction**self.parent_node.node_data.order
             min_length, max_length = self.sroot_length_interval * reduction_factor
         else:
             min_length, max_length = self.proot_length_interval
@@ -194,10 +196,9 @@ class RootOrgan:
 
         # The original centreline corners and sites are retained exactly.
         cuts = np.unique(np.r_[cumulative, sites])
-        subdivided = np.column_stack([
-            np.interp(cuts, cumulative, polyline[:, axis])
-            for axis in range(3)
-        ])
+        subdivided = np.column_stack(
+            [np.interp(cuts, cumulative, polyline[:, axis]) for axis in range(3)]
+        )
         new_lengths = np.linalg.norm(np.diff(subdivided, axis=0), axis=1)
         if np.any(new_lengths <= 1e-12):
             raise ValueError("Branching subdivision created a zero-length segment")
@@ -273,8 +274,12 @@ class RootOrgan:
             diameters, lengths, coordinates
         )
         return self._construct_segment_nodes(
-            diameters, lengths, coordinates, self.root_type,
-            root_tissue_density, attachments,
+            diameters,
+            lengths,
+            coordinates,
+            self.root_type,
+            root_tissue_density,
+            attachments,
         )
 
     def add_child_organ(
@@ -311,7 +316,8 @@ class RootOrgan:
         coordinates = self.init_segment_coordinates(segments_per_root, lengths)
 
         root_type_name = (
-            RootType.STRUCTURAL.value if diameters.mean() > self.fine_root_threshold
+            RootType.STRUCTURAL.value
+            if diameters.mean() > self.fine_root_threshold
             else RootType.FINE.value
         )
         root_type = RootTypeModel(
@@ -323,8 +329,12 @@ class RootOrgan:
             diameters, lengths, coordinates
         )
         return self._construct_segment_nodes(
-            diameters, lengths, coordinates, root_type,
-            parent_data.root_tissue_density, attachments,
+            diameters,
+            lengths,
+            coordinates,
+            root_type,
+            parent_data.root_tissue_density,
+            attachments,
         )
 
     def reset_transform(self) -> np.ndarray:
@@ -361,13 +371,21 @@ class RootOrgan:
         scale: List[float] = [1, 1, 1, 1],
     ) -> None:
         self.update_transform(
-            roll=roll, pitch=pitch, yaw=yaw,
-            translation=translation, reflect=reflect, scale=scale,
+            roll=roll,
+            pitch=pitch,
+            yaw=yaw,
+            translation=translation,
+            reflect=reflect,
+            scale=scale,
         )
         for child in self.child_organs:
             child.cascading_update_transform(
-                roll=roll, pitch=pitch, yaw=yaw,
-                translation=translation, reflect=reflect, scale=scale,
+                roll=roll,
+                pitch=pitch,
+                yaw=yaw,
+                translation=translation,
+                reflect=reflect,
+                scale=scale,
             )
 
     def get_coordinates(self, as_array: bool = True) -> np.ndarray:
@@ -487,9 +505,9 @@ class RootOrgan:
         lengths.append(new_length.item())
         lengths = np.array(lengths)
         coordinates = self.get_coordinates(False)
-        new_coordinate = self.get_coordinates()[-1] + self.init_segment_coordinates(
-            1, new_length
-        )[0]
+        new_coordinate = (
+            self.get_coordinates()[-1] + self.init_segment_coordinates(1, new_length)[0]
+        )
         coordinates.append(new_coordinate)
         coordinates = np.array(coordinates)
         apex_segment = self.segments[-1]
@@ -529,7 +547,6 @@ class RootSystemSimulation:
         y_key: str = "y",
         z_key: str = "z",
     ) -> go.Figure:
-        src_indx, dest_indx = 0, 1
         x_edges, y_edges, z_edges = [], [], []
         x_nodes, y_nodes, z_nodes = [], [], []
         node_texts = []
@@ -553,67 +570,115 @@ class RootSystemSimulation:
                 f"Simulation tag: {node[feature_key]['simulation_tag']}<br>"
             )
         trace_nodes = go.Scatter3d(
-            x=x_nodes, y=y_nodes, z=z_nodes,
+            x=x_nodes,
+            y=y_nodes,
+            z=z_nodes,
             mode="markers",
-            marker=dict(symbol="circle", size=4, color="green",
-                        line=dict(color="black", width=0.5)),
-            text=node_texts, hoverinfo="text",
+            marker=dict(
+                symbol="circle",
+                size=4,
+                color="green",
+                line=dict(color="black", width=0.5),
+            ),
+            text=node_texts,
+            hoverinfo="text",
         )
         for src, dst in G.edges():
             node_src, node_dst = G.nodes[src], G.nodes[dst]
-            x_edges += [node_src[feature_key][x_key], node_dst[feature_key][x_key], None]
-            y_edges += [node_src[feature_key][y_key], node_dst[feature_key][y_key], None]
-            z_edges += [node_src[feature_key][z_key], node_dst[feature_key][z_key], None]
+            x_edges += [
+                node_src[feature_key][x_key],
+                node_dst[feature_key][x_key],
+                None,
+            ]
+            y_edges += [
+                node_src[feature_key][y_key],
+                node_dst[feature_key][y_key],
+                None,
+            ]
+            z_edges += [
+                node_src[feature_key][z_key],
+                node_dst[feature_key][z_key],
+                None,
+            ]
         trace_edges = go.Scatter3d(
-            x=x_edges, y=y_edges, z=z_edges, mode="lines",
-            line=dict(color="green", width=10), hoverinfo="none",
+            x=x_edges,
+            y=y_edges,
+            z=z_edges,
+            mode="lines",
+            line=dict(color="green", width=10),
+            hoverinfo="none",
         )
         axis = dict(
-            showbackground=False, showline=False, zeroline=False,
-            showgrid=False, showticklabels=False,
+            showbackground=False,
+            showline=False,
+            zeroline=False,
+            showgrid=False,
+            showticklabels=False,
         )
         layout = go.Layout(
-            width=1000, height=1000, showlegend=False,
+            width=1000,
+            height=1000,
+            showlegend=False,
             scene=dict(xaxis=dict(axis), yaxis=dict(axis), zaxis=dict(axis)),
-            margin=dict(t=100), hovermode="closest",
+            margin=dict(t=100),
+            hovermode="closest",
         )
         return go.Figure(data=[trace_edges, trace_nodes], layout=layout)
 
     def plot_root_system(self, fig: go.Figure, node_df: pd.DataFrame) -> go.Figure:
         node_df = node_df.query("invalid_root == False")
-        fig.add_trace(go.Scatter3d(
-            name="root", x=node_df["x"], y=node_df["y"], z=node_df["z"],
-            mode="markers",
-            line=dict(color="green", colorscale="brwnyl", width=10),
-            marker=dict(size=4, color="green", colorscale="brwnyl", opacity=1),
-            customdata=np.stack((
-                node_df.organ_id, node_df.order, node_df.segment_rank,
-                node_df.diameter, node_df.length, node_df.root_type,
-                node_df.order_type, node_df.position_type,
-                node_df.simulation_tag,
-            ), axis=-1),
-            hovertemplate=(
-                "x: %{x}<br>y: %{y}<br>z: %{z}<br>"
-                "Organ ID: %{customdata[0]}<br>"
-                "Order: %{customdata[1]}<br>"
-                "Segment rank: %{customdata[2]}<br>"
-                "Diameter: %{customdata[3]}<br>"
-                "Length: %{customdata[4]}<br>"
-                "Root type: %{customdata[5]}<br>"
-                "Order type: %{customdata[6]}<br>"
-                "Position type: %{customdata[7]}<br>"
-                "Simulation tag: %{customdata[8]}<br>"
-            ),
-        ))
+        fig.add_trace(
+            go.Scatter3d(
+                name="root",
+                x=node_df["x"],
+                y=node_df["y"],
+                z=node_df["z"],
+                mode="markers",
+                line=dict(color="green", colorscale="brwnyl", width=10),
+                marker=dict(size=4, color="green", colorscale="brwnyl", opacity=1),
+                customdata=np.stack(
+                    (
+                        node_df.organ_id,
+                        node_df.order,
+                        node_df.segment_rank,
+                        node_df.diameter,
+                        node_df.length,
+                        node_df.root_type,
+                        node_df.order_type,
+                        node_df.position_type,
+                        node_df.simulation_tag,
+                    ),
+                    axis=-1,
+                ),
+                hovertemplate=(
+                    "x: %{x}<br>y: %{y}<br>z: %{z}<br>"
+                    "Organ ID: %{customdata[0]}<br>"
+                    "Order: %{customdata[1]}<br>"
+                    "Segment rank: %{customdata[2]}<br>"
+                    "Diameter: %{customdata[3]}<br>"
+                    "Length: %{customdata[4]}<br>"
+                    "Root type: %{customdata[5]}<br>"
+                    "Order type: %{customdata[6]}<br>"
+                    "Position type: %{customdata[7]}<br>"
+                    "Simulation tag: %{customdata[8]}<br>"
+                ),
+            )
+        )
         axis = dict(
-            showbackground=False, showline=False, zeroline=False,
-            showgrid=False, showticklabels=False,
+            showbackground=False,
+            showline=False,
+            zeroline=False,
+            showgrid=False,
+            showticklabels=False,
         )
         fig.update_traces(connectgaps=False)
         fig.update_layout(
-            width=1000, height=1000, showlegend=False,
+            width=1000,
+            height=1000,
+            showlegend=False,
             scene=dict(xaxis=dict(axis), yaxis=dict(axis), zaxis=dict(axis)),
-            margin=dict(t=100), hovermode="closest",
+            margin=dict(t=100),
+            hovermode="closest",
         )
         return fig
 
@@ -629,8 +694,9 @@ class RootSystemSimulation:
         else:
             fig = go.Figure()
         fig.update_layout(
-            scene=dict(xaxis=dict(title="x"), yaxis=dict(title="y"),
-                       zaxis=dict(title="z"))
+            scene=dict(
+                xaxis=dict(title="x"), yaxis=dict(title="y"), zaxis=dict(title="z")
+            )
         )
         return fig
 
@@ -747,9 +813,14 @@ class RootSystemSimulation:
             return
         gravity = np.array([0.0, 0.0, -1.0])
         original = {
-            node.node_data.node_id: np.array([
-                node.node_data.x, node.node_data.y, node.node_data.z,
-            ], dtype=float)
+            node.node_data.node_id: np.array(
+                [
+                    node.node_data.x,
+                    node.node_data.y,
+                    node.node_data.z,
+                ],
+                dtype=float,
+            )
             for node in self.G.nodes
         }
         updated = {}

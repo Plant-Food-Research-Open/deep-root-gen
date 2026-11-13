@@ -20,6 +20,7 @@ from ..statistics import (
 )
 from ..statistics.spatial_rld import calculate_core_rld
 
+
 def get_calibration_summary_stats(input_parameters: RootCalibrationModel) -> tuple:
     """Extract summary statistics needed for model calibration.
 
@@ -124,8 +125,7 @@ def calculate_summary_statistics(
     node_df, _ = simulation.G.as_df()
     # Build a soil grid if RLD is being calibrated.
     rld_requested = any(
-        s.statistic_name == "root_length_density"
-        for s in statistics_list
+        s.statistic_name == "root_length_density" for s in statistics_list
     )
 
     soil_df = None
@@ -139,9 +139,7 @@ def calculate_summary_statistics(
         ]
 
         if any(v is None or v <= 0 for v in dimensions):
-            raise ValueError(
-                "RLD calibration requires valid soil dimensions."
-            )
+            raise ValueError("RLD calibration requires valid soil dimensions.")
 
         soil_df = simulation.soil.create_soil_grid(
             input_parameters.soil_layer_height,
@@ -151,15 +149,10 @@ def calculate_summary_statistics(
         )
 
         # Only for the original Soil implementation.
-        soil_df = soil_df.rename(
-            columns={"y": "z", "z": "y"}
-        )
-
+        soil_df = soil_df.rename(columns={"y": "z", "z": "y"})
 
     observed_values = []
     simulated_values = []
-    kwargs = dict(root_tissue_density=simulation_parameters.root_tissue_density)
-
 
     for statistic in statistics_list:
         statistic_name = statistic.statistic_name
@@ -183,9 +176,7 @@ def calculate_summary_statistics(
                         statistic.core_radius,
                     )
                 ):
-                    raise ValueError(
-                        "Spatial RLD requires x, y and core_radius."
-                    )
+                    raise ValueError("Spatial RLD requires x, y and core_radius.")
 
                 statistic_value = calculate_core_rld(
                     node_df,
@@ -201,24 +192,16 @@ def calculate_summary_statistics(
             else:
                 # Existing whole-grid RLD calculation.
                 # soil_df must be generated beforehand.
-                statistic_value = RootLengthDensity(
-                    soil_df=soil_df
-                ).calculate(node_df)
+                statistic_value = RootLengthDensity(soil_df=soil_df).calculate(node_df)
 
         else:
-            statistic_func = get_summary_statistic_func(
-                statistic_name
-            )
+            statistic_func = get_summary_statistic_func(statistic_name)
 
             statistic_instance = statistic_func(
-                root_tissue_density=(
-                    simulation_parameters.root_tissue_density
-                )
+                root_tissue_density=(simulation_parameters.root_tissue_density)
             )
 
-            statistic_value = statistic_instance.calculate(
-                node_df
-            )
+            statistic_value = statistic_instance.calculate(node_df)
 
         if not np.isscalar(statistic_value):
             continue

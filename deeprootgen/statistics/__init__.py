@@ -13,6 +13,6 @@ __all__ = [
     "get_distance_metrics",
     "get_summary_statistic_func",
     "get_summary_statistics",
-    "aggregate_root_grid", 
+    "aggregate_root_grid",
     "calculate_core_rld",
 ]
