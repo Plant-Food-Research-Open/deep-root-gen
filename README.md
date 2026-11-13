@@ -7,6 +7,8 @@
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Plant-Food-Research-Open/deep-root-gen/HEAD?urlpath=lab/tree/notebooks/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Coverage](https://plant-food-research-open.github.io/deep-root-gen/badges/coverage.svg)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/test.yaml)
+[![Lint](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/lint.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/lint.yaml)
 [![Tests](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/tests.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/tests.yaml)
 [![Documentation](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docs.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docs.yaml)
 [![Build](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docker-build.yaml/badge.svg?branch=main)](https://github.com/Plant-Food-Research-Open/deep-root-gen/actions/workflows/docker-build.yaml)
@@ -28,6 +30,7 @@ Website: [DeepRootGen](https://Plant-Food-Research-Open.github.io/deep-root-gen/
 - [Installation](#installation)
   - [Requirements](#requirements)
   - [Installation with Poetry](#installation-with-poetry)
+- [Usage with Binder](#usage-with-binder)
 - [Root System Architecture Analysis](#root-system-architecture-analysis)
   - [Root morphology](#root-morphology)
   - [Root branching and orientation](#root-branching-and-orientation)
@@ -206,6 +209,10 @@ poetry run python
 ```
 
 For development, refer to the [development and setup guide](docs/DEVELOPMENT.md) for environment configuration and additional tooling.
+
+# Usage with Binder
+
+You may wish to work with DeepRootGen using MyBinder. [You can do so by accessing the following link.](https://mybinder.org/v2/gh/Plant-Food-Research-Open/deep-root-gen/HEAD?urlpath=lab/tree/notebooks/)
 
 # Root System Architecture Analysis
 

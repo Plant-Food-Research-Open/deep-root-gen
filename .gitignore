@@ -166,3 +166,5 @@ mlruns
 *.xml
 slurm-*.out
 .python-version
+md_report.md
+coverage.json

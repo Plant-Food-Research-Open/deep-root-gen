@@ -28,6 +28,8 @@ COPY bentoml_configuration.yaml bentoml_configuration.yaml
 
 COPY notebooks notebooks
 
+COPY data data
+
 RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential libpq-dev graphviz \
     && apt-get clean \

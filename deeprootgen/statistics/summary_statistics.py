@@ -615,9 +615,10 @@ class RootBranchingOrderDistribution(SummaryStatisticBase):
 class RootBranchingFrequency(SummaryStatisticBase):
     """Lateral-root emergence events per cm of eligible parent-root length.
 
-    Eligible orders are < max_order.  If max_order is not supplied, the
-    highest observed order (at least 2) is used.  Supply the model's
-    max_order for comparable results even if high orders happen to be absent.
+    Eligible parent orders are < max_order. If max_order is not
+    supplied, the highest observed order (at least 2) is used.
+    Supply the model's max_order for comparable results even if
+    higher orders happen to be absent.
     """
 
     def __init__(self, max_order: int | None = None, **kwargs):
@@ -627,22 +628,31 @@ class RootBranchingFrequency(SummaryStatisticBase):
 
     def calculate(self, df):
         s = self.segments(df)
+
         if s.empty:
             return 0.0
+
         highest = (
             int(self.max_order)
             if self.max_order is not None
             else max(int(s.order.max()), 2)
         )
+
+        # Only eligible parent-root orders contribute to the denominator.
         parents = s.loc[s.order < highest]
+
+        # Count lateral roots originating from eligible parent orders.
         bases = s.loc[
             s.segment_rank.eq(1)
             & s.order.gt(1)
             & s.parent_order.eq(s.order - 1)
             & s.parent_order.gt(0)
+            & s.parent_order.lt(highest)
             & s.parent_organ_id.ne(s.organ_id)
         ]
+
         denominator = float(parents.segment_length_cm.sum())
+
         return (
             float(bases.organ_id.nunique() / denominator)
             if denominator > 0

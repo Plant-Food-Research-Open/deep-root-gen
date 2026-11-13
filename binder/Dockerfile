@@ -12,8 +12,8 @@ ENV NB_UID ${NB_UID}
 
 ENV HOME /home/${NB_USER}
 
-ENV VIRTUAL_ENV=${HOME}/.venv \
-    PATH="${HOME}/.venv/bin:$PATH"
+ENV VIRTUAL_ENV=/app/.venv \
+    PATH="/app/.venv/bin:$PATH"
 
 RUN adduser --disabled-password \
     --gecos "Default user" \

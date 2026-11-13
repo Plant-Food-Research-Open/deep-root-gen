@@ -143,6 +143,7 @@ class SummaryStatisticsModel(BaseModel):
         BaseModel (BaseModel):
             The Pydantic Base model class.
     """
+
     statistic_name: str
     statistic_value: float
 
