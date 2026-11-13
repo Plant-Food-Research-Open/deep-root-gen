@@ -27,6 +27,35 @@ volumes are retained. The local recipe preserves non-root execution and
 loopback-only service ports; the upstream production recipe is also present
 but should not be launched blindly on an exposed interface.
 
+### Verified local Docker smoke
+
+The final merged source was rebuilt with `dockerfiles/python/Dockerfile.local`
+and the unchanged upstream lock (SHA256
+`ac9d8a5d67c7bcb75ca801c8ab79e290fbc41b88752caf95fba03d8ecc0e3d31`).
+Image `14bb529c3d02` passed `pip check`. The separate `drg-upstream-check`
+Compose project passed all startup health checks, with private fresh volumes;
+the October `drg-smoke-local` volumes were not reused or changed.
+
+One tiny seed-42 simulation completed through the actual Prefect worker:
+`a728f140-39ac-4482-9586-8b3b1c2fb4b6`. MLflow run
+`4b6f7d9cd8c44511ae94fb3f0381f8e8` finished with eight artifacts,
+including node/edge CSVs, root plots and the new dry-mass-by-diameter output.
+Dash returned HTTP 200. Browser click/upload/download flows were not retested;
+this is a synthetic technical smoke check, not biological validation.
+
+For the new local stack (all ports bind loopback only):
+
+```bash
+DRG_APP_PORT=18000 DRG_PREFECT_PORT=14200 DRG_MLFLOW_PORT=15000 \
+  docker compose --env-file .env.local -p drg-upstream-check \
+  -f docker-compose.local.yaml up -d --no-build --wait --wait-timeout 300
+```
+
+Dash: http://127.0.0.1:18000/; Prefect: http://127.0.0.1:14200/;
+MLflow: http://127.0.0.1:15000/. To stop without deleting data, use the same
+Compose arguments followed by `stop --timeout 30` instead of `up ...`.
+Do not add `-v`, prune, or replace `.env.local`.
+
 The remaining sections describe the historical October qualification, not
 new evidence for the 1.0 model. In particular, its old lock hash and four-test
 summary apply only to that earlier revision.
