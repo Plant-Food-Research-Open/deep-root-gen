@@ -21,7 +21,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Changelog" href="../changelogs/changelog.html" />
+    <link rel="next" title="Utils" href="utils.html" />
     <link rel="prev" title="Pipeline" href="pipeline.html" /> 
 </head>
 
@@ -71,6 +71,14 @@
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.distance_metrics.get_distance_metrics"><code class="docutils literal notranslate"><span class="pre">get_distance_metrics()</span></code></a></li>
 </ul>
 </li>
+<li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.statistics.root_grid_aggregation">Root Grid Aggregation</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.root_grid_aggregation.aggregate_root_grid"><code class="docutils literal notranslate"><span class="pre">aggregate_root_grid()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.statistics.spatial_rld">Spatial RLD</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.spatial_rld.calculate_core_rld"><code class="docutils literal notranslate"><span class="pre">calculate_core_rld()</span></code></a></li>
+</ul>
+</li>
 <li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.statistics.summary_statistics">Summary Statistics</a><ul>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.AverageDiameter"><code class="docutils literal notranslate"><span class="pre">AverageDiameter</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.statistics.summary_statistics.AverageLength"><code class="docutils literal notranslate"><span class="pre">AverageLength</span></code></a></li>
@@ -95,6 +103,7 @@
 </li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="utils.html">Utils</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="../changelogs/changelog.html">Changelog</a></li>
@@ -331,6 +340,50 @@
 <dt>list[dict]:</dt><dd><p>A list of available distance metrics and labels.</p>
 </dd>
 </dl>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-deeprootgen.statistics.root_grid_aggregation">
+<span id="root-grid-aggregation"></span><h2>Root Grid Aggregation<a class="headerlink" href="#module-deeprootgen.statistics.root_grid_aggregation" title="Link to this heading"></a></h2>
+<p>Aggregate DeepRootGen root length and dry biomass within soil grid voxels.</p>
+<p>The soil DataFrame must contain voxel <em>boundary points</em> with x and y horizontal
+and z vertical (negative downward). Root coordinates and lengths are in cm;
+root tissue density is in g/cm3.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.statistics.root_grid_aggregation.aggregate_root_grid">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.statistics.root_grid_aggregation.</span></span><span class="sig-name descname"><span class="pre">aggregate_root_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">soil_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length_source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'recorded'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">DataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">DataFrame</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/root_grid_aggregation.html#aggregate_root_grid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.root_grid_aggregation.aggregate_root_grid" title="Link to this definition"></a></dt>
+<dd><p>Return (per-voxel metrics, per-plant in-grid biomass totals).</p>
+<p>Root segments are the edges from a parent node to each non-base child node.
+Each segment’s length is clipped and split between the soil voxels it
+crosses. Dry mass for a segment is pi*(diameter/2)^2*length*RTD.</p>
+<p>length_source=’recorded’ allocates each stored segment length in proportion
+to the geometric fraction inside each voxel. ‘geometric’ uses endpoint
+distances instead. All lengths and dimensions are assumed to be cm.</p>
+</dd></dl>
+
+</section>
+<section id="module-deeprootgen.statistics.spatial_rld">
+<span id="spatial-rld"></span><h2>Spatial RLD<a class="headerlink" href="#module-deeprootgen.statistics.spatial_rld" title="Link to this heading"></a></h2>
+<p>Spatial matching of simulated roots to field soil cores.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.statistics.spatial_rld.calculate_core_rld">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.statistics.spatial_rld.</span></span><span class="sig-name descname"><span class="pre">calculate_core_rld</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">node_df</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DataFrame</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_lower_bound</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z_upper_bound</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">core_radius</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">diameter_max_mm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">plant_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">length_source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'recorded'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="reference internal" href="../_modules/deeprootgen/statistics/spatial_rld.html#calculate_core_rld"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.statistics.spatial_rld.calculate_core_rld" title="Link to this definition"></a></dt>
+<dd><p>Calculate RLD inside a cylindrical field sampling volume.</p>
+<p>Coordinates and lengths are in cm.
+z=0 is ground level; negative z represents depth.</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>node_df: Simulated root node dataframe.
+x, y: Horizontal soil core centre, relative to the plant.
+z_lower_bound: Bottom of the sampled depth interval.
+z_upper_bound: Top of the sampled depth interval.
+core_radius: Soil core radius (cm).
+diameter_max_mm: Optional maximum root diameter (mm).
+plant_id: Optional plant identifier.
+length_source: ‘recorded’ or ‘geometric’.</p>
+</dd>
+<dt>Returns:</dt><dd><p>Root length density (cm/cm3).</p>
 </dd>
 </dl>
 </dd></dl>
@@ -981,7 +1034,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="pipeline.html" class="btn btn-neutral float-left" title="Pipeline" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="../changelogs/changelog.html" class="btn btn-neutral float-right" title="Changelog" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="utils.html" class="btn btn-neutral float-right" title="Utils" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
