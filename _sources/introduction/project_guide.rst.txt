@@ -1,5 +1,5 @@
-Using DeepRootGen
-=================
+DeepRootGen
+===========
 
 This page describes how to install DeepRootGen, run a root system simulation,
 work with its exported graph data, and contribute to the project. For the

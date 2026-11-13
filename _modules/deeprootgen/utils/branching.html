@@ -44,8 +44,8 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../introduction/index.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../introduction/project_guide.html">Using DeepRootGen</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Using DeepRootGen</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../introduction/project_guide.html">DeepRootGen</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../faqs.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_reference/index.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../changelogs/changelog.html">Changelog</a></li>
@@ -78,8 +78,7 @@
            <div itemprop="articleBody">
              
   <h1>Source code for deeprootgen.utils.branching</h1><div class="highlight"><pre>
-<span></span>
-<span class="sd">&quot;&quot;&quot;Utilities for sampling lateral-root branching locations.&quot;&quot;&quot;</span>
+<span></span><span class="sd">&quot;&quot;&quot;Utilities for sampling lateral-root branching locations.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 
@@ -138,41 +137,26 @@
     <span class="c1"># --------------------------------------------------</span>
 
     <span class="k">if</span> <span class="n">xyz</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">xyz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;parent_xyz must have shape (n_points &gt;= 2, 3).&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;parent_xyz must have shape (n_points &gt;= 2, 3).&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Parent coordinates must be finite.&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent coordinates must be finite.&quot;</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="p">(</span>
-        <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">interbranch_distance</span><span class="p">)</span>
-        <span class="ow">or</span> <span class="n">interbranch_distance</span> <span class="o">&lt;=</span> <span class="mi">0</span>
-    <span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;interbranch_distance must be positive and finite.&quot;</span>
-        <span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">interbranch_distance</span><span class="p">)</span> <span class="ow">or</span> <span class="n">interbranch_distance</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;interbranch_distance must be positive and finite.&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">floor_threshold</span> <span class="o">&lt;</span> <span class="n">ceiling_threshold</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Expected 0 &lt;= floor_threshold &lt; ceiling_threshold &lt;= 1.&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected 0 &lt;= floor_threshold &lt; ceiling_threshold &lt;= 1.&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">log_sd</span><span class="p">)</span> <span class="ow">or</span> <span class="n">log_sd</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;log_sd must be finite and nonnegative.&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;log_sd must be finite and nonnegative.&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">max_branches</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">max_branches</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">)):</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;max_branches must be an integer.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">max_branches</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                <span class="s2">&quot;max_branches must be nonnegative.&quot;</span>
-            <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;max_branches must be nonnegative.&quot;</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="n">max_branches</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">[]</span>
@@ -187,9 +171,7 @@
     <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">segment_lengths</span> <span class="o">&lt;=</span> <span class="mf">1e-12</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Parent root contains zero-length segments.&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent root contains zero-length segments.&quot;</span><span class="p">)</span>
 
     <span class="n">total_length</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">segment_lengths</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
 
@@ -204,30 +186,21 @@
     <span class="n">sites</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="c1"># Randomise the initial branching position.</span>
-    <span class="n">position</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">start</span>
-        <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">interbranch_distance</span><span class="p">)</span>
-    <span class="p">)</span>
+    <span class="n">position</span> <span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">rng</span><span class="o">.</span><span class="n">uniform</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">interbranch_distance</span><span class="p">)</span>
 
     <span class="k">while</span> <span class="n">position</span> <span class="o">&lt;</span> <span class="n">end</span><span class="p">:</span>
 
         <span class="n">sites</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">float</span><span class="p">(</span><span class="n">position</span><span class="p">))</span>
 
         <span class="c1"># Stop after reaching the branch-count cap.</span>
-        <span class="k">if</span> <span class="p">(</span>
-            <span class="n">max_branches</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
-            <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_branches</span>
-        <span class="p">):</span>
+        <span class="k">if</span> <span class="n">max_branches</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span> <span class="o">&gt;=</span> <span class="n">max_branches</span><span class="p">:</span>
             <span class="k">break</span>
 
         <span class="c1"># Lognormal distribution with arithmetic mean</span>
         <span class="c1"># equal to interbranch_distance.</span>
-        <span class="n">spacing</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">interbranch_distance</span>
-            <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">lognormal</span><span class="p">(</span>
-                <span class="n">mean</span><span class="o">=-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">log_sd</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
-                <span class="n">sigma</span><span class="o">=</span><span class="n">log_sd</span><span class="p">,</span>
-            <span class="p">)</span>
+        <span class="n">spacing</span> <span class="o">=</span> <span class="n">interbranch_distance</span> <span class="o">*</span> <span class="n">rng</span><span class="o">.</span><span class="n">lognormal</span><span class="p">(</span>
+            <span class="n">mean</span><span class="o">=-</span><span class="mf">0.5</span> <span class="o">*</span> <span class="n">log_sd</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>
+            <span class="n">sigma</span><span class="o">=</span><span class="n">log_sd</span><span class="p">,</span>
         <span class="p">)</span>
 
         <span class="n">position</span> <span class="o">+=</span> <span class="n">spacing</span>

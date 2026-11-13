@@ -44,8 +44,8 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../introduction/index.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../introduction/project_guide.html">Using DeepRootGen</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Using DeepRootGen</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../introduction/project_guide.html">DeepRootGen</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../faqs.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_reference/index.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../changelogs/changelog.html">Changelog</a></li>
@@ -117,9 +117,7 @@
 <span class="sd">        Root length density (cm/cm3).</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="k">if</span> <span class="n">core_radius</span> <span class="o">&lt;=</span> <span class="mi">0</span> <span class="ow">or</span> <span class="n">z_upper_bound</span> <span class="o">&lt;=</span> <span class="n">z_lower_bound</span><span class="p">:</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Require radius &gt; 0 and upper depth &gt; lower depth.&quot;</span>
-        <span class="p">)</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Require radius &gt; 0 and upper depth &gt; lower depth.&quot;</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">diameter_max_mm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">diameter_max_mm</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;diameter_max_mm must be positive.&quot;</span><span class="p">)</span>
@@ -128,8 +126,13 @@
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid length_source.&quot;</span><span class="p">)</span>
 
     <span class="n">required</span> <span class="o">=</span> <span class="p">{</span>
-        <span class="s2">&quot;node_id&quot;</span><span class="p">,</span> <span class="s2">&quot;parent_id&quot;</span><span class="p">,</span> <span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;diameter&quot;</span><span class="p">,</span> <span class="s2">&quot;length&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;node_id&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;parent_id&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;x&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;y&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;z&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;diameter&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;length&quot;</span><span class="p">,</span>
     <span class="p">}</span>
     <span class="n">missing</span> <span class="o">=</span> <span class="n">required</span> <span class="o">-</span> <span class="nb">set</span><span class="p">(</span><span class="n">node_df</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
 
@@ -140,35 +143,27 @@
 
     <span class="c1"># Exclude invalid roots and their disconnected descendants.</span>
     <span class="k">if</span> <span class="s2">&quot;invalid_root&quot;</span> <span class="ow">in</span> <span class="n">nodes</span><span class="p">:</span>
-        <span class="n">nodes</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-            <span class="o">~</span><span class="n">nodes</span><span class="p">[</span><span class="s2">&quot;invalid_root&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)</span>
-        <span class="p">]</span>
+        <span class="n">nodes</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="o">~</span><span class="n">nodes</span><span class="p">[</span><span class="s2">&quot;invalid_root&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">bool</span><span class="p">)]</span>
 
     <span class="k">if</span> <span class="n">plant_id</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">nodes</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">nodes</span><span class="p">[</span><span class="s2">&quot;plant_id&quot;</span><span class="p">]</span> <span class="o">==</span> <span class="n">plant_id</span><span class="p">]</span>
 
     <span class="n">parents</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;node_id&quot;</span><span class="p">,</span> <span class="n">verify_integrity</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-    <span class="n">children</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-        <span class="n">nodes</span><span class="p">[</span><span class="s2">&quot;parent_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">parents</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
-    <span class="p">]</span>
+    <span class="n">children</span> <span class="o">=</span> <span class="n">nodes</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">nodes</span><span class="p">[</span><span class="s2">&quot;parent_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">parents</span><span class="o">.</span><span class="n">index</span><span class="p">)]</span>
 
     <span class="k">if</span> <span class="s2">&quot;order&quot;</span> <span class="ow">in</span> <span class="n">children</span><span class="p">:</span>
         <span class="n">children</span> <span class="o">=</span> <span class="n">children</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">children</span><span class="p">[</span><span class="s2">&quot;order&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">]</span>
 
     <span class="c1"># Match the diameter range included in field measurements.</span>
     <span class="k">if</span> <span class="n">diameter_max_mm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">children</span> <span class="o">=</span> <span class="n">children</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-            <span class="n">children</span><span class="p">[</span><span class="s2">&quot;diameter&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">&lt;=</span> <span class="n">diameter_max_mm</span>
-        <span class="p">]</span>
+        <span class="n">children</span> <span class="o">=</span> <span class="n">children</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">children</span><span class="p">[</span><span class="s2">&quot;diameter&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="mi">10</span> <span class="o">&lt;=</span> <span class="n">diameter_max_mm</span><span class="p">]</span>
 
     <span class="k">if</span> <span class="n">children</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
         <span class="k">return</span> <span class="mf">0.0</span>
 
     <span class="c1"># Parent and child coordinates define straight segments.</span>
-    <span class="n">start</span> <span class="o">=</span> <span class="n">parents</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
-        <span class="n">children</span><span class="p">[</span><span class="s2">&quot;parent_id&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">]</span>
-    <span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="n">start</span> <span class="o">=</span> <span class="n">parents</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">children</span><span class="p">[</span><span class="s2">&quot;parent_id&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
 
     <span class="n">end</span> <span class="o">=</span> <span class="n">children</span><span class="p">[[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">]]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
 
@@ -184,12 +179,8 @@
     <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="o">~</span><span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">lengths</span><span class="p">))</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">lengths</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">):</span>
         <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid segment lengths.&quot;</span><span class="p">)</span>
 
-    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span>
-        <span class="p">(</span><span class="n">geometric_lengths</span> <span class="o">&lt;</span> <span class="mf">1e-12</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">lengths</span> <span class="o">&gt;</span> <span class="mf">1e-12</span><span class="p">)</span>
-    <span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-            <span class="s2">&quot;Positive segment length with coincident endpoints.&quot;</span>
-        <span class="p">)</span>
+    <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">((</span><span class="n">geometric_lengths</span> <span class="o">&lt;</span> <span class="mf">1e-12</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">lengths</span> <span class="o">&gt;</span> <span class="mf">1e-12</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Positive segment length with coincident endpoints.&quot;</span><span class="p">)</span>
 
     <span class="c1"># Parameterise each segment as start + t * d,</span>
     <span class="c1"># with 0 &lt;= t &lt;= 1.</span>
@@ -232,19 +223,14 @@
     <span class="c1"># Intersect with the observed soil depth interval.</span>
     <span class="n">vertical</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">dz</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mf">1e-12</span>
 
-    <span class="n">valid</span><span class="p">[</span><span class="o">~</span><span class="n">vertical</span><span class="p">]</span> <span class="o">&amp;=</span> <span class="p">(</span>
-        <span class="p">(</span><span class="n">start</span><span class="p">[</span><span class="o">~</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">z_lower_bound</span><span class="p">)</span>
-        <span class="o">&amp;</span> <span class="p">(</span><span class="n">start</span><span class="p">[</span><span class="o">~</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">z_upper_bound</span><span class="p">)</span>
+    <span class="n">valid</span><span class="p">[</span><span class="o">~</span><span class="n">vertical</span><span class="p">]</span> <span class="o">&amp;=</span> <span class="p">(</span><span class="n">start</span><span class="p">[</span><span class="o">~</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">z_lower_bound</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span>
+        <span class="n">start</span><span class="p">[</span><span class="o">~</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span> <span class="o">&lt;=</span> <span class="n">z_upper_bound</span>
     <span class="p">)</span>
 
     <span class="k">if</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">vertical</span><span class="p">):</span>
-        <span class="n">a</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">z_lower_bound</span> <span class="o">-</span> <span class="n">start</span><span class="p">[</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
-        <span class="p">)</span> <span class="o">/</span> <span class="n">dz</span><span class="p">[</span><span class="n">vertical</span><span class="p">]</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="p">(</span><span class="n">z_lower_bound</span> <span class="o">-</span> <span class="n">start</span><span class="p">[</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="n">dz</span><span class="p">[</span><span class="n">vertical</span><span class="p">]</span>
 
-        <span class="n">b</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">z_upper_bound</span> <span class="o">-</span> <span class="n">start</span><span class="p">[</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">]</span>
-        <span class="p">)</span> <span class="o">/</span> <span class="n">dz</span><span class="p">[</span><span class="n">vertical</span><span class="p">]</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="p">(</span><span class="n">z_upper_bound</span> <span class="o">-</span> <span class="n">start</span><span class="p">[</span><span class="n">vertical</span><span class="p">,</span> <span class="mi">2</span><span class="p">])</span> <span class="o">/</span> <span class="n">dz</span><span class="p">[</span><span class="n">vertical</span><span class="p">]</span>
 
         <span class="n">t_enter</span><span class="p">[</span><span class="n">vertical</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">maximum</span><span class="p">(</span>
             <span class="n">t_enter</span><span class="p">[</span><span class="n">vertical</span><span class="p">],</span>
@@ -263,15 +249,9 @@
         <span class="mi">0</span><span class="p">,</span>
     <span class="p">)</span>
 
-    <span class="n">root_length_in_core</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span>
-        <span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">fractions</span><span class="p">,</span> <span class="n">lengths</span><span class="p">)</span>
-    <span class="p">)</span>
+    <span class="n">root_length_in_core</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">fractions</span><span class="p">,</span> <span class="n">lengths</span><span class="p">))</span>
 
-    <span class="n">core_volume</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">np</span><span class="o">.</span><span class="n">pi</span>
-        <span class="o">*</span> <span class="n">core_radius</span><span class="o">**</span><span class="mi">2</span>
-        <span class="o">*</span> <span class="p">(</span><span class="n">z_upper_bound</span> <span class="o">-</span> <span class="n">z_lower_bound</span><span class="p">)</span>
-    <span class="p">)</span>
+    <span class="n">core_volume</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="n">core_radius</span><span class="o">**</span><span class="mi">2</span> <span class="o">*</span> <span class="p">(</span><span class="n">z_upper_bound</span> <span class="o">-</span> <span class="n">z_lower_bound</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">root_length_in_core</span> <span class="o">/</span> <span class="n">core_volume</span></div>
 

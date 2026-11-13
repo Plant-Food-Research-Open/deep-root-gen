@@ -44,8 +44,8 @@
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../../../introduction/index.html">Introduction</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../introduction/project_guide.html">Using DeepRootGen</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Using DeepRootGen</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../introduction/project_guide.html">DeepRootGen</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../usage/index.html">Usage</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../faqs.html">FAQ</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../api_reference/index.html">API Reference</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../changelogs/changelog.html">Changelog</a></li>
@@ -234,6 +234,8 @@
 
 
 
+<div class="viewcode-block" id="SummaryStatisticsModel">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.SummaryStatisticsModel">[docs]</a>
 <span class="k">class</span> <span class="nc">SummaryStatisticsModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;The summary statistics data model.</span>
 
@@ -241,10 +243,6 @@
 <span class="sd">        BaseModel (BaseModel):</span>
 <span class="sd">            The Pydantic Base model class.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-
-<div class="viewcode-block" id="SummaryStatisticsModel">
-<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.SummaryStatisticsModel">[docs]</a>
-<span class="k">class</span> <span class="nc">SummaryStatisticsModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
     <span class="n">statistic_name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">statistic_value</span><span class="p">:</span> <span class="nb">float</span>
 
@@ -260,6 +258,7 @@
 
     <span class="c1"># Optional restriction to smaller root diameters</span>
     <span class="n">diameter_max_mm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></div>
+
 
 
 <div class="viewcode-block" id="StatisticsComparisonModel">
