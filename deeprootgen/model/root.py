@@ -17,12 +17,13 @@ from numpy.random import default_rng
 
 from ..data_model import RootNodeModel, RootSimulationModel, RootType, RootTypeModel
 from ..spatial import get_transform_matrix, make_homogenous
+from ..utils.branching import sample_branch_sites
 from .hgraph import RootNode, RootSystemGraph
 from .soil import Soil
 
 
 class RootOrgan:
-    """A single root organ within the root system."""
+    """One root organ and its ordered segment nodes."""
 
     def __init__(
         self,
@@ -32,35 +33,14 @@ class RootOrgan:
         simulation_tag: str,
         rng: np.random.Generator,
     ) -> None:
-        """RootOrgan constructor.
-
-        Args:
-            parent_node (RootNode):
-                The parent root node.
-            input_parameters (RootSimulationModel):
-                The root simulation data model.
-            root_type (RootTypeModel):
-                The root type data.
-            simulation_tag (str, optional):
-                A tag to group together multiple simulations.
-            rng (np.random.Generator):
-                The random number generator.
-
-        Returns:
-            RootOrgan:
-                A root organ within the root system.
-        """
         self.parent_node = parent_node
         self.segments: List[RootNode] = []
         self.child_organs: List["RootOrgan"] = []
+        self.lateral_attachment_nodes: List[RootNode] = []
         self.input_parameters = input_parameters
         self.root_type = root_type
-
-        # Diameter
         self.base_diameter = input_parameters.base_diameter
         self.fine_root_threshold = input_parameters.fine_root_threshold
-
-        # Length
         self.proot_length_interval = np.array(
             [input_parameters.min_primary_length, input_parameters.max_primary_length]
         )
@@ -68,65 +48,34 @@ class RootOrgan:
             [input_parameters.min_sec_root_length, input_parameters.max_sec_root_length]
         )
         self.length_reduction = input_parameters.length_reduction
-        self.mass = 0
-
+        self.mass = 0.0
         self.reset_transform()
         self.simulation_tag = simulation_tag
         self.rng = rng
         self.invalid_root = False
 
-    def init_diameters(self, segments_per_root: int, apex_diameter: int) -> np.ndarray:
-        """Initialise root diameters for the root organ.
-
-        Args:
-            segments_per_root (int):
-                The number of segments for a single root organ.
-            apex_diameter (int):
-                The diameter of the root apex.
-        """
+    def init_diameters(self, segments_per_root: int, apex_diameter: float) -> np.ndarray:
         diameter_reduction = 1 - self.input_parameters.diameter_reduction
         base_diameter = self.base_diameter * diameter_reduction ** (
             self.parent_node.node_data.order
         )
-        if base_diameter > apex_diameter:
-            ub, lb = base_diameter, apex_diameter
-        else:
-            lb, ub = base_diameter, apex_diameter
-
+        lb, ub = sorted((base_diameter, apex_diameter))
         diameters = self.rng.uniform(lb, ub, segments_per_root)
-        diameters = np.sort(diameters)[::-1]
-        return diameters
+        return np.sort(diameters)[::-1]
 
     def init_lengths(self, segments_per_root: int) -> np.ndarray:
-        """Initialise root lengths for the root organ.
-
-        Args:
-            segments_per_root (int):
-                The number of segments for a single root organ.
-            length_range (tuple[float]):
-                The minimum and maximum value for the segment lengths.
-        """
         order = self.parent_node.node_data.order + 1
         if order > 1:
-            reduction_factor = self.length_reduction ** (
-                self.parent_node.node_data.order
-            )
+            reduction_factor = self.length_reduction ** self.parent_node.node_data.order
             min_length, max_length = self.sroot_length_interval * reduction_factor
         else:
             min_length, max_length = self.proot_length_interval
-
-        if max_length > min_length:
-            ub, lb = max_length, min_length
-        else:
-            lb, ub = max_length, min_length
-
+        lb, ub = sorted((min_length, max_length))
         root_length = self.rng.uniform(lb, ub)
-        # Rescale segment samples
         segment_samples = self.rng.uniform(0, 1, segments_per_root)
         segment_samples = np.sort(segment_samples)[::-1]
-        segment_samples /= segment_samples.sum(axis=0)
-        lengths = segment_samples * root_length
-        return lengths
+        segment_samples /= segment_samples.sum()
+        return segment_samples * root_length
 
     def add_child_node(
         self,
@@ -139,47 +88,19 @@ class RootOrgan:
         i: int,
         new_organ: bool = False,
     ) -> RootNode:
-        """Add a new child node to the root organ.
-
-        Args:
-            parent_node (RootNode):
-                The parent node of the root organ.
-            diameters (np.ndarray):
-                The array of segment diameters.
-            lengths (np.ndarray):
-                The array of segment lengths.
-            coordinates (np.ndarray):
-                The 3D coordinates.
-            root_type (RootTypeModel):
-                The root type data model.
-            root_tissue_density (float):
-                The root tissue density (g/cm3)
-            i (int):
-                The current array index.
-            new_organ (bool, optional):
-                Whether the node belongs to a new root organ. Defaults to False.
-
-        Returns:
-            RootNode:
-                The child node.
-        """
-        diameter = diameters[i]
-        length = lengths[i]
         x, y, z = coordinates[i]
-
         node_data = RootNodeModel(
             x=x,
             y=y,
             z=z,
-            diameter=diameter,
-            length=length,
+            diameter=diameters[i],
+            length=lengths[i],
             root_tissue_density=root_tissue_density,
             root_type=root_type.root_type,
             order_type=root_type.order_type,
             position_type=root_type.position_type,
             simulation_tag=self.simulation_tag,
         )
-
         child_node = parent_node.add_child_node(node_data, new_organ=new_organ)
         child_node.organ = self
         self.segments.append(child_node)
@@ -188,127 +109,185 @@ class RootOrgan:
     def init_segment_coordinates(
         self, segments_per_root: int, lengths: np.ndarray
     ) -> np.ndarray:
-        """Initialise the coordinates of the root segments.
-
-        Args:
-            segments_per_root (int):
-                The number of segments for a single root organ.
-            lengths (np.ndarray):
-                The lengths of each root segment.
-
-        Returns:
-            np.ndarray:
-                The 3D root segment coordinates.
-        """
+        """Generate local centreline points with geometric segment lengths."""
         coordinates = [np.zeros(3)]
         root_vary = self.input_parameters.root_vary
-
-        y_rotations = self.rng.uniform(
-            -root_vary, root_vary, segments_per_root
-        )
-        z_rotations = self.rng.uniform(
-            -root_vary, root_vary, segments_per_root
-        )
-
+        y_rotations = self.rng.uniform(-root_vary, root_vary, segments_per_root)
+        z_rotations = self.rng.uniform(-root_vary, root_vary, segments_per_root)
         for i, segment_length in enumerate(lengths):
-            displacement = np.full(
-                (1, 3), segment_length / np.sqrt(3.0)
-            )
-
+            displacement = np.full((1, 3), segment_length / np.sqrt(3.0))
             homogeneous = make_homogenous(displacement)
-
             transform = get_transform_matrix(
                 pitch=y_rotations[i],
                 yaw=z_rotations[i],
                 translation=coordinates[-1],
             )
-
-            endpoint = (transform @ homogeneous)[:3, 0]
-            coordinates.append(endpoint)
-
+            coordinates.append((transform @ homogeneous)[:3, 0])
         coordinates = np.asarray(coordinates)
-
         coordinates[:, 2] *= -1
         return coordinates[1:]
 
+    def _draw_lateral_count(self) -> int:
+        """Draw requested lateral count using the original branching-count rule.
 
-    def calculate_mass(self) -> float:
-        """Calculate the mass of the root organ.
-
-        Returns:
-            float:
-                The mass.
+        ``max_sec_root_num`` retains the original *exclusive* upper bound.
         """
-        diameters = self.get_diameters()
-        radius = diameters / 2
-        heights = self.get_lengths()
-        volume = np.pi * radius**2 * heights
-        mass = volume * self.input_parameters.root_tissue_density
-        return sum(mass)
+        p = self.input_parameters
+        current_order = int(self.parent_node.node_data.order) + 1
+        if current_order >= int(p.max_order):
+            return 0
+        lo, hi = sorted((int(p.min_sec_root_num), int(p.max_sec_root_num)))
+        if lo < 0:
+            raise ValueError("min_sec_root_num must be nonnegative")
+        if lo == hi:
+            hi += 1
+        n = int(self.rng.integers(lo, hi))
+        growth = float(p.growth_sec_root)
+        if not 0 <= growth < 1:
+            raise ValueError("growth_sec_root must lie in [0, 1)")
+        # Primary (order 1) -> secondaries: exponent zero, as previously.
+        factor = (1 - growth) ** -(current_order - 1)
+        return int(math.ceil(n * factor))
 
-    def construct_root(
-        self, segments_per_root: int, apex_diameter: int, root_tissue_density: float
-    ) -> List[RootNode]:
-        """Construct all root segments for the root organ.
+    def _prepare_branch_nodes(
+        self,
+        diameters: np.ndarray,
+        lengths: np.ndarray,
+        coordinates: np.ndarray,
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray, list[int]]:
+        """Subdivide the local polyline at new lateral attachment sites.
 
-        Args:
-            segments_per_root (int):
-                The number of segments for a single root organ.
-            apex_diameter (int):
-                The diameter of the root apex.
-            root_tissue_density (float):
-                The root tissue density (g/cm3)
-
-        Returns:
-            List[RootNode]:
-                The root segments for the root organ.
+        New nodes are inserted before edges are created, retaining existing
+        RootSystemGraph parent/child rules. Each site is an endpoint of a
+        parent-organ segment, and is mapped to its new segment index.
         """
-        diameters = self.init_diameters(segments_per_root, apex_diameter)
-        lengths = self.init_lengths(segments_per_root)
-        coordinates = self.init_segment_coordinates(segments_per_root, lengths)
+        n_requested = self._draw_lateral_count()
+        if n_requested == 0:
+            return diameters, lengths, coordinates, []
+        diameters = np.asarray(diameters, dtype=float)
+        lengths = np.asarray(lengths, dtype=float)
+        coordinates = np.asarray(coordinates, dtype=float)
+        polyline = np.vstack((np.zeros((1, 3)), coordinates))
+        original_lengths = np.linalg.norm(np.diff(polyline, axis=0), axis=1)
+        if np.any(original_lengths <= 1e-12):
+            raise ValueError("Root centreline contains zero-length segments")
+        np.testing.assert_allclose(original_lengths, lengths, rtol=1e-5, atol=1e-6)
+        cumulative = np.r_[0.0, np.cumsum(original_lengths)]
 
-        self.base_node = self.add_child_node(
-            self.parent_node,
-            diameters=diameters,
-            lengths=lengths,
-            coordinates=coordinates,
-            root_type=self.root_type,
-            root_tissue_density=root_tissue_density,
-            i=0,
-            new_organ=True,
+        p = self.input_parameters
+        sites = sample_branch_sites(
+            parent_xyz=polyline,
+            interbranch_distance=float(p.interbranch_distance),
+            rng=self.rng,
+            floor_threshold=float(p.floor_threshold),
+            ceiling_threshold=float(p.ceiling_threshold),
+            max_branches=n_requested,
         )
-        child_node = self.base_node
+        if not sites:
+            return diameters, lengths, coordinates, []
+        sites = np.asarray(sites, dtype=float)
+        if sites.ndim != 1 or not np.all(np.isfinite(sites)):
+            raise ValueError("sample_branch_sites must return finite arc lengths")
+        total_length = float(cumulative[-1])
+        if np.any((sites <= 0) | (sites >= total_length)):
+            raise ValueError("Branch sites must lie strictly inside the parent root")
 
-        for i in range(1, segments_per_root):
-            child_node = self.add_child_node(
-                child_node,
+        # The original centreline corners and sites are retained exactly.
+        cuts = np.unique(np.r_[cumulative, sites])
+        subdivided = np.column_stack([
+            np.interp(cuts, cumulative, polyline[:, axis])
+            for axis in range(3)
+        ])
+        new_lengths = np.linalg.norm(np.diff(subdivided, axis=0), axis=1)
+        if np.any(new_lengths <= 1e-12):
+            raise ValueError("Branching subdivision created a zero-length segment")
+
+        # Hold each original segment's diameter constant over its subsegments.
+        midpoints = (cuts[:-1] + cuts[1:]) / 2.0
+        old_indices = np.searchsorted(cumulative[1:], midpoints)
+        new_diameters = diameters[old_indices]
+        attachment_indices = []
+        for site in sites:
+            cut_index = int(np.argmin(np.abs(cuts - site)))
+            if not np.isclose(cuts[cut_index], site, atol=1e-8, rtol=0):
+                raise ValueError("A sampled insertion point was not retained")
+            attachment_indices.append(cut_index - 1)
+
+        np.testing.assert_allclose(
+            new_lengths.sum(), original_lengths.sum(), rtol=1e-6, atol=1e-6
+        )
+        return (
+            new_diameters,
+            new_lengths,
+            subdivided[1:],
+            sorted(set(attachment_indices)),
+        )
+
+    def _construct_segment_nodes(
+        self,
+        diameters: np.ndarray,
+        lengths: np.ndarray,
+        coordinates: np.ndarray,
+        root_type: RootTypeModel,
+        root_tissue_density: float,
+        attachment_indices: list[int],
+    ) -> List[RootNode]:
+        """Construct the root chain and remember the actual insertion nodes."""
+        if self.segments:
+            raise RuntimeError("This organ has already been constructed")
+        insertion_set = set(attachment_indices)
+        self.lateral_attachment_nodes = []
+        for i in range(len(lengths)):
+            parent = self.parent_node if i == 0 else self.segments[-1]
+            node = self.add_child_node(
+                parent_node=parent,
                 diameters=diameters,
                 lengths=lengths,
                 coordinates=coordinates,
-                root_type=self.root_type,
+                root_type=root_type,
                 root_tissue_density=root_tissue_density,
                 i=i,
-                new_organ=False,
+                new_organ=(i == 0),
             )
-
+            if i == 0:
+                self.base_node = node
+            if i in insertion_set:
+                self.lateral_attachment_nodes.append(node)
         self.mass = self.calculate_mass()
         return self.segments
+
+    def calculate_mass(self) -> float:
+        diameters = self.get_diameters()
+        lengths = self.get_lengths()
+        volume = np.pi * (diameters / 2) ** 2 * lengths
+        return float((volume * self.input_parameters.root_tissue_density).sum())
+
+    def construct_root(
+        self, segments_per_root: int, apex_diameter: float, root_tissue_density: float
+    ) -> List[RootNode]:
+        """Construct primary root, inserting daughter attachment nodes first."""
+        diameters = self.init_diameters(segments_per_root, apex_diameter)
+        lengths = self.init_lengths(segments_per_root)
+        coordinates = self.init_segment_coordinates(segments_per_root, lengths)
+        diameters, lengths, coordinates, attachments = self._prepare_branch_nodes(
+            diameters, lengths, coordinates
+        )
+        return self._construct_segment_nodes(
+            diameters, lengths, coordinates, self.root_type,
+            root_tissue_density, attachments,
+        )
 
     def add_child_organ(
         self, floor_threshold: float = 0.4, ceiling_threshold: float = 0.9
     ) -> "RootOrgan":
-        floor = math.ceil(len(self.segments) * floor_threshold)
-        ceiling = math.ceil(len(self.segments) * ceiling_threshold)
-        if floor >= ceiling:
-            floor, ceiling = ceiling, floor
-        if floor <= 0:
-            floor = 1
-        if floor == ceiling:
-            ceiling += 1
+        """Create daughter organ at the next precomputed insertion node.
 
-        indx = self.rng.integers(floor, ceiling)
-        parent_node = self.segments[indx]
-
+        Threshold arguments remain for API compatibility. The thresholds were
+        applied earlier by _prepare_branch_nodes.
+        """
+        if not self.lateral_attachment_nodes:
+            raise RuntimeError("No lateral insertion nodes remain on this organ")
+        parent_node = self.lateral_attachment_nodes.pop(0)
         child_organ = RootOrgan(
             parent_node,
             input_parameters=self.input_parameters,
@@ -320,79 +299,35 @@ class RootOrgan:
         return child_organ
 
     def construct_root_from_parent(
-        self,
-        segments_per_root: int,
-        apex_diameter: int,
+        self, segments_per_root: int, apex_diameter: float
     ) -> List[RootNode]:
-        """Construct root segments for the root organ, inheriting plant properties from the parent organ.
-
-        Args:
-            segments_per_root (int):
-                The number of segments for a single root organ.
-            apex_diameter (int):
-                The diameter of the root apex.
-
-        Returns:
-            List[RootNode]:
-                The root segments for the root organ.
-        """
+        """Construct higher-order root, with additional attachment nodes if needed."""
         diameters = self.init_diameters(segments_per_root, apex_diameter)
         lengths = self.init_lengths(segments_per_root)
-
         parent_data = self.parent_node.node_data
         parent_order = parent_data.order
         diameters += parent_data.diameter * 0.1**parent_order
         lengths += parent_data.length * 0.1**parent_order
-
         coordinates = self.init_segment_coordinates(segments_per_root, lengths)
 
-        avg_diameter = diameters.mean(axis=0)
-        if avg_diameter > self.fine_root_threshold:
-            root_type = RootType.STRUCTURAL.value
-        else:
-            root_type = RootType.FINE.value
-
+        root_type_name = (
+            RootType.STRUCTURAL.value if diameters.mean() > self.fine_root_threshold
+            else RootType.FINE.value
+        )
         root_type = RootTypeModel(
-            root_type=root_type,
+            root_type=root_type_name,
             order_type=RootType.SECONDARY.value,
             position_type=self.root_type.position_type,
         )
-
-        root_tissue_density = parent_data.root_tissue_density
-        self.base_node = self.add_child_node(
-            self.parent_node,
-            diameters=diameters,
-            lengths=lengths,
-            coordinates=coordinates,
-            root_type=root_type,
-            root_tissue_density=root_tissue_density,
-            i=0,
-            new_organ=True,
+        diameters, lengths, coordinates, attachments = self._prepare_branch_nodes(
+            diameters, lengths, coordinates
         )
-        child_node = self.base_node
-
-        for i in range(1, segments_per_root):
-            child_node = self.add_child_node(
-                child_node,
-                diameters=diameters,
-                lengths=lengths,
-                coordinates=coordinates,
-                root_type=root_type,
-                root_tissue_density=root_tissue_density,
-                i=i,
-                new_organ=False,
-            )
-
-        self.mass = self.calculate_mass()
-        return self.segments
+        return self._construct_segment_nodes(
+            diameters, lengths, coordinates, root_type,
+            parent_data.root_tissue_density, attachments,
+        )
 
     def reset_transform(self) -> np.ndarray:
-        """Reset the transformation matrix.
-
-        Returns:
-            np.ndarray:
-                The reset transformation matrix.
-        """
         self.transform_matrix = np.eye(4)
         return self.transform_matrix
 
@@ -405,26 +340,6 @@ class RootOrgan:
         reflect: List[float] = [1, 1, 1, 1],
         scale: List[float] = [1, 1, 1, 1],
     ) -> np.ndarray:
-        """Update the transformation matrix.
-
-        Args:
-            roll (float, optional):
-                The roll transform in degrees. Defaults to 0.
-            pitch (float, optional):
-                The pitch transform in degrees. Defaults to 0.
-            yaw (float, optional):
-                The yaw transform in degrees. Defaults to 0.
-            translation (List[float], optional):
-                The translation transform in degrees. Defaults to [0, 0, 0].
-            reflect (List[float], optional):
-                The reflect transform in degrees. Defaults to [1, 1, 1, 1].
-            scale (List[float], optional):
-                The scale transform in degrees. Defaults to [1, 1, 1, 1].
-
-        Returns:
-            np.ndarray:
-                The updated transformation matrix.
-        """
         transformation_matrix = get_transform_matrix(
             roll=roll,
             pitch=pitch,
@@ -445,192 +360,68 @@ class RootOrgan:
         reflect: List[float] = [1, 1, 1, 1],
         scale: List[float] = [1, 1, 1, 1],
     ) -> None:
-        """Update the transformation matrix for the organ and child organs.
-
-        Args:
-            roll (float, optional):
-                The roll transform in degrees. Defaults to 0.
-            pitch (float, optional):
-                The pitch transform in degrees. Defaults to 0.
-            yaw (float, optional):
-                The yaw transform in degrees. Defaults to 0.
-            translation (List[float], optional):
-                The translation transform in degrees. Defaults to [0, 0, 0].
-            reflect (List[float], optional):
-                The reflect transform in degrees. Defaults to [1, 1, 1, 1].
-            scale (List[float], optional):
-                The scale transform in degrees. Defaults to [1, 1, 1, 1].
-        """
         self.update_transform(
-            roll=roll,
-            pitch=pitch,
-            yaw=yaw,
-            translation=translation,
-            reflect=reflect,
-            scale=scale,
+            roll=roll, pitch=pitch, yaw=yaw,
+            translation=translation, reflect=reflect, scale=scale,
         )
-
-        for child_organ in self.child_organs:
-            child_organ.cascading_update_transform(
-                roll=roll,
-                pitch=pitch,
-                yaw=yaw,
-                translation=translation,
-                reflect=reflect,
-                scale=scale,
+        for child in self.child_organs:
+            child.cascading_update_transform(
+                roll=roll, pitch=pitch, yaw=yaw,
+                translation=translation, reflect=reflect, scale=scale,
             )
 
     def get_coordinates(self, as_array: bool = True) -> np.ndarray:
-        """Get the coordinates of the root segments.
-
-        Args:
-            as_array (bool, optional):
-                Return the coordinates as a Numpy array. Defaults to True.
-
-        Returns:
-            np.ndarray:
-                The coordinates of the root segments
-        """
-        coordinates = []
-        for segment in self.segments:
-            node_data = segment.node_data
-            coordinate = [node_data.x, node_data.y, node_data.z]
-            coordinates.append(coordinate)
-
-        if as_array:
-            coordinates = np.array(coordinates)
-        return coordinates
+        coords = [
+            [node.node_data.x, node.node_data.y, node.node_data.z]
+            for node in self.segments
+        ]
+        return np.asarray(coords) if as_array else coords
 
     def set_coordinates(self, coordinates: list[tuple]) -> np.ndarray:
-        """Get the coordinates of the root segments.
-
-        Args:
-            as_array (bool, optional):
-                Return the coordinates as a Numpy array. Defaults to True.
-
-        Returns:
-            np.ndarray:
-                The coordinates of the root segments
-        """
-        for i, segment in enumerate(self.segments):
-            node_data = segment.node_data
-            node_data.x, node_data.y, node_data.z = coordinates[i]
+        for node, position in zip(self.segments, coordinates):
+            node.node_data.x, node.node_data.y, node.node_data.z = position
         return coordinates
 
     def get_diameters(self, as_array: bool = True) -> np.ndarray:
-        """Get the diameters of the root segments.
-
-        Args:
-            as_array (bool, optional):
-                Return the coordinates as a Numpy array. Defaults to True.
-
-        Returns:
-            np.ndarray:
-                The coordinates of the root segments
-        """
-        diameters = []
-        for segment in self.segments:
-            node_data = segment.node_data
-            diameters.append(node_data.diameter)
-
-        if as_array:
-            diameters = np.array(diameters)
-        return diameters
+        values = [node.node_data.diameter for node in self.segments]
+        return np.asarray(values) if as_array else values
 
     def get_lengths(self, as_array: bool = True) -> np.ndarray:
-        """Get the lengths of the root segments.
-
-        Args:
-            as_array (bool, optional):
-                Return the coordinates as a Numpy array. Defaults to True.
-
-        Returns:
-            np.ndarray:
-                The coordinates of the root segments
-        """
-        lengths = []
-        for segment in self.segments:
-            node_data = segment.node_data
-            lengths.append(node_data.length)
-
-        if as_array:
-            lengths = np.array(lengths)
-        return lengths
+        values = [node.node_data.length for node in self.segments]
+        return np.asarray(values) if as_array else values
 
     def transform(self) -> np.ndarray:
-        """Apply the transformation matrix to the root system coordinates.
-
-        Returns:
-            np.ndarray:
-                The transformation matrix.
-        """
-
         coordinates = self.get_coordinates()
-        ones_matrix = np.ones((len(coordinates), 1))
-        homogenous_coordinates = np.hstack((coordinates, ones_matrix)).T
-        transformed_coordinates = self.transform_matrix[:-1] @ homogenous_coordinates
-        coordinates = transformed_coordinates.T
-
-        for i, segment in enumerate(self.segments):
-            node_data = segment.node_data
-            node_data.x, node_data.y, node_data.z = coordinates[i]
-
+        homogeneous = np.vstack((coordinates.T, np.ones(len(coordinates))))
+        transformed = (self.transform_matrix[:-1] @ homogeneous).T
+        self.set_coordinates(transformed)
         return self.reset_transform()
 
     def cascading_transform(self) -> None:
-        """Apply the transformation matrix for the organ and child organs."""
         self.transform()
-        for child_organ in self.child_organs:
-            child_organ.cascading_transform()
+        for child in self.child_organs:
+            child.cascading_transform()
 
     def get_parent_origin(self) -> np.ndarray:
-        """Get the origin of the parent node.
-
-        Returns:
-            np.ndarray:
-                The origin.
-        """
-        node_data = self.parent_node.node_data
-        x, y, z = node_data.x, node_data.y, node_data.z
-
-        origin = np.array([x, y, z])
-        return origin
+        p = self.parent_node.node_data
+        return np.array([p.x, p.y, p.z])
 
     def get_local_origin(self) -> np.ndarray:
-        """Get the origin of the current root.
-
-        Returns:
-            np.ndarray:
-                The local origin.
-        """
         return self.get_parent_origin()
 
     def get_apex_coordinates(self) -> np.ndarray:
-        """Get the apex coordinates of the current root.
-
-        Returns:
-            np.ndarray:
-                The apex coordinates.
-        """
-        node_data = self.segments[-1].node_data
-        apex = np.array([node_data.x, node_data.y, node_data.z])
-        return apex
+        p = self.segments[-1].node_data
+        return np.array([p.x, p.y, p.z])
 
     def cascading_to_world_origin(self) -> None:
-        """
-        Translate all child nodes to the world origin.
-        """
-        local_origin = -self.get_local_origin()
-        self.cascading_update_transform(translation=local_origin)
+        self.cascading_update_transform(translation=-self.get_local_origin())
 
     def set_invalid_root(self) -> None:
-        """Specify that the root is invalid."""
         self.invalid_root = True
-        for segment in self.segments:
-            segment.node_data.invalid_root = True
+        for node in self.segments:
+            node.node_data.invalid_root = True
 
     def cascading_set_invalid_root(self) -> None:
-        """Specify that the root and its children are invalid."""
         self.set_invalid_root()
         for child in self.child_organs:
             child.cascading_set_invalid_root()
@@ -638,21 +429,10 @@ class RootOrgan:
     def validate(
         self, no_root_zone: float, pitch: int = 90, max_attempts: int = 50
     ) -> None:
-        """Validate the plausibility of the root organ.
-
-        Args:
-            no_root_zone (float):
-                The minimum depth threshold for root growth.
-            pitch (int, optional):
-                Pitch in degrees to rotate roots. Defaults to 90.
-            max_attempts (int, optional):
-                Maximum number of validation attempts. Defaults to 50.
-        """
         if self.invalid_root:
             return
 
-        def __transform(**kwargs):
-            """Translate to world origin. Apply transform. Translate back to local origin."""
+        def _reorient(**kwargs):
             local_origin = self.get_local_origin()
             self.cascading_to_world_origin()
             self.cascading_transform()
@@ -661,68 +441,43 @@ class RootOrgan:
             self.cascading_update_transform(translation=local_origin)
             self.cascading_transform()
 
-        coin_flip = self.rng.binomial(1, 0.5)
-        if coin_flip == 1:
+        if self.rng.binomial(1, 0.5) == 1:
             pitch *= -1
-
-        iter_count = 0
+        iterations = 0
         current_order = self.segments[0].node_data.order
         if current_order > 1:
             while self.get_apex_coordinates()[2] > self.get_local_origin()[2]:
-                if iter_count > max_attempts:
+                if iterations > max_attempts:
                     return self.cascading_set_invalid_root()
-                __transform(pitch=pitch)
-                iter_count += 1
-
-        iter_count = 0
+                _reorient(pitch=pitch)
+                iterations += 1
+        iterations = 0
         coordinates = self.get_coordinates()
-        # if np.any(coordinates[:, 2] > no_root_zone):
-        #     coordinates[:, 2] *= -1
-        #     self.set_coordinates(coordinates)
-
         while np.any(coordinates[:, 2] > no_root_zone):
-            if iter_count > max_attempts:
+            if iterations > max_attempts:
                 return self.cascading_set_invalid_root()
-            __transform(pitch=pitch)
+            _reorient(pitch=pitch)
             coordinates = self.get_coordinates()
-            iter_count += 1
+            iterations += 1
 
-        # Remove detached roots
         if current_order > 1:
-            parent_coordinates = self.get_parent_origin()
-            first_segment = self.segments[0]
-            first_coordinates = self.get_coordinates()[0]
-            distance = np.linalg.norm(
-                first_coordinates - parent_coordinates
-            )
-
-            expected_length = first_segment.node_data.length
-            if not np.isclose(
-                distance, expected_length,
-                rtol=1e-5,
-                atol=1e-6,
-            ):
+            parent = self.get_parent_origin()
+            first = self.get_coordinates()[0]
+            distance = np.linalg.norm(first - parent)
+            expected = self.segments[0].node_data.length
+            if not np.isclose(distance, expected, rtol=1e-5, atol=1e-6):
                 return self.cascading_set_invalid_root()
 
     def grow(
         self, simulation: "RootSystemSimulation", input_parameters: RootSimulationModel
     ) -> None:
-        """Grow the root organ.
-
-        Args:
-            simulation (RootSystemSimulation):
-                The root simulation model.
-            input_parameters (RootSimulationModel):
-                The root simulation parameters.
-        """
+        """Grow this root organ (retained from original; not called by run())."""
         diameter_growth = self.rng.uniform(1.01, 1.05)
         diameters = self.get_diameters()
         last_diameter = diameters[-1]
         diameters *= diameter_growth
-
         for i, segment in enumerate(self.segments):
             segment.node_data.diameter = diameters[i]
-
         diameters = diameters.tolist()
         diameters.append(last_diameter)
         diameters = np.array(diameters)
@@ -731,69 +486,31 @@ class RootOrgan:
         new_length = self.init_lengths(1) / (len(lengths) + 1)
         lengths.append(new_length.item())
         lengths = np.array(lengths)
-
         coordinates = self.get_coordinates(False)
-        new_coordinate = (
-            self.get_coordinates()[-1]
-            + self.init_segment_coordinates(
-                1, new_length
-            )[0]
-        )
+        new_coordinate = self.get_coordinates()[-1] + self.init_segment_coordinates(
+            1, new_length
+        )[0]
         coordinates.append(new_coordinate)
         coordinates = np.array(coordinates)
-
         apex_segment = self.segments[-1]
-        root_tissue_density = input_parameters.root_tissue_density
         self.add_child_node(
             apex_segment,
             diameters=diameters,
             lengths=lengths,
             coordinates=coordinates,
             root_type=self.root_type,
-            root_tissue_density=root_tissue_density,
-            i=i + 1,
+            root_tissue_density=input_parameters.root_tissue_density,
+            i=len(lengths) - 1,
             new_organ=False,
         )
 
-        # mass = self.calculate_mass()
-        # if mass <= self.mass * 1.5:
-        #     return
-        # self.mass = mass
-        # next_order = self.base_node.node_data.order + 1
-        # if simulation.organs.get(next_order) is None:
-        #     simulation.organs[next_order] = []
-
-        # child_organ = self.add_child_organ(
-        #     floor_threshold=input_parameters.floor_threshold,
-        #     ceiling_threshold=input_parameters.ceiling_threshold,
-        # )
-        # simulation.organs[next_order].append(child_organ)
-        # child_organ.construct_root_from_parent(
-        #     input_parameters.segments_per_root,
-        #     input_parameters.apex_diameter,
-        # )
-
 
 class RootSystemSimulation:
-    """The root system architecture simulation model."""
+    """The root-system architecture simulation model."""
 
     def __init__(
-        self,
-        simulation_tag: str = "default",
-        random_seed: int = None,
+        self, simulation_tag: str = "default", random_seed: int = None
     ) -> None:
-        """RootSystemSimulation constructor.
-
-        Args:
-            simulation_tag (str, optional):
-                A tag to group together multiple simulations. Defaults to 'default'.
-            random_seed (int, optional):
-                The seed for the random number generator. Defaults to None.
-
-        Returns:
-            RootSystemSimulation:
-                The RootSystemSimulation instance.
-        """
         self.soil: Soil = Soil()
         self.G: RootSystemGraph = RootSystemGraph()
         self.organs: Dict[int, List[RootOrgan]] = {}
@@ -801,16 +518,6 @@ class RootSystemSimulation:
         self.rng = default_rng(random_seed)
 
     def get_yaw(self, number_of_roots: int) -> tuple:
-        """Get the yaw for rotating the root organs.
-
-        Args:
-            number_of_roots (int):
-                The number of roots.
-
-        Returns:
-            tuple:
-                The yaw and base yaw.
-        """
         yaw_base = 360 / number_of_roots
         return yaw_base, yaw_base * 0.05, yaw_base
 
@@ -822,218 +529,95 @@ class RootSystemSimulation:
         y_key: str = "y",
         z_key: str = "z",
     ) -> go.Figure:
-        """Create a visualisation of hierarchical graph representation of the root system.
-
-        Args:
-            G (nx.Graph):
-                The NetworkX graph.
-            feature_key (str, optional):
-                The node features key. Defaults to 'x'.
-            x_key (str, optional):
-                The node features key. Defaults to 'x'.
-            y_key (str, optional):
-                The node features key. Defaults to 'y'.
-            z_key (str, optional):
-                The node features key. Defaults to 'z'.
-
-        Returns:
-            go.Figure:
-                The visualisation of the hierarchical graph representation.
-        """
         src_indx, dest_indx = 0, 1
         x_edges, y_edges, z_edges = [], [], []
         x_nodes, y_nodes, z_nodes = [], [], []
         node_texts = []
-
         for node_indx in G.nodes:
             node = G.nodes[node_indx]
             x_nodes.append(node[feature_key][x_key])
             y_nodes.append(node[feature_key][y_key])
             z_nodes.append(node[feature_key][z_key])
-
-            node_text = f"""
-            x: {node[feature_key][x_key]}<br>
-            y: {node[feature_key][y_key]}<br>
-            z: {node[feature_key][z_key]}<br>
-            Organ ID: {node[feature_key]['organ_id']}<br>
-            Order: {node[feature_key]['order']}<br>
-            Segment rank: {node[feature_key]['segment_rank']}<br>
-            Diameter: {node[feature_key]['diameter']}<br>
-            Length: {node[feature_key]['length']}<br>
-            Root type: {node[feature_key]['root_type']}<br>
-            Order type: {node[feature_key]['order_type']}<br>
-            Position type: {node[feature_key]['position_type']}<br>
-            Simulation tag: {node[feature_key]['simulation_tag']}<br>"""
-
-            node_texts.append(node_text)
-
+            node_texts.append(
+                f"x: {node[feature_key][x_key]}<br>"
+                f"y: {node[feature_key][y_key]}<br>"
+                f"z: {node[feature_key][z_key]}<br>"
+                f"Organ ID: {node[feature_key]['organ_id']}<br>"
+                f"Order: {node[feature_key]['order']}<br>"
+                f"Segment rank: {node[feature_key]['segment_rank']}<br>"
+                f"Diameter: {node[feature_key]['diameter']}<br>"
+                f"Length: {node[feature_key]['length']}<br>"
+                f"Root type: {node[feature_key]['root_type']}<br>"
+                f"Order type: {node[feature_key]['order_type']}<br>"
+                f"Position type: {node[feature_key]['position_type']}<br>"
+                f"Simulation tag: {node[feature_key]['simulation_tag']}<br>"
+            )
         trace_nodes = go.Scatter3d(
-            x=x_nodes,
-            y=y_nodes,
-            z=z_nodes,
+            x=x_nodes, y=y_nodes, z=z_nodes,
             mode="markers",
-            marker=dict(
-                symbol="circle",
-                size=4,
-                color="green",
-                line=dict(color="black", width=0.5),
-            ),
-            text=node_texts,
-            hoverinfo="text",
+            marker=dict(symbol="circle", size=4, color="green",
+                        line=dict(color="black", width=0.5)),
+            text=node_texts, hoverinfo="text",
         )
-
-        edge_list = G.edges()
-        for edge in edge_list:
-            src_edge = edge[src_indx]
-
-            node_src = G.nodes[src_edge]
-            node_dest = G.nodes[edge[dest_indx]]
-
-            x_coords = [
-                node_src[feature_key][x_key],
-                node_dest[feature_key][x_key],
-                None,
-            ]
-            x_edges += x_coords
-
-            y_coords = [
-                node_src[feature_key][y_key],
-                node_dest[feature_key][y_key],
-                None,
-            ]
-            y_edges += y_coords
-
-            z_coords = [
-                node_src[feature_key][z_key],
-                node_dest[feature_key][z_key],
-                None,
-            ]
-            z_edges += z_coords
-
+        for src, dst in G.edges():
+            node_src, node_dst = G.nodes[src], G.nodes[dst]
+            x_edges += [node_src[feature_key][x_key], node_dst[feature_key][x_key], None]
+            y_edges += [node_src[feature_key][y_key], node_dst[feature_key][y_key], None]
+            z_edges += [node_src[feature_key][z_key], node_dst[feature_key][z_key], None]
         trace_edges = go.Scatter3d(
-            x=x_edges,
-            y=y_edges,
-            z=z_edges,
-            mode="lines",
-            line=dict(color="green", width=10),
-            hoverinfo="none",
+            x=x_edges, y=y_edges, z=z_edges, mode="lines",
+            line=dict(color="green", width=10), hoverinfo="none",
         )
-
         axis = dict(
-            showbackground=False,
-            showline=False,
-            zeroline=False,
-            showgrid=False,
-            showticklabels=False,
+            showbackground=False, showline=False, zeroline=False,
+            showgrid=False, showticklabels=False,
         )
-
         layout = go.Layout(
-            width=1000,
-            height=1000,
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(axis),
-                yaxis=dict(axis),
-                zaxis=dict(axis),
-            ),
-            margin=dict(t=100),
-            hovermode="closest",
+            width=1000, height=1000, showlegend=False,
+            scene=dict(xaxis=dict(axis), yaxis=dict(axis), zaxis=dict(axis)),
+            margin=dict(t=100), hovermode="closest",
         )
-
-        data = [trace_edges, trace_nodes]
-        fig = go.Figure(data=data, layout=layout)
-        return fig
+        return go.Figure(data=[trace_edges, trace_nodes], layout=layout)
 
     def plot_root_system(self, fig: go.Figure, node_df: pd.DataFrame) -> go.Figure:
-        """Create a visualisation of the root system.
-
-        Args:
-            fig (int):
-                The base plotly figure.
-            node_df (pd.DataFrame):
-                The root node dataframe.
-
-        Returns:
-            go.Figure:
-                The visualisation of the root system.
-        """
         node_df = node_df.query("invalid_root == False")
-
-        fig.add_trace(
-            go.Scatter3d(
-                name="root",
-                x=node_df["x"],
-                y=node_df["y"],
-                z=node_df["z"],
-                mode="markers",
-                line=dict(color="green", colorscale="brwnyl", width=10),
-                marker=dict(size=4, color="green", colorscale="brwnyl", opacity=1),
-                customdata=np.stack(
-                    (
-                        node_df.organ_id,
-                        node_df.order,
-                        node_df.segment_rank,
-                        node_df.diameter,
-                        node_df.length,
-                        node_df.root_type,
-                        node_df.order_type,
-                        node_df.position_type,
-                        node_df.simulation_tag,
-                    ),
-                    axis=-1,
-                ),
-                hovertemplate="""
-                x: %{x}<br>
-                y: %{y}<br>
-                z: %{z}<br>
-                Organ ID: %{customdata[0]}<br>
-                Order: %{customdata[1]}<br>
-                Segment rank: %{customdata[2]}<br>
-                Diameter: %{customdata[3]}<br>
-                Length: %{customdata[4]}<br>
-                Root type: %{customdata[5]}<br>
-                Order type: %{customdata[6]}<br>
-                Position type: %{customdata[7]}<br>
-                Simulation tag: %{customdata[8]}<br>""",
-            )
-        )
-
+        fig.add_trace(go.Scatter3d(
+            name="root", x=node_df["x"], y=node_df["y"], z=node_df["z"],
+            mode="markers",
+            line=dict(color="green", colorscale="brwnyl", width=10),
+            marker=dict(size=4, color="green", colorscale="brwnyl", opacity=1),
+            customdata=np.stack((
+                node_df.organ_id, node_df.order, node_df.segment_rank,
+                node_df.diameter, node_df.length, node_df.root_type,
+                node_df.order_type, node_df.position_type,
+                node_df.simulation_tag,
+            ), axis=-1),
+            hovertemplate=(
+                "x: %{x}<br>y: %{y}<br>z: %{z}<br>"
+                "Organ ID: %{customdata[0]}<br>"
+                "Order: %{customdata[1]}<br>"
+                "Segment rank: %{customdata[2]}<br>"
+                "Diameter: %{customdata[3]}<br>"
+                "Length: %{customdata[4]}<br>"
+                "Root type: %{customdata[5]}<br>"
+                "Order type: %{customdata[6]}<br>"
+                "Position type: %{customdata[7]}<br>"
+                "Simulation tag: %{customdata[8]}<br>"
+            ),
+        ))
         axis = dict(
-            showbackground=False,
-            showline=False,
-            zeroline=False,
-            showgrid=False,
-            showticklabels=False,
+            showbackground=False, showline=False, zeroline=False,
+            showgrid=False, showticklabels=False,
         )
-
         fig.update_traces(connectgaps=False)
         fig.update_layout(
-            width=1000,
-            height=1000,
-            showlegend=False,
-            scene=dict(
-                xaxis=dict(axis),
-                yaxis=dict(axis),
-                zaxis=dict(axis),
-            ),
-            margin=dict(t=100),
-            hovermode="closest",
+            width=1000, height=1000, showlegend=False,
+            scene=dict(xaxis=dict(axis), yaxis=dict(axis), zaxis=dict(axis)),
+            margin=dict(t=100), hovermode="closest",
         )
-
         return fig
 
     def init_fig(self, input_parameters: RootSimulationModel) -> go.Figure | None:
-        """Initialise the root system figure.
-
-        Args:
-            input_parameters (RootSimulationModel):
-                The root simulation data model.
-
-        Returns:
-            go.Figure | None:
-                The root system visualisation.
-        """
-        # Initialise figure (optionally with soil)
         if input_parameters.enable_soil:
             soil_df = self.soil.create_soil_grid(
                 input_parameters.soil_layer_height,
@@ -1041,115 +625,61 @@ class RootSystemSimulation:
                 input_parameters.soil_layer_width,
                 input_parameters.soil_n_cols,
             )
-
             fig = self.soil.create_soil_fig(soil_df)
         else:
             fig = go.Figure()
-
         fig.update_layout(
-            scene=dict(
-                xaxis=dict(title="x"), yaxis=dict(title="y"), zaxis=dict(title="z")
-            )
+            scene=dict(xaxis=dict(title="x"), yaxis=dict(title="y"),
+                       zaxis=dict(title="z"))
         )
-
         return fig
 
     def init_organs(
         self, input_parameters: RootSimulationModel
-    ) -> Dict[str, List[RootOrgan]]:
-        """Initialise the root organs for the simulation.
-
-        Args:
-            input_parameters (RootSimulationModel):
-                The root simulation data model.
-
-        Returns:
-            Dict[str, List[RootOrgan]]:
-                The initialised root organs.
-        """
-        for order in range(1, input_parameters.max_order + 1):
-            self.organs[order] = []
-
-        order = 1
-        segments_per_root = input_parameters.segments_per_root
-        apex_diameter = input_parameters.apex_diameter
-
-        root_type = RootTypeModel(
-            root_type=RootType.STRUCTURAL.value,
-            order_type=RootType.PRIMARY.value,
-            position_type=RootType.OUTER.value,
-        )
-
-        for _ in range(input_parameters.outer_root_num):
-            organ = RootOrgan(
-                self.G.base_node,
-                input_parameters=input_parameters,
-                root_type=root_type,
-                simulation_tag=self.simulation_tag,
-                rng=self.rng,
+    ) -> Dict[int, List[RootOrgan]]:
+        """Construct organs; daughters attach at sampled parent arc-length sites."""
+        self.organs = {
+            order: [] for order in range(1, int(input_parameters.max_order) + 1)
+        }
+        for position_type, n_roots in (
+            (RootType.OUTER.value, input_parameters.outer_root_num),
+            (RootType.INNER.value, input_parameters.inner_root_num),
+        ):
+            root_type = RootTypeModel(
+                root_type=RootType.STRUCTURAL.value,
+                order_type=RootType.PRIMARY.value,
+                position_type=position_type,
             )
-            organ.construct_root(
-                segments_per_root, apex_diameter, input_parameters.root_tissue_density
-            )
-            self.organs[order].append(organ)
-
-        root_type = RootTypeModel(
-            root_type=RootType.STRUCTURAL.value,
-            order_type=RootType.PRIMARY.value,
-            position_type=RootType.INNER.value,
-        )
-        for _ in range(input_parameters.inner_root_num):
-            organ = RootOrgan(
-                self.G.base_node,
-                input_parameters=input_parameters,
-                root_type=root_type,
-                simulation_tag=self.simulation_tag,
-                rng=self.rng,
-            )
-            organ.construct_root(
-                segments_per_root, apex_diameter, input_parameters.root_tissue_density
-            )
-            self.organs[order].append(organ)
-
-        min_sec_root_num = input_parameters.min_sec_root_num
-        max_sec_root_num = input_parameters.max_sec_root_num
-
-        if min_sec_root_num == max_sec_root_num:
-            max_sec_root_num += 1
-
-        if min_sec_root_num > max_sec_root_num:
-            min_sec_root_num, max_sec_root_num = max_sec_root_num, min_sec_root_num
-
-        for order in range(2, input_parameters.max_order + 1):
-            prev_order = order - 1
-            growth_sec_root = (1 - input_parameters.growth_sec_root) ** -(order - 2)
-
-            for parent_organ in self.organs[prev_order]:
-                n_secondary_roots = self.rng.integers(
-                    min_sec_root_num, max_sec_root_num
+            for _ in range(int(n_roots)):
+                organ = RootOrgan(
+                    self.G.base_node,
+                    input_parameters=input_parameters,
+                    root_type=root_type,
+                    simulation_tag=self.simulation_tag,
+                    rng=self.rng,
                 )
+                organ.construct_root(
+                    input_parameters.segments_per_root,
+                    input_parameters.apex_diameter,
+                    input_parameters.root_tissue_density,
+                )
+                self.organs[1].append(organ)
 
-                n_secondary_roots = math.ceil(n_secondary_roots * growth_sec_root)
-                for _ in range(n_secondary_roots):
-                    child_organ = parent_organ.add_child_organ(
+        for order in range(2, int(input_parameters.max_order) + 1):
+            for parent_organ in self.organs[order - 1]:
+                while parent_organ.lateral_attachment_nodes:
+                    child = parent_organ.add_child_organ(
                         floor_threshold=input_parameters.floor_threshold,
                         ceiling_threshold=input_parameters.ceiling_threshold,
                     )
-                    self.organs[order].append(child_organ)
-                    child_organ.construct_root_from_parent(
-                        segments_per_root,
-                        apex_diameter,
+                    self.organs[order].append(child)
+                    child.construct_root_from_parent(
+                        input_parameters.segments_per_root,
+                        input_parameters.apex_diameter,
                     )
-
         return self.organs
 
     def position_secondary_roots(self, input_parameters: RootSimulationModel) -> None:
-        """Position secondary roots about the origin.
-
-        Args:
-            input_parameters (RootSimulationModel):
-                The root simulation data model.
-        """
         for order in range(2, input_parameters.max_order + 1):
             for secondary_root in self.organs[order]:
                 yaw = self.rng.uniform(-30, 240)
@@ -1159,7 +689,6 @@ class RootSystemSimulation:
                 secondary_root.transform()
                 secondary_root.update_transform(pitch=-45, roll=35)
                 secondary_root.transform()
-
         for order in range(input_parameters.max_order, 1, -1):
             for secondary_root in self.organs[order]:
                 parent_origin = secondary_root.get_parent_origin()
@@ -1167,12 +696,6 @@ class RootSystemSimulation:
                 secondary_root.cascading_transform()
 
     def position_primary_roots(self, input_parameters: RootSimulationModel) -> None:
-        """Position primary roots about the origin.
-
-        Args:
-            input_parameters (RootSimulationModel):
-                The root simulation data model.
-        """
         position_type = RootType.OUTER.value
         yaw_base, yaw_noise_base, yaw = self.get_yaw(input_parameters.outer_root_num)
         for primary_root in self.organs[1]:
@@ -1182,7 +705,6 @@ class RootSystemSimulation:
             primary_root.cascading_update_transform(pitch=pitch, yaw=yaw)
             primary_root.cascading_transform()
             yaw += yaw_base + self.rng.uniform(-yaw_noise_base, yaw_noise_base)
-
         position_type = RootType.INNER.value
         yaw_base, yaw_noise_base, yaw = self.get_yaw(input_parameters.inner_root_num)
         for primary_root in self.organs[1]:
@@ -1193,19 +715,7 @@ class RootSystemSimulation:
             primary_root.cascading_transform()
             yaw += yaw_base + self.rng.uniform(-yaw_noise_base, yaw_noise_base)
 
-    def validate(
-        self,
-        input_parameters: RootSimulationModel,
-        pitch: int = 45,
-    ) -> None:
-        """Validate the plausibility of the root system.
-
-        Args:
-            input_parameters (RootSimulationModel):
-                The root simulation data model.
-            pitch (int, optional):
-                Pitch in degrees to rotate roots. Defaults to 90.
-        """
+    def validate(self, input_parameters: RootSimulationModel, pitch: int = 45) -> None:
         for order in range(1, input_parameters.max_order + 1):
             for organ in self.organs[order]:
                 organ.validate(
@@ -1217,30 +727,12 @@ class RootSystemSimulation:
     def grow(
         self, simulation: RootSimulationModel, input_parameters: RootSimulationModel
     ) -> None:
-        """Model the growth of root organs.
-
-        Args:
-            simulation (RootSimulationModel):
-                The root simulation model.
-            input_parameters (RootSimulationModel):
-                The simulation input parameters.
-        """
         for _ in range(input_parameters.t):
             for order in range(2, input_parameters.max_order + 1):
                 for organ in self.organs[order]:
                     organ.grow(simulation, input_parameters)
 
     def run(self, input_parameters: RootSimulationModel) -> None:
-        """Run a root system architecture simulation.
-
-        Args:
-            input_parameters (RootSimulationModel):
-                The root simulation data model.
-
-        Returns:
-            dict:
-                The simulation results.
-        """
         self.init_organs(input_parameters)
         # self.grow(self, input_parameters)
         self.position_secondary_roots(input_parameters)
@@ -1248,81 +740,36 @@ class RootSystemSimulation:
         self.apply_gravitropism(input_parameters.gravitropism)
         self.validate(input_parameters, pitch=60)
 
-
     def apply_gravitropism(self, gravitropism: float) -> None:
-        """Apply gravitropic bending to the root system.
-
-        Args:
-            gravitropism (float):
-                Gravitropic strength between 0 and 1.
-                0 = no gravitropic response.
-                1 = all segments directed vertically downward.
-        """
         if not 0 <= gravitropism <= 1:
-            raise ValueError("gravitropism must be between 0 and 1.")
-
+            raise ValueError("gravitropism must be between 0 and 1")
         if gravitropism == 0:
             return
-
         gravity = np.array([0.0, 0.0, -1.0])
-
-        # Preserve original coordinates before modifying the graph.
         original = {
-            node.node_data.node_id: np.array(
-                [
-                    node.node_data.x,
-                    node.node_data.y,
-                    node.node_data.z,
-                ],
-                dtype=float,
-            )
+            node.node_data.node_id: np.array([
+                node.node_data.x, node.node_data.y, node.node_data.z,
+            ], dtype=float)
             for node in self.G.nodes
         }
-
         updated = {}
-
-        # Nodes are stored in parent-before-child order.
         for node in self.G.nodes:
             data = node.node_data
-            node_id = data.node_id
-            parent_id = data.parent_id
-
+            node_id, parent_id = data.node_id, data.parent_id
             if parent_id not in original:
                 updated[node_id] = original[node_id].copy()
                 continue
-
-            # Original segment displacement.
-            displacement = (
-                original[node_id] - original[parent_id]
-            )
-
+            displacement = original[node_id] - original[parent_id]
             length = np.linalg.norm(displacement)
-
             if length < 1e-12:
                 updated[node_id] = updated[parent_id].copy()
                 continue
-
             direction = displacement / length
-
-            # Bias segment direction towards gravity.
-            direction = (
-                (1 - gravitropism) * direction
-                + gravitropism * gravity
-            )
-
+            direction = (1 - gravitropism) * direction + gravitropism * gravity
             norm = np.linalg.norm(direction)
-
-            if norm < 1e-12:
-                direction = gravity.copy()
-            else:
-                direction /= norm
-
-            # Preserve geometric segment length.
-            updated[node_id] = (
-                updated[parent_id] + length * direction
-            )
-
-        # Update root node coordinates.
+            direction = gravity.copy() if norm < 1e-12 else direction / norm
+            updated[node_id] = updated[parent_id] + length * direction
         for node in self.G.nodes:
-            data = node.node_data
-            data.x, data.y, data.z = updated[data.node_id]
+            node.node_data.x, node.node_data.y, node.node_data.z = updated[
+                node.node_data.node_id
+            ]
