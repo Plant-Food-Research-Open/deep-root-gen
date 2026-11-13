@@ -1,15 +1,13 @@
-import os
+from pathlib import Path
 import sys
 
-sys.path.insert(0, os.path.abspath("../.."))
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 project = "DeepRootGen"
 copyright = "2024, James Bristow"
 author = "James Bristow"
 release = "0.1.0"
-
-# -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
     "sphinx.ext.autodoc",
@@ -18,24 +16,22 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.githubpages",
     "sphinxarg.ext",
+    "myst_parser",
 ]
 
 numpydoc_show_class_members = False
 
 templates_path = ["_templates"]
 
-source_suffix = ".rst"
-
-# -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
+source_suffix = {
+    ".rst": "restructuredtext",
+}
 
 html_theme = "sphinx_rtd_theme"
 
-html_static_path = ["_static"]
+# Enable only if docs/source/_static exists.
+html_static_path = []
 
-# The master toctree document.
-master_doc = "index"
-
-# Datetime
+root_doc = "index"
 
 today_fmt = "%d/%m/%y"

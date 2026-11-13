@@ -1,0 +1,45 @@
+
+cff-version: 1.2.0
+message: "If you use DeepRootGen in your research, please cite this software using these metadata."
+type: software
+authors:
+  - family-names: "Bristow"
+    given-names: "James"
+    orcid: "https://orcid.org/0009-0002-3381-7466"
+  - family-names: "Yang"
+    given-names: "Xiumei"
+    orcid: "https://orcid.org/0000-0003-0110-3020"
+  - family-names: "Rojo"
+    given-names: "Francisco"
+    orcid: "https://orcid.org/0000-0003-2205-2517"
+  - family-names: "Teixeira"
+    given-names: "Edmar"
+    orcid: "https://orcid.org/0000-0002-4835-0590"
+  - family-names: "Friend"
+    given-names: "Adam"
+    orcid: "https://orcid.org/0000-0003-0995-2203"
+  - family-names: "Zhu"
+    given-names: "Junqi"
+    orcid: "https://orcid.org/0000-0002-9093-651X"
+title: "DeepRootGen: A stochastic framework for three-dimensional root system architecture simulation and reconstruction"
+version: 0.1.0
+date-released: 2024-08-17
+license: GPL-3.0
+url: "https://github.com/Plant-Food-Research-Open/deep-root-gen"
+repository-code: "https://github.com/Plant-Food-Research-Open/deep-root-gen"
+keywords:
+  - root system architecture
+  - root simulation
+  - woody perennials
+  - stochastic simulation
+  - three-dimensional modelling
+  - model calibration
+  - sensitivity analysis
+  - simulation-based inference
+abstract: >
+  DeepRootGen is a stochastic simulation framework for generating, analysing,
+  and digitally reconstructing three-dimensional plant root system architectures.
+  Root systems are represented as hierarchical graphs of root organs and segments,
+  supporting analysis of branching patterns, morphology, spatial extent, and root
+  length density. The framework supports parameter calibration, sensitivity
+  analysis, and comparisons between simulated architectures and field observations.
