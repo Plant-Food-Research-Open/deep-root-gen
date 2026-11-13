@@ -751,9 +751,10 @@
 <span class="k">class</span> <span class="nc">RootBranchingFrequency</span><span class="p">(</span><span class="n">SummaryStatisticBase</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Lateral-root emergence events per cm of eligible parent-root length.</span>
 
-<span class="sd">    Eligible orders are &lt; max_order.  If max_order is not supplied, the</span>
-<span class="sd">    highest observed order (at least 2) is used.  Supply the model&#39;s</span>
-<span class="sd">    max_order for comparable results even if high orders happen to be absent.</span>
+<span class="sd">    Eligible parent orders are &lt; max_order. If max_order is not</span>
+<span class="sd">    supplied, the highest observed order (at least 2) is used.</span>
+<span class="sd">    Supply the model&#39;s max_order for comparable results even if</span>
+<span class="sd">    higher orders happen to be absent.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">max_order</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -763,22 +764,31 @@
 
     <span class="k">def</span> <span class="nf">calculate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">):</span>
         <span class="n">s</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">segments</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
         <span class="k">if</span> <span class="n">s</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
             <span class="k">return</span> <span class="mf">0.0</span>
+
         <span class="n">highest</span> <span class="o">=</span> <span class="p">(</span>
             <span class="nb">int</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">max_order</span><span class="p">)</span>
             <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
             <span class="k">else</span> <span class="nb">max</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">order</span><span class="o">.</span><span class="n">max</span><span class="p">()),</span> <span class="mi">2</span><span class="p">)</span>
         <span class="p">)</span>
+
+        <span class="c1"># Only eligible parent-root orders contribute to the denominator.</span>
         <span class="n">parents</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">s</span><span class="o">.</span><span class="n">order</span> <span class="o">&lt;</span> <span class="n">highest</span><span class="p">]</span>
+
+        <span class="c1"># Count lateral roots originating from eligible parent orders.</span>
         <span class="n">bases</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
             <span class="n">s</span><span class="o">.</span><span class="n">segment_rank</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
             <span class="o">&amp;</span> <span class="n">s</span><span class="o">.</span><span class="n">order</span><span class="o">.</span><span class="n">gt</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
             <span class="o">&amp;</span> <span class="n">s</span><span class="o">.</span><span class="n">parent_order</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">order</span> <span class="o">-</span> <span class="mi">1</span><span class="p">)</span>
             <span class="o">&amp;</span> <span class="n">s</span><span class="o">.</span><span class="n">parent_order</span><span class="o">.</span><span class="n">gt</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+            <span class="o">&amp;</span> <span class="n">s</span><span class="o">.</span><span class="n">parent_order</span><span class="o">.</span><span class="n">lt</span><span class="p">(</span><span class="n">highest</span><span class="p">)</span>
             <span class="o">&amp;</span> <span class="n">s</span><span class="o">.</span><span class="n">parent_organ_id</span><span class="o">.</span><span class="n">ne</span><span class="p">(</span><span class="n">s</span><span class="o">.</span><span class="n">organ_id</span><span class="p">)</span>
         <span class="p">]</span>
+
         <span class="n">denominator</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">parents</span><span class="o">.</span><span class="n">segment_length_cm</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+
         <span class="k">return</span> <span class="p">(</span>
             <span class="nb">float</span><span class="p">(</span><span class="n">bases</span><span class="o">.</span><span class="n">organ_id</span><span class="o">.</span><span class="n">nunique</span><span class="p">()</span> <span class="o">/</span> <span class="n">denominator</span><span class="p">)</span>
             <span class="k">if</span> <span class="n">denominator</span> <span class="o">&gt;</span> <span class="mi">0</span>
