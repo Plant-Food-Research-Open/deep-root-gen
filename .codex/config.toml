@@ -1,0 +1,12 @@
+approval_policy = "never"
+default_permissions = "fruitcropxl-maintainer"
+
+[permissions.fruitcropxl-maintainer]
+description = "FruitCropXL workspace editing with repository skill maintenance."
+extends = ":workspace"
+
+[permissions.fruitcropxl-maintainer.filesystem.":workspace_roots"]
+".agents" = "write"
+
+[permissions.fruitcropxl-maintainer.network]
+enabled = false

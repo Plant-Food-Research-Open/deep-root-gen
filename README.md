@@ -27,6 +27,8 @@ This repository contains an implementation of a simulation model for generating 
 
 # Development
 
+See [RUNNING.md](RUNNING.md) for current installation and runtime qualification status.
+
 Use this repository as an independent Codex project. Start with the
 [development and setup guide](docs/DEVELOPMENT.md),
 [architecture/code map](docs/ARCHITECTURE.md),

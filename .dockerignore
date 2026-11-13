@@ -167,3 +167,13 @@ mlruns
 slurm-*.out
 .python-version
 *-page.yaml
+# Local runtime qualification and private service configuration
+.runtime/
+.env.local
+.env.local.*
+!.env.local.example
+
+.git/
+.env
+.env.*
+!.env.local.example

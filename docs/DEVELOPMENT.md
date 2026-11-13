@@ -1,5 +1,8 @@
 # Development, setup and validation
 
+Current environment/CLI/UI qualification is tracked in [RUNNING.md](../RUNNING.md).
+The evidence below is the historical 28 October reconnaissance snapshot.
+
 Commands refer to the verified checkout at
 `/home/jzhu/Workspace/Github/FruitCropXL/13-deep-root-gen-PFR-open`.
 Prepared 2026-10-28 at revision
