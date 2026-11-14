@@ -442,3 +442,11 @@ DeepRootGen is distributed under the GNU General Public License v3.0 (GPL-3.0). 
 # Funding and Acknowledgements
 
 This work was funded by the New Zealand Ministry of Business, Innovation, and Employment (MBIE) through the Strategic Science Investment Fund (contract number C11X1702) as part of the Digital Horticultural Systems Ngā Pou Rangahau, a Growing Futures™ programme at Plant & Food Research. We sincerely thank the Fruit Physiology Group, orchard managers, and all those who contributed their time and effort to the management and operation of the orchards. Your dedication has been instrumental in the success of this project. Our gratitude extends to the wider Digital Horticultural Systems team for their invaluable support in the modelling and software development process. Our work would not have been possible without the considerable dedication and collaboration of all parties involved.
+
+# Experimental architecture research tools
+
+Optional Fichtl-inspired direction controls, matched four-arm replay, explicit
+construction controls and observation/evaluation contracts are documented in the
+[research guide](docs/research/README.md). Legacy simulation remains the default.
+These tools provide research interfaces and synthetic checks; they do not adopt a
+fitted configuration or establish biological validity.
