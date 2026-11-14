@@ -12,6 +12,7 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from ..utils.current_length import validate_current_length_cdf
+from ..utils.branching import validate_parent2_branch_zone
 from ..utils.tropism import row_axial_controls_active, validate_row_axial_kappas
 
 
@@ -92,6 +93,17 @@ class CurrentLengthCDF(BaseModel):
         return self
 
 
+class Parent2BranchZone(BaseModel):
+    basal_cm: float
+    apical_cm: float
+    spacing_cm: float
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_zone(cls, values):
+        return validate_parent2_branch_zone(values)
+
+
 class RootSimulationModel(BaseModel):
     """
     The root system architecture simulation data model.
@@ -140,6 +152,7 @@ class RootSimulationModel(BaseModel):
     research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
     research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
     research_current_length_grid: Optional[Literal["construction_steps_v1"]] = None
+    research_parent2_branch_zone_cm: Optional[Parent2BranchZone] = None
     research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
@@ -160,6 +173,8 @@ class RootSimulationModel(BaseModel):
 
     @model_validator(mode="after")
     def validate_construction_step_scope(self):
+        if self.research_parent2_branch_zone_cm is not None and self.research_current_length_grid != "construction_steps_v1":
+            raise ValueError("Parent2 branch zone requires construction_steps_v1")
         if self.research_current_length_grid is not None:
             if (self.tropism_mode != "fichtl2024" or self.max_order != 3 or self.random_seed is None
                     or self.research_current_length_cdfs_cm is None

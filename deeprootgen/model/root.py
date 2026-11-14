@@ -18,7 +18,10 @@ from numpy.random import default_rng
 
 from ..data_model import RootNodeModel, RootSimulationModel, RootType, RootTypeModel
 from ..spatial import get_transform_matrix, make_homogenous
-from ..utils.branching import redistribute_capped_sites, sample_branch_sites
+from ..utils.branching import (
+    PARENT2_DECIMAL_POLICY, parent2_zone_sites, redistribute_capped_sites,
+    sample_branch_sites, validate_parent2_branch_zone,
+)
 from ..utils.current_length import sample_current_lengths
 from ..utils.primary_orientation import chord_angles, check_edge_conservation, inclination_rotation
 from ..utils.tropism import (
@@ -188,7 +191,10 @@ class RootOrgan:
         parent-organ segment, and is mapped to its new segment index.
         """
         n_requested = self._draw_lateral_count()
-        if n_requested == 0:
+        zone = getattr(self.input_parameters, "research_parent2_branch_zone_cm", None)
+        if zone is not None and int(self.parent_node.node_data.order) + 1 != 2:
+            zone = None
+        if n_requested == 0 and zone is None:
             return diameters, lengths, coordinates, []
         diameters = np.asarray(diameters, dtype=float)
         lengths = np.asarray(lengths, dtype=float)
@@ -201,7 +207,7 @@ class RootOrgan:
         cumulative = np.r_[0.0, np.cumsum(original_lengths)]
 
         p = self.input_parameters
-        sites = sample_branch_sites(
+        sites = [] if n_requested == 0 else sample_branch_sites(
             parent_xyz=polyline,
             interbranch_distance=float(p.interbranch_distance),
             rng=self.rng,
@@ -209,12 +215,25 @@ class RootOrgan:
             ceiling_threshold=float(p.ceiling_threshold),
             max_branches=n_requested,
         )
-        if getattr(p, "research_branch_placement", "legacy_spacing") == "redistribute_capped":
+        if n_requested > 0 and getattr(p, "research_branch_placement", "legacy_spacing") == "redistribute_capped":
             sites = redistribute_capped_sites(
                 parent_xyz=polyline,
                 retained_count=len(sites),
                 floor_threshold=float(p.floor_threshold),
                 ceiling_threshold=float(p.ceiling_threshold),
+            )
+        if zone is not None:
+            current = self.current_length_diagnostics["sampled_current_length_cm"]
+            if not np.isclose(cumulative[-1], current, rtol=0, atol=1e-8):
+                raise ValueError("Parent2 CURRENT and geometric lengths disagree")
+            inputs = validate_parent2_branch_zone(zone)
+            retained = len(sites)
+            sites = parent2_zone_sites(current, **inputs)
+            self.parent2_zone_diagnostics = dict(
+                original_requested_count=n_requested, original_retained_count=retained,
+                sampled_current_length_cm=current, zone_cm=inputs, sites_cm=sites.copy(), count=len(sites),
+                decimal_policy=PARENT2_DECIMAL_POLICY,
+                retained_couplings=["inherited daughter diameter depends on attachment", "global tertiary birth keys may shift"],
             )
         if not sites:
             return diameters, lengths, coordinates, []
@@ -1058,7 +1077,8 @@ class RootSystemSimulation:
                 raise ValueError("Primary validation changed or invalidated optional yaw/origin/inclination initialization")
 
     def run(self, input_parameters: RootSimulationModel) -> None:
-        if getattr(input_parameters, "research_current_length_grid", None) is not None:
+        if (getattr(input_parameters, "research_current_length_grid", None) is not None
+                or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None):
             raise ValueError("Construction-step grid requires named controlled replay; native run is unsupported")
         self._validate_primary_yaw_seed(input_parameters)
         self.init_organs(input_parameters)
@@ -1087,7 +1107,8 @@ class RootSystemSimulation:
         This is a static, optional kernel with explicit insertion/surface
         assumptions, not temporal CPlantBox growth or an exact 2024 replay.
         """
-        if getattr(parameters, "research_current_length_grid", None) is not None:
+        if (getattr(parameters, "research_current_length_grid", None) is not None
+                or getattr(parameters, "research_parent2_branch_zone_cm", None) is not None):
             raise ValueError("Construction-step grid requires named controlled replay; native tropism is unsupported")
         self._validate_primary_yaw_seed(parameters)
         row_kappas = getattr(parameters, "research_insertion_row_axial_kappa", None)

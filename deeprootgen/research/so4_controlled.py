@@ -10,6 +10,7 @@ import hashlib
 import json
 import os
 import tempfile
+import copy
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -216,10 +217,18 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
     saved_parameters = p.model_dump()
     if p.research_current_length_grid is None:
         saved_parameters.pop("research_current_length_grid", None)
+    if p.research_parent2_branch_zone_cm is None:
+        saved_parameters.pop("research_parent2_branch_zone_cm", None)
     skeleton = Skeleton.from_tables(nodes, edges, seed, saved_parameters)
     if p.research_current_length_grid is not None:
         from .construction_step_replay import capture_construction_steps
         skeleton = capture_construction_steps(skeleton, sim)
+    if p.research_parent2_branch_zone_cm is not None:
+        live_organs = {int(organ.segments[0].node_data.organ_id): organ for organ in sim.organs[2]}
+        for organ in skeleton.payload["organs"]:
+            if organ["order"] == 2:
+                organ["parent2_branch_zone"] = copy.deepcopy(live_organs[organ["organ_id"]].parent2_zone_diagnostics)
+        skeleton.sha256 = digest(skeleton.payload)
     if nodes.loc[nodes.order.le(1), "z"].max() > 20.0:
         raise ValueError("Frozen primary scaffold exceeds common surface; no repairs")
     by_id = nodes.set_index("node_id")
@@ -394,7 +403,9 @@ def replay_arm(
         raise ValueError("Controlled design needs arms A-D and shared surface z=20 cm")
     parameters = skeleton.payload["parameters"]
     if (parameters.get("research_current_length_grid") is not None
-            or settings.get("research_current_length_grid") is not None):
+            or settings.get("research_current_length_grid") is not None
+            or parameters.get("research_parent2_branch_zone_cm") is not None
+            or settings.get("research_parent2_branch_zone_cm") is not None):
         raise ValueError("Construction-step grid requires replay_construction_steps, not legacy replay_arm")
     if (parameters.get("research_base_depth_cm") is not None
             and parameters.get("soil_surface_z_cm") != surface_z):
