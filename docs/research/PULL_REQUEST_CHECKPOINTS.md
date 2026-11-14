@@ -12,6 +12,7 @@ not authorize a merge, release, biological adoption or new experiment budget.
 | [1: public runtime](https://github.com/junqi108/deep-root-gen-PFR-open/pull/1) | Existing 1.0 runtime, standalone CLI, graph/statistic code, synthetic examples and tests | GitHub main; review runtime/API compatibility and CI |
 | [2: optional tropism](https://github.com/junqi108/deep-root-gen-PFR-open/pull/2) | Explicit Fichtl-inspired mode, public input, legacy golden regressions and assumptions | Checkpoint 1; review parameter semantics and default preservation |
 | 3: controlled replay, this change | Four-arm replay, shared boundary, keyed streams, invariant/budget/recovery checks and public method | Checkpoint 2; review algorithm, synthetic checks and scientific claim limits |
+| 4: explicit observation contract | Hierarchical raw IDs, declared point-set verification and canonical soil axes | Checkpoint 3; qualify raw/RSML inputs locally before new comparisons |
 
 Review the stack in order. After merging a prerequisite, retarget its dependent
 PR to main and verify the resulting diff before marking it ready. The current

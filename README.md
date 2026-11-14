@@ -118,3 +118,8 @@ the four-arm source-checkout tool and fixed invariants/budgets. See the
 [PR checkpoint guide](docs/research/PULL_REQUEST_CHECKPOINTS.md) for review order,
 public qualification commands, the frozen-method erratum and scientific limits.
 The default runtime and numerical tolerances remain unchanged by this tool.
+
+The [explicit observation-frame contract](docs/research/OBSERVATION_FRAME_CONTRACT.md)
+preserves hierarchical raw IDs and verifies a declared raw-to-RSML point mapping
+before canonical soil conversion. Use it to qualify local inputs; the legacy grid
+helper's reference convention alone does not establish a physical soil surface.
