@@ -1,0 +1,130 @@
+{
+  "baseline_commit": "12b23bfdfaf58e9461af90591bcf5784ddae447d",
+  "format": "deeprootgen-public-checkpoint-reference-v1",
+  "references": {
+    "order_specific_sigma": {
+      "baseline_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "168468bdc21dbf549760d20b86938090270475c4a55d95d01a53ad7afd308a75",
+        "deeprootgen/model/root.py": "efe41ca658228cca235f47ca35a65a82b5daa5c68fbe760028a3fe6c5c127289",
+        "deeprootgen/research/construction_step_replay.py": "315d34d43a4f51138844c341ea028a0290654e0e1914a37bf249a0d6050bbfa0",
+        "deeprootgen/research/primary_attachment.py": "921095a6be26e879ddc17f8db61d64476f77be1b5ac53835454482a395cfcd57",
+        "deeprootgen/research/so4_controlled.py": "9849c28791244076565dcd3c14ddc6a86f2ea67b4d2c29e57c7802c176857979",
+        "deeprootgen/utils/primary_attachment.py": "e8a09aca7355eed4a8d521b06ed276f9ad7488b9b5a70c18151d879d836a2ec5",
+        "deeprootgen/utils/tertiary_length_rank.py": "c6c3c5aed28d0956f9abf70cb0ceb8eeecdd6c59a1054555e79dfc5ab296ce9f",
+        "deeprootgen/utils/tropism.py": "ec1200e92526159665d3bdc89e521266ca5850086dca1f66139c340e696d177e"
+      },
+      "patch": "order_specific_sigma.patch",
+      "patch_sha256": "69cfe7fd050ebfad8323d26617a5db863a0e131e9f48beaa1fa50b65f11801aa",
+      "reference_commit": "25ae482d5126fe10442bdded2210beaf7304d03c",
+      "reference_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "703af457430f46a0a4187cbe737094426604d2ae2f1466e441b7f5773d85ff2e",
+        "deeprootgen/model/root.py": "587b04a14e318581a0fb73843f74171ff69ccdb83de3216f235d1880728cc72c",
+        "deeprootgen/research/construction_step_replay.py": "4c2e9ca59c5305d63f1091f06e3f042cf35da22f2bdb0b2a343a12281c27af0e",
+        "deeprootgen/research/primary_attachment.py": null,
+        "deeprootgen/research/so4_controlled.py": "fd3e35271be61c13ef5ae5631850983d44ad2baa82bb8e432178ac2f5eefdf36",
+        "deeprootgen/utils/primary_attachment.py": null,
+        "deeprootgen/utils/tertiary_length_rank.py": null,
+        "deeprootgen/utils/tropism.py": "2795768c225a92070992c09cac5e1c3043f48527cb986bec198ac613e42e780d"
+      }
+    },
+    "parent2_branch_zone": {
+      "baseline_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "168468bdc21dbf549760d20b86938090270475c4a55d95d01a53ad7afd308a75",
+        "deeprootgen/model/root.py": "efe41ca658228cca235f47ca35a65a82b5daa5c68fbe760028a3fe6c5c127289",
+        "deeprootgen/research/construction_step_replay.py": "315d34d43a4f51138844c341ea028a0290654e0e1914a37bf249a0d6050bbfa0",
+        "deeprootgen/research/primary_attachment.py": "921095a6be26e879ddc17f8db61d64476f77be1b5ac53835454482a395cfcd57",
+        "deeprootgen/research/primary_scaffold.py": "67e07484a8ccd194b2c5dcadbd1f392b3f4913d0986412bbf89d16d68a2f8eb8",
+        "deeprootgen/research/so4_controlled.py": "9849c28791244076565dcd3c14ddc6a86f2ea67b4d2c29e57c7802c176857979",
+        "deeprootgen/utils/branching.py": "989fe4730ba6933c592356465f3ed17161b00792ca8545df7accf68d0490d8a0",
+        "deeprootgen/utils/primary_attachment.py": "e8a09aca7355eed4a8d521b06ed276f9ad7488b9b5a70c18151d879d836a2ec5",
+        "deeprootgen/utils/tertiary_length_rank.py": "c6c3c5aed28d0956f9abf70cb0ceb8eeecdd6c59a1054555e79dfc5ab296ce9f",
+        "deeprootgen/utils/tropism.py": "ec1200e92526159665d3bdc89e521266ca5850086dca1f66139c340e696d177e"
+      },
+      "patch": "parent2_branch_zone.patch",
+      "patch_sha256": "d7f4c2ea3958fc02b6e219e8a54f27118dfb6f1e2ec20c650474440b84f9f755",
+      "reference_commit": "0b8291c5b30b9e026caed6eb41ce0f3dd9f3c7e4",
+      "reference_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "3253abc14f5385a4ba727e9cc2c8ba32dc781636e9731021efa9f4c618894191",
+        "deeprootgen/model/root.py": "29d3589d38ca7019b3b59c02504f1a0f31c45d68c299d68f81ded3ba546ba995",
+        "deeprootgen/research/construction_step_replay.py": "4c2e9ca59c5305d63f1091f06e3f042cf35da22f2bdb0b2a343a12281c27af0e",
+        "deeprootgen/research/primary_attachment.py": null,
+        "deeprootgen/research/primary_scaffold.py": null,
+        "deeprootgen/research/so4_controlled.py": "56e7ec370162c1326319b9b115ee374b3c6579d728c32ba30a4bc3878ef02d9d",
+        "deeprootgen/utils/branching.py": "8ec8b321cac7e130f55d0f6af803080c6e23d30b5be09c69406afde7fb3b51b9",
+        "deeprootgen/utils/primary_attachment.py": null,
+        "deeprootgen/utils/tertiary_length_rank.py": null,
+        "deeprootgen/utils/tropism.py": "2795768c225a92070992c09cac5e1c3043f48527cb986bec198ac613e42e780d"
+      }
+    },
+    "primary_attachment_distal": {
+      "baseline_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "168468bdc21dbf549760d20b86938090270475c4a55d95d01a53ad7afd308a75",
+        "deeprootgen/model/root.py": "efe41ca658228cca235f47ca35a65a82b5daa5c68fbe760028a3fe6c5c127289",
+        "deeprootgen/research/construction_step_replay.py": "315d34d43a4f51138844c341ea028a0290654e0e1914a37bf249a0d6050bbfa0",
+        "deeprootgen/research/primary_attachment.py": "921095a6be26e879ddc17f8db61d64476f77be1b5ac53835454482a395cfcd57",
+        "deeprootgen/research/so4_controlled.py": "9849c28791244076565dcd3c14ddc6a86f2ea67b4d2c29e57c7802c176857979",
+        "deeprootgen/utils/primary_attachment.py": "e8a09aca7355eed4a8d521b06ed276f9ad7488b9b5a70c18151d879d836a2ec5"
+      },
+      "patch": "primary_attachment_distal.patch",
+      "patch_sha256": "15a22391d8d5d5712f9eebbb7e459caa6b65a0f3a177a32c07c61a4453273c29",
+      "reference_commit": "d36f2ecfd243b944f674539f84dc2d0ea896cd1b",
+      "reference_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "27485e10991a7522aa4b7b8af5b633cf2744e5f3c26a3c0134b8651b7fdd6c49",
+        "deeprootgen/model/root.py": "5b7c3bf0b47e532139641851adf418cfb965e8c98971a238879ec56b93fa671d",
+        "deeprootgen/research/construction_step_replay.py": "dcd59cc08ac79372f0f0b2cc3758b6592f70514312c675e53df7e7c93d7d137e",
+        "deeprootgen/research/primary_attachment.py": null,
+        "deeprootgen/research/so4_controlled.py": "eb1843eb144bdad2e05f9af724dd32d5c065e384ce8ba6f96cfec2a1662459ab",
+        "deeprootgen/utils/primary_attachment.py": null
+      }
+    },
+    "primary_yaw_reversal": {
+      "baseline_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "168468bdc21dbf549760d20b86938090270475c4a55d95d01a53ad7afd308a75",
+        "deeprootgen/model/root.py": "efe41ca658228cca235f47ca35a65a82b5daa5c68fbe760028a3fe6c5c127289",
+        "deeprootgen/research/construction_step_replay.py": "315d34d43a4f51138844c341ea028a0290654e0e1914a37bf249a0d6050bbfa0",
+        "deeprootgen/research/primary_attachment.py": "921095a6be26e879ddc17f8db61d64476f77be1b5ac53835454482a395cfcd57",
+        "deeprootgen/research/so4_controlled.py": "9849c28791244076565dcd3c14ddc6a86f2ea67b4d2c29e57c7802c176857979",
+        "deeprootgen/utils/primary_attachment.py": "e8a09aca7355eed4a8d521b06ed276f9ad7488b9b5a70c18151d879d836a2ec5",
+        "deeprootgen/utils/tertiary_length_rank.py": "c6c3c5aed28d0956f9abf70cb0ceb8eeecdd6c59a1054555e79dfc5ab296ce9f",
+        "deeprootgen/utils/tropism.py": "ec1200e92526159665d3bdc89e521266ca5850086dca1f66139c340e696d177e"
+      },
+      "patch": "primary_yaw_reversal.patch",
+      "patch_sha256": "407ed17cb2bcc76a003c859658a48bdb75446b4e49416030148efa8c9a0ea267",
+      "reference_commit": "8c8a1460a5da1fcb449f65c5e8b278b5b4c9b5e8",
+      "reference_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "7ef1f1c8d91da35a1a4cb525c779896992e6dba54da0169118741d749cd180e4",
+        "deeprootgen/model/root.py": "72aab311b67d503270294e936534659d1ebb70f910c5fe7e9f135efdb70a932a",
+        "deeprootgen/research/construction_step_replay.py": "497861e0c99968047f71c69f7f97447a50e1015e0303b281a7165bd5d88f2943",
+        "deeprootgen/research/primary_attachment.py": null,
+        "deeprootgen/research/so4_controlled.py": "554f60b1d13b42fa71d16e4a5e517d552c877283be0bc9fb3ac0ce3accaffef7",
+        "deeprootgen/utils/primary_attachment.py": null,
+        "deeprootgen/utils/tertiary_length_rank.py": null,
+        "deeprootgen/utils/tropism.py": "cffda4b8d2babfb6587068e6326fd492614495e4e17c9eef6d6d9a1fd1e37e86"
+      }
+    },
+    "tertiary_length_rank": {
+      "baseline_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "168468bdc21dbf549760d20b86938090270475c4a55d95d01a53ad7afd308a75",
+        "deeprootgen/model/root.py": "efe41ca658228cca235f47ca35a65a82b5daa5c68fbe760028a3fe6c5c127289",
+        "deeprootgen/research/construction_step_replay.py": "315d34d43a4f51138844c341ea028a0290654e0e1914a37bf249a0d6050bbfa0",
+        "deeprootgen/research/primary_attachment.py": "921095a6be26e879ddc17f8db61d64476f77be1b5ac53835454482a395cfcd57",
+        "deeprootgen/research/so4_controlled.py": "9849c28791244076565dcd3c14ddc6a86f2ea67b4d2c29e57c7802c176857979",
+        "deeprootgen/utils/primary_attachment.py": "e8a09aca7355eed4a8d521b06ed276f9ad7488b9b5a70c18151d879d836a2ec5",
+        "deeprootgen/utils/tertiary_length_rank.py": "c6c3c5aed28d0956f9abf70cb0ceb8eeecdd6c59a1054555e79dfc5ab296ce9f"
+      },
+      "patch": "tertiary_length_rank.patch",
+      "patch_sha256": "2c0b10e747f63baf772c010289454aa74173bbcfcb96f631626ae9692c32b06e",
+      "reference_commit": "d0242ac11835e2ad6246f4160e7387015af8b68a",
+      "reference_modules_sha256": {
+        "deeprootgen/data_model/simulation_data_models.py": "4cdc0b81ec84c1e445b1384eb47200cd0d7629a9b4d986d03243b284ea2982d6",
+        "deeprootgen/model/root.py": "f780d8a921028108dd9cdfa6a3c13291d8d6bccf51e40ec59bc067da1f2167d5",
+        "deeprootgen/research/construction_step_replay.py": "68c43016d5a3f0302598de7c0cdd84792eb00dbc75ec949e854da18f1a6a5995",
+        "deeprootgen/research/primary_attachment.py": null,
+        "deeprootgen/research/so4_controlled.py": "bb24609db352b06af4304d917dbf95f39919520c69ae4407906fd2e404521a9a",
+        "deeprootgen/utils/primary_attachment.py": null,
+        "deeprootgen/utils/tertiary_length_rank.py": null
+      }
+    }
+  },
+  "scope": "Restore changed public package modules to prior checkpoint bytes; untouched modules share the installed/public runtime on both sides."
+}
