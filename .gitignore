@@ -166,3 +166,13 @@ mlruns
 *.xml
 slurm-*.out
 .python-version
+# Local runtime qualification and private service configuration
+.runtime/
+.env.local
+.env.local.*
+!.env.local.example
+md_report.md
+coverage.json
+
+# Local observed root grids are excluded from public checkpoints
+/data/grapevine/

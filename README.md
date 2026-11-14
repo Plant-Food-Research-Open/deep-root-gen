@@ -75,3 +75,31 @@ serialization or scientific code.
 - DeepRootGen Developer: James Bristow 
 - DeepRootGen Project Supervisor: Junqi Zhu
 - Crop System Modeller: Xiumei Yang
+
+
+## Offline runtime checkpoint (1.0.0)
+
+The public runtime checkpoint imports the qualified 1.0 Python implementation,
+node/edge exports, length-based branching, spatial statistics and synthetic
+regressions. It retains the Python 3.10 requirement and the recorded dependency
+lock. This source import is not a new calibration or physiological adoption.
+
+Run a service-free synthetic simulation after installing the locked environment:
+
+```bash
+python -m deeprootgen simulate --config examples/synthetic_minimal.json --outdir .runtime/synthetic-check
+python -m pytest -q --run-integration
+```
+
+The CLI saves `nodes.csv`, `edges.csv`, `roots.html` and a receipt to a fresh
+output directory. `DEEPROOTGEN_OUTPUT_DIR` controls library export location.
+No new ports or deployed services are introduced by this checkpoint. Node IDs,
+parent IDs, child-edge records and string classifications remain separate
+contracts; inspect current schemas rather than historical table examples above.
+Generated output, local environments, measured root grids, notebooks containing
+observations and machine-specific runtime receipts remain outside this PR.
+
+The generic RSML grid helper assumes the second stem point is its reference
+origin and RSML z is depth. This is an observation convention, not verified
+physical soil metadata; biological comparisons require an authoritative joint
+landmark/axis contract. Its regression fixtures contain synthetic XML only.
