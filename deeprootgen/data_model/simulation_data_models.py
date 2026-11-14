@@ -9,11 +9,11 @@ import math
 from enum import Enum
 from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..utils.current_length import validate_current_length_cdf
 from ..utils.branching import validate_parent2_branch_zone
-from ..utils.tropism import row_axial_controls_active, validate_row_axial_kappas
+from ..utils.tropism import row_axial_controls_active, validate_fichtl_sigma_by_order, validate_row_axial_kappas
 
 
 class Config:
@@ -164,12 +164,26 @@ class RootSimulationModel(BaseModel):
     soil_surface_z_cm: float = Field(default=0.0, ge=0, allow_inf_nan=False)
     fichtl_probability_down: Optional[float] = Field(default=None, ge=0, le=1)
     fichtl_sigma: Optional[float] = Field(default=None, ge=0)
+    research_fichtl_sigma_by_order: Optional[Dict[int, float]] = None
     fichtl_trials_type2: Optional[float] = Field(default=None, ge=0, le=100)
     fichtl_trials_type3: Optional[float] = Field(default=None, ge=0, le=100)
     fichtl_theta2_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def require_fichtl_order_sigmas(self):
+        if self.research_fichtl_sigma_by_order is not None:
+            if self.tropism_mode != "fichtl2024":
+                raise ValueError("Order sigma overrides require fichtl2024 mode")
+            validate_fichtl_sigma_by_order(self.research_fichtl_sigma_by_order, self.max_order)
+        return self
+
+    @field_validator("research_fichtl_sigma_by_order", mode="before")
+    @classmethod
+    def validate_order_sigma_mapping(cls, value):
+        return validate_fichtl_sigma_by_order(value)
 
     @model_validator(mode="after")
     def validate_construction_step_scope(self):

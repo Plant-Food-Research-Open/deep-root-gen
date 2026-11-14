@@ -43,6 +43,68 @@ def insertion_heading(parent_direction, mean_deg, sd_deg, rng):
     )
 
 
+SIGMA_OPERATOR_VERSION = "research-fichtl-sigma-by-order-v1"
+
+
+def validate_fichtl_sigma_by_order(mapping, max_order=3):
+    """Selected order2/3 overrides in rad/sqrt(cm); zero retains normal draws."""
+    if mapping is None:
+        return None
+    if not isinstance(mapping, dict) or not mapping:
+        raise ValueError("Order sigma overrides require a nonempty mapping")
+    result = {}
+    for key, value in mapping.items():
+        if (isinstance(key, (bool, np.bool_))
+                or not isinstance(key, (int, np.integer, str)) or str(key) not in {"2", "3"}):
+            raise ValueError("Order sigma keys must be integer2/3 or exact JSON string keys")
+        order = int(key)
+        if order > max_order or order in result:
+            raise ValueError("Order sigma key is unsupported or duplicated")
+        if (isinstance(value, (bool, np.bool_))
+                or not isinstance(value, (int, float, np.integer, np.floating))):
+            raise ValueError("Order sigma values must be finite nonnegative nonbool scalars")
+        try:
+            value = float(value)
+        except (ValueError, OverflowError) as error:
+            raise ValueError("Order sigma values must be finite") from error
+        if not np.isfinite(value) or value < 0:
+            raise ValueError("Order sigma values must be finite nonnegative nonbool scalars")
+        result[order] = value
+    return result
+
+
+def resolve_fichtl_sigma(global_sigma, order, mapping=None):
+    """Return effective coefficient and active-only provenance, with no RNG."""
+    if mapping is None:
+        return global_sigma, {}
+    overrides = validate_fichtl_sigma_by_order(mapping)
+    if (isinstance(order, (bool, np.bool_)) or order not in (2, 3)
+            or global_sigma is None or not np.isfinite(global_sigma) or global_sigma < 0):
+        raise ValueError("Order sigma resolution requires valid order/global sigma")
+    sigma = overrides.get(order, global_sigma)
+    if sigma == global_sigma:
+        sigma = global_sigma  # Preserve even signed-zero innovations when equal.
+    return sigma, dict(sigma_operator_version=SIGMA_OPERATOR_VERSION,
+                       effective_sigma_rad_per_sqrt_cm=float(sigma),
+                       sigma_source="order_override" if order in overrides else "global_fallback")
+
+
+def sample_fichtl_alpha(length_cm, sigma, count, rng):
+    """Original equation/draw schedule; callers validate length/sigma/count.
+
+    Do not shortcut zero: the normal draw is part of the paired RNG schedule.
+    """
+    return sigma * np.sqrt(length_cm) * rng.normal(size=count)
+
+
+def order_sigma_metadata(global_sigma, mapping=None):
+    """Configured coefficients, including organs with no continuation search."""
+    if mapping is None:
+        return {}
+    return dict(order_sigma_control={str(order): resolve_fichtl_sigma(global_sigma, order, mapping)[1]
+                                     for order in (2, 3)})
+
+
 def sample_heading(
     previous,
     length_cm,
@@ -65,7 +127,7 @@ def sample_heading(
     heading, first, second = _basis(previous)
     scaled = trials * np.sqrt(length_cm)
     extra = int(np.floor(scaled)) + int(rng.random() < scaled % 1)
-    alpha = sigma * np.sqrt(length_cm) * rng.normal(size=extra + 1)
+    alpha = sample_fichtl_alpha(length_cm, sigma, extra + 1, rng)
     beta = rng.uniform(0, 2 * np.pi, size=extra + 1)
     candidates = np.cos(alpha)[:, None] * heading + np.sin(alpha)[:, None] * (
         np.cos(beta)[:, None] * first + np.sin(beta)[:, None] * second

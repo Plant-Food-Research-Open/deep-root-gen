@@ -20,7 +20,8 @@ import pandas as pd
 
 from deeprootgen.utils.tropism import (
     _basis, insertion_heading, row_axial_controls_active,
-    row_axial_insertion_heading, validate_row_axial_kappas,
+    order_sigma_metadata, resolve_fichtl_sigma, row_axial_insertion_heading, sample_fichtl_alpha,
+    validate_fichtl_sigma_by_order, validate_row_axial_kappas,
 )
 
 ARMS = {
@@ -219,6 +220,8 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
         saved_parameters.pop("research_current_length_grid", None)
     if p.research_parent2_branch_zone_cm is None:
         saved_parameters.pop("research_parent2_branch_zone_cm", None)
+    if p.research_fichtl_sigma_by_order is None:
+        saved_parameters.pop("research_fichtl_sigma_by_order", None)
     skeleton = Skeleton.from_tables(nodes, edges, seed, saved_parameters)
     if p.research_current_length_grid is not None:
         from .construction_step_replay import capture_construction_steps
@@ -246,7 +249,10 @@ def fichtl_proposal(previous_frame, length, order, settings, rng):
     if order not in (2, 3):
         raise ValueError("Fichtl proposal supports orders 2 and 3")
     trials = settings[f"fichtl_trials_type{order}"]
-    sigma = settings["fichtl_sigma"]
+    sigma_map = settings.get("research_fichtl_sigma_by_order")
+    if sigma_map is not None and settings.get("tropism_mode") != "fichtl2024":
+        raise ValueError("Order sigma overrides require fichtl2024 mode")
+    sigma, sigma_receipt = resolve_fichtl_sigma(settings["fichtl_sigma"], order, sigma_map)
     probability = settings["fichtl_probability_down"]
     previous_frame = np.asarray(previous_frame, dtype=float)
     if (
@@ -268,7 +274,7 @@ def fichtl_proposal(previous_frame, length, order, settings, rng):
         raise ValueError("Invalid Fichtl proposal inputs")
     scaled = trials * np.sqrt(length)
     extra = int(np.floor(scaled)) + int(rng.random() < scaled % 1)
-    alpha = settings["fichtl_sigma"] * np.sqrt(length) * rng.normal(size=extra + 1)
+    alpha = sample_fichtl_alpha(length, sigma, extra + 1, rng)
     beta = rng.uniform(0, 2 * np.pi, size=extra + 1)
     downward = bool(
         rng.random() < (settings["fichtl_probability_down"] if order == 2 else 1.0)
@@ -285,6 +291,7 @@ def fichtl_proposal(previous_frame, length, order, settings, rng):
         selected_candidate=selected,
         innovations_sha256=digest(innovations),
         **innovations,
+        **sigma_receipt,
     )
 
 
@@ -390,6 +397,16 @@ def _controlled_row_kappas(settings, insertion_mode, seed):
     return kappas
 
 
+def _controlled_order_sigma(settings, continuation_mode):
+    mapping = settings.get("research_fichtl_sigma_by_order")
+    if mapping is None:
+        return None
+    mapping = validate_fichtl_sigma_by_order(mapping, settings.get("max_order", 3))
+    if continuation_mode != "fichtl" or settings.get("tropism_mode") != "fichtl2024":
+        raise ValueError("Order sigma overrides require Fichtl continuation (arms C/D) and mode")
+    return mapping
+
+
 def replay_arm(
     skeleton: Skeleton,
     arm: str,
@@ -411,6 +428,7 @@ def replay_arm(
             and parameters.get("soil_surface_z_cm") != surface_z):
         raise ValueError("Saved origin surface disagrees with controlled replay surface")
     insertion_mode, continuation_mode = ARMS[arm]
+    sigma_map = _controlled_order_sigma(settings, continuation_mode)
     row_kappas = _controlled_row_kappas(settings, insertion_mode, skeleton.payload["seed"])
     original = pd.DataFrame(skeleton.payload["nodes"]).set_index("node_id", drop=False)
     nodes = original.copy(deep=True)
@@ -599,6 +617,7 @@ def replay_arm(
             surface_z_cm=surface_z,
             replays={"physical": 1, "counterfactual": 0},
             proposals="One-step unconstrained endpoints from actual origins; not a coherent graph",
+            **(order_sigma_metadata(settings["fichtl_sigma"], sigma_map) if sigma_map is not None else {}),
         ),
     )
 

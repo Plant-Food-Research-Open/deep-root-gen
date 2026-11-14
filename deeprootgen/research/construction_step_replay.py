@@ -13,7 +13,7 @@ import pandas as pd
 
 from ..data_model import RootSimulationModel
 from ..utils.current_length import STREAM_VERSION, _cdf_arrays, select_current_length
-from ..utils.tropism import insertion_heading, row_axial_insertion_heading, validate_row_axial_kappas
+from ..utils.tropism import insertion_heading, order_sigma_metadata, row_axial_insertion_heading, validate_row_axial_kappas
 from .so4_controlled import (
     Skeleton, XYZ, apply_boundary, derived_edges, digest, fichtl_proposal,
     frame, invariant_hashes, minimal_rotation, unit, validate_geometry,
@@ -67,7 +67,7 @@ def _scope(skeleton, settings, arm, surface_z):
         raise ValueError("Missing construction-step route")
     saved_values, requested_values = saved.model_dump(), requested.model_dump()
     for key, value in saved_values.items():
-        if not key.startswith("fichtl_") and key not in {"simulation_tag", "research_insertion_row_axial_kappa"}:
+        if not key.startswith("fichtl_") and key not in {"simulation_tag", "research_insertion_row_axial_kappa", "research_fichtl_sigma_by_order"}:
             if requested_values[key] != value:
                 raise ValueError(f"Construction settings disagree with INITIAL: {key}")
     if saved.research_base_depth_cm is not None and saved.soil_surface_z_cm != surface_z:
@@ -270,4 +270,5 @@ def replay_construction_steps(skeleton, arm, settings, boundary_policy, surface_
         organs=organs, construction_steps=steps, graph_fragments=fragments,
         replays=dict(physical=1, counterfactual=0),
         proposals="One-step construction-step proposals from actual starts; not a coherent graph; no per-fragment searches",
+        **order_sigma_metadata(requested.fichtl_sigma, requested.research_fichtl_sigma_by_order),
     ))

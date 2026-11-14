@@ -26,7 +26,7 @@ from ..utils.current_length import sample_current_lengths
 from ..utils.primary_orientation import chord_angles, check_edge_conservation, inclination_rotation
 from ..utils.tropism import (
     insertion_heading, row_axial_controls_active, row_axial_insertion_heading,
-    sample_heading, sample_primary_yaw,
+    resolve_fichtl_sigma, sample_heading, sample_primary_yaw, validate_fichtl_sigma_by_order,
 )
 from .hgraph import RootNode, RootSystemGraph
 from .soil import Soil
@@ -832,6 +832,11 @@ class RootSystemSimulation:
         return self.organs
 
     def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
+        sigma_map = getattr(input_parameters, "research_fichtl_sigma_by_order", None)
+        if sigma_map is not None:
+            if getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024":
+                raise ValueError("Order sigma overrides require fichtl2024 mode")
+            validate_fichtl_sigma_by_order(sigma_map, input_parameters.max_order)
         row_active = row_axial_controls_active(getattr(input_parameters, "research_insertion_row_axial_kappa", None))
         if row_active and getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024":
             raise ValueError("Active row-axial insertion requires Fichtl mode")
@@ -1132,6 +1137,9 @@ class RootSystemSimulation:
             "by_order": {},
         }
         for order in range(2, parameters.max_order + 1):
+            sigma, sigma_receipt = resolve_fichtl_sigma(
+                parameters.fichtl_sigma, order, getattr(parameters, "research_fichtl_sigma_by_order", None),
+            )
             by_order = {
                 "segments": 0,
                 "downward": 0,
@@ -1140,6 +1148,7 @@ class RootSystemSimulation:
                 "length_sum_cm": 0.0,
                 "min_step_cm": None,
                 "max_step_cm": 0.0,
+                **sigma_receipt,
             }
             self.tropism_diagnostics["by_order"][str(order)] = by_order
             for organ in self.organs[order]:
@@ -1183,7 +1192,7 @@ class RootSystemSimulation:
                         heading,
                         length,
                         parameters.fichtl_probability_down if order == 2 else 1.0,
-                        parameters.fichtl_sigma,
+                        sigma,
                         (
                             parameters.fichtl_trials_type2
                             if order == 2
