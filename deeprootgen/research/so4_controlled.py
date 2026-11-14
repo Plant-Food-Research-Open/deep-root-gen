@@ -24,6 +24,8 @@ from deeprootgen.utils.tropism import (
     validate_fichtl_sigma_by_order, validate_row_axial_kappas, validate_primary_yaw_reverse_probability,
 )
 
+from deeprootgen.utils.tertiary_length_rank import FIELD as RANK_FIELD, validate_rank_strength
+
 ARMS = {
     "A": ("legacy", "legacy"),
     "B": ("fichtl", "legacy"),
@@ -198,7 +200,7 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
         else dict(parameters)
     )
     reversal = validate_primary_yaw_reverse_probability(values.get("research_primary_yaw_reverse_probability"))
-    if reversal or values.get("research_current_length_grid") is not None:
+    if reversal or validate_rank_strength(values.get(RANK_FIELD)) or values.get("research_current_length_grid") is not None:
         if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
                 or not isinstance(values.get("random_seed"), (int, np.integer))
                 or values.get("random_seed") != seed or isinstance(values.get("random_seed"), (bool, np.bool_))):
@@ -225,6 +227,8 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
         saved_parameters.pop("research_fichtl_sigma_by_order", None)
     if not p.research_primary_yaw_reverse_probability:
         saved_parameters.pop("research_primary_yaw_reverse_probability", None)
+    if not p.research_tertiary_length_rank_strength:
+        saved_parameters.pop(RANK_FIELD, None)
     skeleton = Skeleton.from_tables(nodes, edges, seed, saved_parameters)
     if p.research_current_length_grid is not None:
         from .construction_step_replay import capture_construction_steps
@@ -419,6 +423,16 @@ def validate_saved_primary_yaw_reversal(skeleton, settings):
         raise ValueError("Primary yaw reversal setting disagrees with saved INITIAL")
 
 
+def validate_saved_tertiary_length_rank(skeleton, settings, legacy=False):
+    saved = validate_rank_strength(skeleton.payload["parameters"].get(RANK_FIELD)) or 0.
+    requested = validate_rank_strength(settings.get(RANK_FIELD)) or 0.
+    if saved != requested:
+        raise ValueError("Tertiary length rank setting disagrees with saved INITIAL")
+    if saved and legacy:
+        raise ValueError("Tertiary length rank requires named construction-step replay, not legacy replay_arm")
+    return saved
+
+
 def replay_arm(
     skeleton: Skeleton,
     arm: str,
@@ -432,6 +446,7 @@ def replay_arm(
         raise ValueError("Controlled design needs arms A-D and shared surface z=20 cm")
     parameters = skeleton.payload["parameters"]
     validate_saved_primary_yaw_reversal(skeleton, settings)
+    validate_saved_tertiary_length_rank(skeleton, settings, legacy=True)
     if (parameters.get("research_current_length_grid") is not None
             or settings.get("research_current_length_grid") is not None
             or parameters.get("research_parent2_branch_zone_cm") is not None

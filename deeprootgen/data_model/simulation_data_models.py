@@ -12,6 +12,7 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..utils.current_length import validate_current_length_cdf
+from ..utils.tertiary_length_rank import validate_rank_scope, validate_rank_strength
 from ..utils.branching import validate_parent2_branch_zone
 from ..utils.tropism import (
     row_axial_controls_active, validate_fichtl_sigma_by_order, validate_row_axial_kappas,
@@ -155,6 +156,7 @@ class RootSimulationModel(BaseModel):
     research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
     research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
     research_current_length_grid: Optional[Literal["construction_steps_v1"]] = None
+    research_tertiary_length_rank_strength: Optional[float] = None
     research_parent2_branch_zone_cm: Optional[Parent2BranchZone] = None
     research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
@@ -175,6 +177,25 @@ class RootSimulationModel(BaseModel):
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @field_validator("research_tertiary_length_rank_strength", mode="before")
+    @classmethod
+    def validate_tertiary_rank_strength(cls, value):
+        return validate_rank_strength(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_explicit_tertiary_rank_seed(cls, values):
+        if isinstance(values, dict) and validate_rank_strength(values.get("research_tertiary_length_rank_strength")):
+            seed = values.get("random_seed")
+            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+                raise ValueError("Tertiary length rank requires explicit nonnegative integer seed")
+        return values
+
+    @model_validator(mode="after")
+    def require_tertiary_rank_scope(self):
+        validate_rank_scope(self)
+        return self
 
     @model_validator(mode="after")
     def require_fichtl_order_sigmas(self):

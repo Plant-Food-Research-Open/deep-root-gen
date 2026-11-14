@@ -23,6 +23,7 @@ from ..utils.branching import (
     sample_branch_sites, validate_parent2_branch_zone,
 )
 from ..utils.current_length import sample_current_lengths
+from ..utils.tertiary_length_rank import plan_tertiary_length_family, validate_rank_scope, validate_rank_strength
 from ..utils.primary_orientation import chord_angles, check_edge_conservation, inclination_rotation
 from ..utils.tropism import (
     insertion_heading, row_axial_controls_active, row_axial_insertion_heading,
@@ -94,10 +95,17 @@ class RootOrgan:
         legacy_lengths = segment_samples * root_length
         if cdf is None:
             return legacy_lengths
-        lengths, diagnostics = sample_current_lengths(
-            cdf, segments_per_root, self.input_parameters.random_seed,
-            self._current_length_expected_organ_id, int(order),
-        )
+        if order == 3 and validate_rank_strength(getattr(self.input_parameters, "research_tertiary_length_rank_strength", None)):
+            if not hasattr(self, "_tertiary_length_plan"):
+                raise ValueError("Active tertiary rank requires a preplanned biological sibling family")
+            lengths, diagnostics = copy.deepcopy(self._tertiary_length_plan)
+            if diagnostics["expected_organ_id"] != self._current_length_expected_organ_id:
+                raise ValueError("Prospective tertiary family ID disagrees with next allocation")
+        else:
+            lengths, diagnostics = sample_current_lengths(
+                cdf, segments_per_root, self.input_parameters.random_seed,
+                self._current_length_expected_organ_id, int(order),
+            )
         diagnostics["legacy_compatibility_draw_count"] = 1 + segments_per_root
         self.current_length_diagnostics = diagnostics
         return lengths
@@ -380,6 +388,9 @@ class RootOrgan:
         self, segments_per_root: int, apex_diameter: float
     ) -> List[RootNode]:
         """Construct higher-order root, with additional attachment nodes if needed."""
+        rank_strength = validate_rank_scope(self.input_parameters)
+        if rank_strength and self.parent_node.node_data.order == 2 and not hasattr(self, "_tertiary_length_plan"):
+            raise ValueError("Active tertiary rank requires a preplanned biological sibling family")
         if self._current_length_cdf() is not None:
             self._current_length_expected_organ_id = int(self.parent_node.G.organ_id)
         diameters = self.init_diameters(segments_per_root, apex_diameter)
@@ -820,19 +831,38 @@ class RootSystemSimulation:
 
         for order in range(2, int(input_parameters.max_order) + 1):
             for parent_organ in self.organs[order - 1]:
+                rank_plans = None
+                if order == 3 and validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None)):
+                    sites = parent_organ.parent2_zone_diagnostics["sites_cm"]
+                    if len(sites) != len(parent_organ.lateral_attachment_nodes):
+                        raise ValueError("Tertiary rank family branch-site count disagrees with parent2 zone")
+                    rank_plans, family = plan_tertiary_length_family(
+                        input_parameters.research_current_length_cdfs_cm[3], input_parameters.segments_per_root,
+                        input_parameters.random_seed, int(parent_organ.segments[0].node_data.organ_id),
+                        int(self.G.organ_id), sites, input_parameters.research_tertiary_length_rank_strength,
+                    )
+                    parent_organ.tertiary_length_rank_family = family
+                child_index = 0
                 while parent_organ.lateral_attachment_nodes:
                     child = parent_organ.add_child_organ(
                         floor_threshold=input_parameters.floor_threshold,
                         ceiling_threshold=input_parameters.ceiling_threshold,
                     )
+                    if rank_plans is not None:
+                        child._tertiary_length_plan = rank_plans[child_index]
                     self.organs[order].append(child)
                     child.construct_root_from_parent(
                         input_parameters.segments_per_root,
                         input_parameters.apex_diameter,
                     )
+                    child_index += 1
         return self.organs
 
     def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
+        if validate_rank_scope(input_parameters):
+            if self.random_seed is None:
+                raise ValueError("Tertiary length rank requires matching explicit constructor seed")
+            validate_rank_scope(input_parameters, self.random_seed)
         reversal = validate_primary_yaw_reverse_probability(
             getattr(input_parameters, "research_primary_yaw_reverse_probability", None))
         if reversal and (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
@@ -1102,8 +1132,9 @@ class RootSystemSimulation:
 
     def run(self, input_parameters: RootSimulationModel) -> None:
         if (getattr(input_parameters, "research_current_length_grid", None) is not None
-                or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None):
-            raise ValueError("Construction-step grid requires named controlled replay; native run is unsupported")
+                or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None
+                or validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None))):
+            raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native run is unsupported")
         self._validate_primary_yaw_seed(input_parameters)
         self.init_organs(input_parameters)
         # self.grow(self, input_parameters)
@@ -1132,8 +1163,9 @@ class RootSystemSimulation:
         assumptions, not temporal CPlantBox growth or an exact 2024 replay.
         """
         if (getattr(parameters, "research_current_length_grid", None) is not None
-                or getattr(parameters, "research_parent2_branch_zone_cm", None) is not None):
-            raise ValueError("Construction-step grid requires named controlled replay; native tropism is unsupported")
+                or getattr(parameters, "research_parent2_branch_zone_cm", None) is not None
+                or validate_rank_strength(getattr(parameters, "research_tertiary_length_rank_strength", None))):
+            raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native tropism is unsupported")
         self._validate_primary_yaw_seed(parameters)
         row_kappas = getattr(parameters, "research_insertion_row_axial_kappa", None)
         if row_kappas is not None:

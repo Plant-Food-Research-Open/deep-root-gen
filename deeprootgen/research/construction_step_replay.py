@@ -13,6 +13,7 @@ import pandas as pd
 
 from ..data_model import RootSimulationModel
 from ..utils.current_length import STREAM_VERSION, _cdf_arrays, select_current_length
+from ..utils.tertiary_length_rank import FIELD as RANK_FIELD, VERSION as RANK_VERSION, plan_tertiary_length_family
 from ..utils.tropism import insertion_heading, order_sigma_metadata, row_axial_insertion_heading, validate_row_axial_kappas
 from .so4_controlled import (
     Skeleton, XYZ, apply_boundary, derived_edges, digest, fichtl_proposal,
@@ -40,6 +41,8 @@ def capture_construction_steps(skeleton, simulation):
         if organ["order"] == 1:
             continue
         source = lookup[organ["organ_id"]]
+        if hasattr(source, "tertiary_length_rank_family"):
+            organ["tertiary_length_rank_family"] = copy.deepcopy(source.tertiary_length_rank_family)
         ids = source.construction_step_boundary_node_ids
         points = [live[nid] for nid in [organ["parent_id"], *ids]]
         organ["construction_steps"] = dict(
@@ -61,8 +64,9 @@ def _scope(skeleton, settings, arm, surface_z):
         if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
                 or seed < 0 or seed != skeleton.payload["seed"] or values.get("research_current_length_grid") != GRID):
             raise ValueError("Construction-step route requires active grid and matching explicit seed")
-    from .so4_controlled import validate_saved_primary_yaw_reversal
+    from .so4_controlled import validate_saved_primary_yaw_reversal, validate_saved_tertiary_length_rank
     validate_saved_primary_yaw_reversal(skeleton, settings)
+    validate_saved_tertiary_length_rank(skeleton, settings)
     saved = RootSimulationModel(**skeleton.payload["parameters"])
     requested = RootSimulationModel(**settings)
     if saved.research_current_length_grid != GRID or requested.research_current_length_grid != GRID:
@@ -70,7 +74,7 @@ def _scope(skeleton, settings, arm, surface_z):
     saved_values, requested_values = saved.model_dump(), requested.model_dump()
     for key, value in saved_values.items():
         if not key.startswith("fichtl_") and key not in {"simulation_tag", "research_insertion_row_axial_kappa", "research_fichtl_sigma_by_order"}:
-            if key == "research_primary_yaw_reverse_probability" and not requested_values[key] and not value:
+            if key in {"research_primary_yaw_reverse_probability", RANK_FIELD} and not requested_values[key] and not value:
                 continue
             if requested_values[key] != value:
                 raise ValueError(f"Construction settings disagree with INITIAL: {key}")
@@ -79,9 +83,28 @@ def _scope(skeleton, settings, arm, surface_z):
     return saved, requested
 
 
-def _sampler_lengths(metadata, organ, parameters, seed):
+def _sampler_lengths(metadata, organ, parameters, seed, rank_expected=None):
     """Authenticate recorded sampler provenance without drawing replacement lengths."""
     sampler = metadata["sampler"]
+    if rank_expected is not None:
+        if not isinstance(sampler, dict):
+            raise ValueError("Missing tertiary rank composite sampler provenance")
+        expected_lengths, expected = rank_expected
+        expected = copy.deepcopy(expected)
+        expected.update(allocated_organ_id=organ["organ_id"], legacy_compatibility_draw_count=1 + parameters.segments_per_root)
+        reported = copy.deepcopy(sampler)
+        post = reported.pop("post_subdivision_length_cm", None)
+        if digest(reported) != digest(expected):
+            raise ValueError("Tertiary rank composite sampler/source/destination provenance mismatch")
+        lengths = np.asarray(metadata["lengths_cm"], dtype=float)
+        if (lengths.shape != expected_lengths.shape or not np.isfinite(lengths).all()
+                or not np.array_equal(lengths, expected_lengths) or post is None
+                or isinstance(post, bool) or not isinstance(post, (int, float)) or not np.isfinite(post)
+                or not np.isclose(post, expected_lengths.sum(), rtol=0, atol=1e-8)):
+            raise ValueError("Tertiary rank assigned construction lengths/provenance mismatch")
+        return lengths
+    if isinstance(sampler, dict) and sampler.get("stream_version") == RANK_VERSION:
+        raise ValueError("Tertiary rank sampler is missing authenticated family")
     required = {"quantile", "support_index", "normalized_weights", "cdf_sha256", "sampled_current_length_cm",
                 "pre_subdivision_length_cm", "post_subdivision_length_cm"}
     if not isinstance(sampler, dict) or not required.issubset(sampler):
@@ -113,13 +136,13 @@ def _sampler_lengths(metadata, organ, parameters, seed):
     return lengths
 
 
-def _partition(organ, nodes, parameters, seed):
+def _partition(organ, nodes, parameters, seed, rank_expected=None):
     metadata = organ.get("construction_steps")
     if not isinstance(metadata, dict) or metadata.get("version") != VERSION:
         raise ValueError("Missing or unsupported original construction partition")
     if not {"sampler", "lengths_cm", "boundary_node_ids", "positioned_boundary_xyz"}.issubset(metadata):
         raise ValueError("Missing original construction boundary metadata")
-    lengths = _sampler_lengths(metadata, organ, parameters, seed)
+    lengths = _sampler_lengths(metadata, organ, parameters, seed, rank_expected)
     ids, boundaries = organ["node_ids"], metadata["boundary_node_ids"]
     if (len(ids) != len(set(ids)) or len(boundaries) != len(lengths)
             or len(boundaries) != len(set(boundaries)) or any(nid not in ids for nid in boundaries)):
@@ -161,6 +184,66 @@ def _partition(organ, nodes, parameters, seed):
     return partitions
 
 
+def _validate_rank_families(skeleton, parameters, nodes):
+    """Recompute the declared keyed pool and exact family bijection, not a fit.
+
+    Re-deriving existing keyed records for authentication introduces no new
+    architecture innovations or shared RNG consumption.
+    """
+    from ..utils.branching import parent2_zone_sites, validate_parent2_branch_zone
+    from ..utils.current_length import sample_current_lengths
+
+    organs = skeleton.payload["organs"]
+    by_id = {o["organ_id"]: o for o in organs}
+    if (len(by_id) != len(organs) or set(by_id) != set(nodes.loc[nodes.order.gt(0), "organ_id"])):
+        raise ValueError("Tertiary rank family/graph organ membership is incomplete or duplicated")
+    parents = sorted((o for o in organs if o["order"] == 2), key=lambda o: o["organ_id"])
+    next_id = int(nodes.loc[nodes.order.le(2), "organ_id"].max()) + 1
+    seed = skeleton.payload["seed"]
+    zone = validate_parent2_branch_zone(parameters.research_parent2_branch_zone_cm)
+    expected, covered = {}, set()
+    lookup = nodes.set_index("node_id")
+    for parent in parents:
+        metadata = parent.get("construction_steps")
+        if not isinstance(metadata, dict) or not isinstance(metadata.get("sampler"), dict):
+            raise ValueError("Missing parent2 construction sampler for tertiary rank family")
+        _, draw = sample_current_lengths(parameters.research_current_length_cdfs_cm[2],
+                                         parameters.segments_per_root, seed, parent["organ_id"], 2)
+        sampler = metadata["sampler"]
+        if any(digest(sampler.get(key)) != digest(value) for key, value in draw.items()):
+            raise ValueError("Parent2 family CURRENT sampler does not match original keyed draw")
+        sites = parent2_zone_sites(draw["sampled_current_length_cm"], **zone)
+        children = [o for o in organs if o["order"] == 3 and o["parent_id"] in parent["node_ids"]]
+        if any(isinstance(o.get("attachment_arc_cm"), bool)
+               or not isinstance(o.get("attachment_arc_cm"), (int, float))
+               or not np.isfinite(o["attachment_arc_cm"]) for o in children):
+            raise ValueError("Tertiary rank family requires finite physical attachment arcs")
+        children.sort(key=lambda o: (o["attachment_arc_cm"], o["organ_id"]))
+        ids = [next_id + j for j in range(len(sites))]
+        if (len(children) != len(sites) or [o["organ_id"] for o in children] != ids
+                or not np.allclose([o["attachment_arc_cm"] for o in children], sites, rtol=0, atol=1e-8)):
+            raise ValueError("Tertiary rank family IDs/sites disagree with original parent2 zone/birth order")
+        # Authenticate origins against the actual graph, not only the receipt.
+        for child, site in zip(children, sites):
+            parent_node = lookup.loc[child["parent_id"]]
+            arc = lookup.loc[parent["node_ids"]].loc[lambda frame: frame.segment_rank.le(parent_node.segment_rank), "length"].sum()
+            if (int(parent_node.organ_id) != parent["organ_id"] or int(parent_node.order) != 2
+                    or not np.isclose(arc, site, rtol=0, atol=1e-8)):
+                raise ValueError("Tertiary rank family site disagrees with actual parent graph")
+        plans, family = plan_tertiary_length_family(
+            parameters.research_current_length_cdfs_cm[3], parameters.segments_per_root,
+            seed, parent["organ_id"], next_id, sites, parameters.research_tertiary_length_rank_strength,
+        )
+        if digest(parent.get("tertiary_length_rank_family")) != digest(family):
+            raise ValueError("Tertiary rank family permutation/quantiles/strength provenance mismatch")
+        expected.update(zip(ids, plans))
+        covered.update(o["organ_id"] for o in children)
+        next_id += len(ids)
+    if covered != {o["organ_id"] for o in organs if o["order"] == 3}:
+        raise ValueError("Tertiary rank family authentication does not cover all order3 organs")
+    return expected
+
+
 def validate_construction_metadata(skeleton):
     """Read-only preflight for a captured INITIAL; no simulation or length draws."""
     parameters, _ = _scope(skeleton, skeleton.payload["parameters"], "D", 20.)
@@ -169,7 +252,11 @@ def validate_construction_metadata(skeleton):
     if nodes.loc[nodes.order.le(1), "z"].max() > 20.:
         raise ValueError("Frozen primary scaffold exceeds physical soil surface")
     lookup = nodes.set_index("node_id", drop=False)
-    return {organ["organ_id"]: _partition(organ, lookup, parameters, skeleton.payload["seed"])
+    if (not parameters.research_tertiary_length_rank_strength
+            and any("tertiary_length_rank_family" in organ for organ in skeleton.payload["organs"])):
+        raise ValueError("Inactive tertiary rank cannot retain active family provenance")
+    ranked = _validate_rank_families(skeleton, parameters, nodes) if parameters.research_tertiary_length_rank_strength else {}
+    return {organ["organ_id"]: _partition(organ, lookup, parameters, skeleton.payload["seed"], ranked.get(organ["organ_id"]))
             for organ in skeleton.payload["organs"] if organ["order"] > 1}
 
 
