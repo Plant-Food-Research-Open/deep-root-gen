@@ -24,6 +24,7 @@ title: "DeepRootGen: A stochastic framework for three-dimensional root system ar
 version: 1.0.0
 date-released: 2026-11-13
 license: GPL-3.0
+doi: 10.5281/zenodo.24216942 
 url: "https://github.com/Plant-Food-Research-Open/deep-root-gen"
 repository-code: "https://github.com/Plant-Food-Research-Open/deep-root-gen"
 keywords:

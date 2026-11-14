@@ -4,6 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24216942.svg)](https://doi.org/10.5281/zenodo.24216942)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Plant-Food-Research-Open/deep-root-gen/HEAD?urlpath=lab/tree/notebooks/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
