@@ -7,6 +7,7 @@ This module defines the root system architecture simulation model for constructi
 # mypy: ignore-errors
 
 import math
+import copy
 from typing import Dict, List
 
 import networkx as nx
@@ -297,6 +298,16 @@ class RootOrgan:
             if not np.isclose(realised, self.current_length_diagnostics["sampled_current_length_cm"], rtol=0, atol=1e-8):
                 raise ValueError("Post-subdivision current organ length conservation exceeds 1e-8 cm")
             self.current_length_diagnostics["post_subdivision_length_cm"] = realised
+        if hasattr(self, "_construction_step_lengths_cm"):
+            cumulative = np.cumsum(self.get_lengths())
+            boundaries = []
+            for arc in np.cumsum(self._construction_step_lengths_cm):
+                matches = np.flatnonzero(np.isclose(cumulative, arc, rtol=0, atol=1e-8))
+                if len(matches) != 1:
+                    raise ValueError("Missing or ambiguous original construction boundary")
+                boundaries.append(int(self.segments[int(matches[0])].node_data.node_id))
+            self.construction_step_boundary_node_ids = boundaries
+            self.construction_step_provenance = copy.deepcopy(self.current_length_diagnostics)
         return self.segments
 
     def calculate_mass(self) -> float:
@@ -354,6 +365,8 @@ class RootOrgan:
         diameters = self.init_diameters(segments_per_root, apex_diameter)
         lengths = self.init_lengths(segments_per_root)
         parent_data = self.parent_node.node_data
+        if getattr(self.input_parameters, "research_current_length_grid", None) is not None:
+            self._construction_step_lengths_cm = lengths.copy()
         parent_order = parent_data.order
         diameters += parent_data.diameter * 0.1**parent_order
         if self._current_length_cdf() is None:
@@ -1045,6 +1058,8 @@ class RootSystemSimulation:
                 raise ValueError("Primary validation changed or invalidated optional yaw/origin/inclination initialization")
 
     def run(self, input_parameters: RootSimulationModel) -> None:
+        if getattr(input_parameters, "research_current_length_grid", None) is not None:
+            raise ValueError("Construction-step grid requires named controlled replay; native run is unsupported")
         self._validate_primary_yaw_seed(input_parameters)
         self.init_organs(input_parameters)
         # self.grow(self, input_parameters)
@@ -1072,6 +1087,8 @@ class RootSystemSimulation:
         This is a static, optional kernel with explicit insertion/surface
         assumptions, not temporal CPlantBox growth or an exact 2024 replay.
         """
+        if getattr(parameters, "research_current_length_grid", None) is not None:
+            raise ValueError("Construction-step grid requires named controlled replay; native tropism is unsupported")
         self._validate_primary_yaw_seed(parameters)
         row_kappas = getattr(parameters, "research_insertion_row_axial_kappa", None)
         if row_kappas is not None:

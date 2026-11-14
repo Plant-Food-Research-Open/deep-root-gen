@@ -139,6 +139,7 @@ class RootSimulationModel(BaseModel):
     ceiling_threshold: Optional[float] = 0.9
     research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
     research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
+    research_current_length_grid: Optional[Literal["construction_steps_v1"]] = None
     research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
@@ -156,6 +157,15 @@ class RootSimulationModel(BaseModel):
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_construction_step_scope(self):
+        if self.research_current_length_grid is not None:
+            if (self.tropism_mode != "fichtl2024" or self.max_order != 3 or self.random_seed is None
+                    or self.research_current_length_cdfs_cm is None
+                    or set(self.research_current_length_cdfs_cm) != {2, 3}):
+                raise ValueError("Construction-step grid requires Fichtl/max_order3/explicit seed/CDF2&3")
+        return self
 
     @model_validator(mode="after")
     def require_seeded_primary_inclination(self):

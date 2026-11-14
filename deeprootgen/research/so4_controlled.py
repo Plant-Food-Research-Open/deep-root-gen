@@ -195,6 +195,11 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
         if hasattr(parameters, "model_dump")
         else dict(parameters)
     )
+    if values.get("research_current_length_grid") is not None:
+        if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
+                or not isinstance(values.get("random_seed"), (int, np.integer))
+                or values.get("random_seed") != seed or isinstance(values.get("random_seed"), (bool, np.bool_))):
+            raise ValueError("Construction-step INITIAL requires matching explicit seeds")
     # Legacy construction is treatment-independent. Optional yaw/origin stages
     # now run during primary positioning; controlled origin surface is fixed.
     values.update(random_seed=int(seed), simulation_tag="SO4-T2-controlled-INITIAL")
@@ -208,7 +213,13 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
     nodes, edges = sim.G.as_df()
     if nodes.invalid_root.any():
         raise ValueError("INITIAL unexpectedly contains invalid nodes")
-    skeleton = Skeleton.from_tables(nodes, edges, seed, p.model_dump())
+    saved_parameters = p.model_dump()
+    if p.research_current_length_grid is None:
+        saved_parameters.pop("research_current_length_grid", None)
+    skeleton = Skeleton.from_tables(nodes, edges, seed, saved_parameters)
+    if p.research_current_length_grid is not None:
+        from .construction_step_replay import capture_construction_steps
+        skeleton = capture_construction_steps(skeleton, sim)
     if nodes.loc[nodes.order.le(1), "z"].max() > 20.0:
         raise ValueError("Frozen primary scaffold exceeds common surface; no repairs")
     by_id = nodes.set_index("node_id")
@@ -382,6 +393,9 @@ def replay_arm(
     if arm not in ARMS or surface_z != 20.0:
         raise ValueError("Controlled design needs arms A-D and shared surface z=20 cm")
     parameters = skeleton.payload["parameters"]
+    if (parameters.get("research_current_length_grid") is not None
+            or settings.get("research_current_length_grid") is not None):
+        raise ValueError("Construction-step grid requires replay_construction_steps, not legacy replay_arm")
     if (parameters.get("research_base_depth_cm") is not None
             and parameters.get("soil_surface_z_cm") != surface_z):
         raise ValueError("Saved origin surface disagrees with controlled replay surface")
