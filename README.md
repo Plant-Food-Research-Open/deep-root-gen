@@ -103,3 +103,10 @@ The generic RSML grid helper assumes the second stem point is its reference
 origin and RSML z is depth. This is an observation convention, not verified
 physical soil metadata; biological comparisons require an authoritative joint
 landmark/axis contract. Its regression fixtures contain synthetic XML only.
+
+## Optional SO4 research interface
+
+The opt-in `fichtl2024` mode and public input are documented in the
+[research-mode guide](docs/research/FICHTL_RESEARCH_MODE.md). Default legacy
+behavior is protected by synthetic golden regressions. Research inputs are
+explicit and remain separate from calibration or physiological adoption.

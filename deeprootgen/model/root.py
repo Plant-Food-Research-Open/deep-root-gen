@@ -18,6 +18,7 @@ from numpy.random import default_rng
 from ..data_model import RootNodeModel, RootSimulationModel, RootType, RootTypeModel
 from ..spatial import get_transform_matrix, make_homogenous
 from ..utils.branching import sample_branch_sites
+from ..utils.tropism import insertion_heading, sample_heading
 from .hgraph import RootNode, RootSystemGraph
 from .soil import Soil
 
@@ -445,12 +446,19 @@ class RootOrgan:
             child.cascading_set_invalid_root()
 
     def validate(
-        self, no_root_zone: float, pitch: int = 90, max_attempts: int = 50
+        self,
+        no_root_zone: float,
+        pitch: int = 90,
+        max_attempts: int = 50,
+        enforce_downward_apex: bool = True,
+        allow_reorient: bool = True,
     ) -> None:
+        self.validation_reorientations = 0
         if self.invalid_root:
             return
 
         def _reorient(**kwargs):
+            self.validation_reorientations += 1
             local_origin = self.get_local_origin()
             self.cascading_to_world_origin()
             self.cascading_transform()
@@ -463,16 +471,16 @@ class RootOrgan:
             pitch *= -1
         iterations = 0
         current_order = self.segments[0].node_data.order
-        if current_order > 1:
+        if current_order > 1 and enforce_downward_apex:
             while self.get_apex_coordinates()[2] > self.get_local_origin()[2]:
-                if iterations > max_attempts:
+                if not allow_reorient or iterations > max_attempts:
                     return self.cascading_set_invalid_root()
                 _reorient(pitch=pitch)
                 iterations += 1
         iterations = 0
         coordinates = self.get_coordinates()
         while np.any(coordinates[:, 2] > no_root_zone):
-            if iterations > max_attempts:
+            if not allow_reorient or iterations > max_attempts:
                 return self.cascading_set_invalid_root()
             _reorient(pitch=pitch)
             coordinates = self.get_coordinates()
@@ -781,14 +789,40 @@ class RootSystemSimulation:
             primary_root.cascading_transform()
             yaw += yaw_base + self.rng.uniform(-yaw_noise_base, yaw_noise_base)
 
-    def validate(self, input_parameters: RootSimulationModel, pitch: int = 45) -> None:
-        for order in range(1, input_parameters.max_order + 1):
+    def validate(
+        self,
+        input_parameters: RootSimulationModel,
+        pitch: int = 45,
+        orders=None,
+        allow_reorient: bool = True,
+    ) -> None:
+        mode = getattr(input_parameters, "tropism_mode", "legacy")
+        if mode == "fichtl2024" and not hasattr(self, "validation_diagnostics"):
+            self.validation_diagnostics = []
+        for order in (
+            range(1, input_parameters.max_order + 1) if orders is None else orders
+        ):
             for organ in self.organs[order]:
+                extra = {}
+                if mode == "fichtl2024":
+                    extra["enforce_downward_apex"] = False
+                    extra["allow_reorient"] = allow_reorient
                 organ.validate(
-                    input_parameters.no_root_zone,
+                    (input_parameters.no_root_zone if mode == "legacy" else 0.0)
+                    + getattr(input_parameters, "soil_surface_z_cm", 0.0),
                     pitch,
                     input_parameters.max_val_attempts,
+                    **extra,
                 )
+                if mode == "fichtl2024":
+                    self.validation_diagnostics.append(
+                        dict(
+                            order=order,
+                            organ_id=organ.segments[0].node_data.organ_id,
+                            reorientations=organ.validation_reorientations,
+                            invalid=organ.invalid_root,
+                        )
+                    )
 
     def grow(
         self, simulation: RootSimulationModel, input_parameters: RootSimulationModel
@@ -803,8 +837,105 @@ class RootSystemSimulation:
         # self.grow(self, input_parameters)
         self.position_secondary_roots(input_parameters)
         self.position_primary_roots(input_parameters)
-        self.apply_gravitropism(input_parameters.gravitropism)
-        self.validate(input_parameters, pitch=60)
+        if getattr(input_parameters, "tropism_mode", "legacy") == "fichtl2024":
+            self.validate(input_parameters, pitch=60, orders=(1,))
+            self.apply_fichtl_tropism(input_parameters)
+            self.validate(
+                input_parameters,
+                pitch=60,
+                orders=range(2, input_parameters.max_order + 1),
+                allow_reorient=False,
+            )
+        else:
+            self.apply_gravitropism(input_parameters.gravitropism)
+            self.validate(input_parameters, pitch=60)
+
+    def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
+        """Keep the generated primary scaffold; reconstruct attached lateral paths.
+
+        Order 2 uses the gravity/plagiotropism mixture, orders >=3 gravity.
+        This is a static, optional kernel with explicit insertion/surface
+        assumptions, not temporal CPlantBox growth or an exact 2024 replay.
+        """
+        by_id = {n.node_data.node_id: n for n in self.G.nodes}
+        original = {
+            k: np.array([n.node_data.x, n.node_data.y, n.node_data.z])
+            for k, n in by_id.items()
+        }
+        lengths = {
+            k: np.linalg.norm(v - original[by_id[k].node_data.parent_id])
+            for k, v in original.items()
+            if by_id[k].node_data.parent_id in original
+        }
+        self.tropism_diagnostics = {
+            "segments": 0,
+            "downward": 0,
+            "surface_fallback": 0,
+            "rejected_surface": 0,
+            "by_order": {},
+        }
+        for order in range(2, parameters.max_order + 1):
+            by_order = {
+                "segments": 0,
+                "downward": 0,
+                "surface_fallback": 0,
+                "rejected_surface": 0,
+                "length_sum_cm": 0.0,
+                "min_step_cm": None,
+                "max_step_cm": 0.0,
+            }
+            self.tropism_diagnostics["by_order"][str(order)] = by_order
+            for organ in self.organs[order]:
+                if organ.invalid_root:
+                    continue
+                parent = organ.parent_node.node_data
+                grandparent = by_id.get(parent.parent_id)
+                if grandparent is None:
+                    raise ValueError("Lateral insertion lacks a parent tangent")
+                position = np.array([parent.x, parent.y, parent.z])
+                gp = grandparent.node_data
+                tangent = position - np.array([gp.x, gp.y, gp.z])
+                mean = (
+                    parameters.fichtl_theta2_deg
+                    if order == 2
+                    else parameters.fichtl_theta3_deg
+                )
+                sd = (
+                    parameters.fichtl_theta2_sd_deg
+                    if order == 2
+                    else parameters.fichtl_theta3_sd_deg
+                )
+                heading = insertion_heading(tangent, mean, sd, self.rng)
+                for node in organ.segments:
+                    length = lengths[node.node_data.node_id]
+                    heading, diagnostics = sample_heading(
+                        heading,
+                        length,
+                        parameters.fichtl_probability_down if order == 2 else 1.0,
+                        parameters.fichtl_sigma,
+                        (
+                            parameters.fichtl_trials_type2
+                            if order == 2
+                            else parameters.fichtl_trials_type3
+                        ),
+                        self.rng,
+                        start_z=position[2],
+                        surface_z=parameters.soil_surface_z_cm,
+                    )
+                    position = position + length * heading
+                    node.node_data.x, node.node_data.y, node.node_data.z = position
+                    self.tropism_diagnostics["segments"] += 1
+                    by_order["segments"] += 1
+                    by_order["length_sum_cm"] += length
+                    by_order["min_step_cm"] = (
+                        length
+                        if by_order["min_step_cm"] is None
+                        else min(length, by_order["min_step_cm"])
+                    )
+                    by_order["max_step_cm"] = max(length, by_order["max_step_cm"])
+                    for name in ("downward", "surface_fallback", "rejected_surface"):
+                        self.tropism_diagnostics[name] += int(diagnostics[name])
+                        by_order[name] += int(diagnostics[name])
 
     def apply_gravitropism(self, gravitropism: float) -> None:
         if not 0 <= gravitropism <= 1:

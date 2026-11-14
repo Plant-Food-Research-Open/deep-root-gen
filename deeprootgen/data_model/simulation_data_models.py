@@ -5,10 +5,11 @@ root system architecture simulation procedures.
 
 """
 
+import math
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, model_validator
 
 
 class Config:
@@ -121,6 +122,47 @@ class RootSimulationModel(BaseModel):
     no_root_zone: Optional[float] = 1e-4
     floor_threshold: Optional[float] = 0.4
     ceiling_threshold: Optional[float] = 0.9
+    tropism_mode: Literal["legacy", "fichtl2024"] = "legacy"
+    soil_surface_z_cm: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+    fichtl_probability_down: Optional[float] = Field(default=None, ge=0, le=1)
+    fichtl_sigma: Optional[float] = Field(default=None, ge=0)
+    fichtl_trials_type2: Optional[float] = Field(default=None, ge=0, le=100)
+    fichtl_trials_type3: Optional[float] = Field(default=None, ge=0, le=100)
+    fichtl_theta2_deg: Optional[float] = Field(default=None, ge=0, le=90)
+    fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
+    fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
+    fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def require_explicit_fichtl_parameters(self):
+        if self.soil_surface_z_cm and self.enable_soil:
+            raise ValueError(
+                "Offset soil surface requires the offline aligned observation route"
+            )
+        if self.tropism_mode == "fichtl2024":
+            if self.gravitropism != 0:
+                raise ValueError("Set legacy gravitropism to zero in fichtl2024 mode")
+            if self.max_order > 3:
+                raise ValueError(
+                    "fichtl2024 mode currently supports orders 1 through 3"
+                )
+            names = (
+                "fichtl_probability_down",
+                "fichtl_sigma",
+                "fichtl_trials_type2",
+                "fichtl_trials_type3",
+                "fichtl_theta2_deg",
+                "fichtl_theta2_sd_deg",
+                "fichtl_theta3_deg",
+                "fichtl_theta3_sd_deg",
+            )
+            if any(getattr(self, name) is None for name in names):
+                raise ValueError(
+                    "fichtl2024 mode requires explicit tropism/angle parameters"
+                )
+            if any(not math.isfinite(getattr(self, name)) for name in names):
+                raise ValueError("fichtl2024 parameters must be finite")
+        return self
 
 
 class ParameterIntervalModel(BaseModel):
