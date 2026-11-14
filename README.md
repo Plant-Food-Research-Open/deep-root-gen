@@ -110,3 +110,11 @@ The opt-in `fichtl2024` mode and public input are documented in the
 [research-mode guide](docs/research/FICHTL_RESEARCH_MODE.md). Default legacy
 behavior is protected by synthetic golden regressions. Research inputs are
 explicit and remain separate from calibration or physiological adoption.
+
+## Controlled research and PR checkpoints
+
+The [controlled-replay method](docs/research/SO4_CONTROLLED_METHOD.md) describes
+the four-arm source-checkout tool and fixed invariants/budgets. See the
+[PR checkpoint guide](docs/research/PULL_REQUEST_CHECKPOINTS.md) for review order,
+public qualification commands, the frozen-method erratum and scientific limits.
+The default runtime and numerical tolerances remain unchanged by this tool.
