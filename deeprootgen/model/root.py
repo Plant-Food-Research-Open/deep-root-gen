@@ -19,6 +19,7 @@ from ..data_model import RootNodeModel, RootSimulationModel, RootType, RootTypeM
 from ..spatial import get_transform_matrix, make_homogenous
 from ..utils.branching import redistribute_capped_sites, sample_branch_sites
 from ..utils.current_length import sample_current_lengths
+from ..utils.primary_orientation import chord_angles, check_edge_conservation, inclination_rotation
 from ..utils.tropism import (
     insertion_heading, row_axial_controls_active, row_axial_insertion_heading,
     sample_heading, sample_primary_yaw,
@@ -804,6 +805,7 @@ class RootSystemSimulation:
             raise ValueError("Active row-axial insertion requires Fichtl mode")
         if (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
                 and getattr(input_parameters, "research_current_length_cdfs_cm", None) is None
+                and not getattr(input_parameters, "research_primary_inclination_bias", None)
                 and not row_active):
             return
         constructor_seed = getattr(self, "random_seed", None)
@@ -856,8 +858,62 @@ class RootSystemSimulation:
 
         if getattr(input_parameters, "research_primary_yaw_mean_deg", None) is not None:
             self.apply_primary_yaw_initialization(input_parameters)
+        if getattr(input_parameters, "research_primary_inclination_bias", None):
+            self.apply_primary_inclination_initialization(input_parameters)
         if getattr(input_parameters, "research_base_depth_cm", None) is not None:
             self.apply_root_origin_initialization(input_parameters)
+
+    def apply_primary_inclination_initialization(self, input_parameters: RootSimulationModel) -> None:
+        """Plan all rigid primary-subtree rotations after yaw, before origin."""
+        bias = getattr(input_parameters, "research_primary_inclination_bias", None)
+        if bias is None or bias == 0:
+            return
+        self._validate_primary_yaw_seed(input_parameters)
+        nodes = {node.node_data.node_id: node for node in self.G.nodes}
+        original = {key: np.array([node.node_data.x, node.node_data.y, node.node_data.z], float)
+                    for key, node in nodes.items()}
+        if not all(np.isfinite(xyz).all() for xyz in original.values()):
+            raise ValueError("Primary inclination requires finite graph coordinates")
+        base_id = self.G.base_node.node_data.node_id
+        origin = original[base_id]
+        parents = {key: node.node_data.parent_id for key, node in nodes.items()}
+        proposed, assigned, diagnostics = {base_id: origin.copy()}, set(), []
+        for primary in self.organs[1]:
+            rotation, report = inclination_rotation(primary.get_apex_coordinates() - origin, bias)
+            subtree, node_ids, seen = [primary], set(), set()
+            while subtree:
+                organ = subtree.pop()
+                if id(organ) in seen:
+                    raise ValueError("Primary subtree contains a repeated/cyclic organ")
+                seen.add(id(organ))
+                for node in organ.segments:
+                    nid = node.node_data.node_id
+                    if nid in assigned or nid in node_ids or nid == base_id:
+                        raise ValueError("Primary subtrees overlap or contain duplicate nodes")
+                    node_ids.add(nid)
+                    proposed[nid] = origin + rotation @ (original[nid] - origin)
+                subtree.extend(organ.child_organs)
+            if not all(np.isfinite(proposed[nid]).all() for nid in node_ids):
+                raise ValueError("Primary inclination produced nonfinite coordinates")
+            residual = check_edge_conservation(original, proposed, parents, node_ids, base_id)
+            apex_id = primary.segments[-1].node_data.node_id
+            realised = proposed[apex_id] - origin
+            realised /= np.linalg.norm(realised)
+            if not np.allclose(realised, report["target_chord_unit"], rtol=0, atol=1e-12):
+                raise ValueError("Realised primary chord misses inclination target")
+            report.update(organ_id=int(primary.segments[0].node_data.organ_id), base_cm=origin.tolist(),
+                          realised_chord_unit=realised.tolist(), realised_angles=chord_angles(realised),
+                          maximum_edge_length_residual_cm=residual,
+                          stage="after_primary_yaw_before_origin_and_tropism")
+            diagnostics.append(report)
+            assigned.update(node_ids)
+        if assigned != set(nodes) - {base_id}:
+            raise ValueError("Primary subtrees do not cover the complete initial graph")
+        check_edge_conservation(original, proposed, parents, assigned, base_id)
+        for nid in assigned:
+            data = nodes[nid].node_data
+            data.x, data.y, data.z = proposed[nid]
+        self.primary_inclination_diagnostics = diagnostics
 
     def apply_root_origin_initialization(self, input_parameters: RootSimulationModel) -> None:
         """Translate the complete initial graph to an explicitly buried base.
@@ -981,11 +1037,12 @@ class RootSystemSimulation:
 
     def _check_optional_primary_validation(self, input_parameters: RootSimulationModel) -> None:
         if (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
-                and getattr(input_parameters, "research_base_depth_cm", None) is None):
+                and getattr(input_parameters, "research_base_depth_cm", None) is None
+                and not getattr(input_parameters, "research_primary_inclination_bias", None)):
             return
         for primary in self.organs[1]:
             if getattr(primary, "validation_reorientations", 0) or primary.invalid_root:
-                raise ValueError("Primary validation changed or invalidated optional yaw/origin initialization")
+                raise ValueError("Primary validation changed or invalidated optional yaw/origin/inclination initialization")
 
     def run(self, input_parameters: RootSimulationModel) -> None:
         self._validate_primary_yaw_seed(input_parameters)

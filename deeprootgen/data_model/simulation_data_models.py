@@ -142,6 +142,7 @@ class RootSimulationModel(BaseModel):
     research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
+    research_primary_inclination_bias: Optional[float] = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
     research_base_origin_y_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
     research_base_depth_cm: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
@@ -155,6 +156,12 @@ class RootSimulationModel(BaseModel):
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def require_seeded_primary_inclination(self):
+        if self.research_primary_inclination_bias and self.random_seed is None:
+            raise ValueError("Positive research primary inclination requires an explicit random_seed")
+        return self
 
     @model_validator(mode="after")
     def validate_insertion_row_axial(self):
