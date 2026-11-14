@@ -6,6 +6,7 @@ stochastically rounded N*sqrt(ds) extra candidates is retained. Surface
 constraints reject candidates; a downward fallback keeps geometry in soil.
 """
 
+import hashlib
 import math
 
 import numpy as np
@@ -84,3 +85,21 @@ def sample_heading(
         "candidates": extra + 1,
         "rejected_surface": int((~permitted).sum()),
     }
+
+
+def sample_primary_yaw(mean_deg, kappa, random_seed, organ_id):
+    """Draw radians from an independent versioned seed/primary-organ stream.
+
+    Mean is degrees from model x toward y; kappa is dimensionless. This is an
+    opt-in initial-crown distribution, not a lateral tropism coefficient.
+    """
+    if (not np.isfinite(mean_deg) or not -180 <= mean_deg <= 180
+            or not np.isfinite(kappa) or not 0 <= kappa <= 100):
+        raise ValueError("Primary yaw needs finite mean in [-180,180] and kappa in [0,100]")
+    if (isinstance(random_seed, (bool, np.bool_)) or not isinstance(random_seed, (int, np.integer))
+            or random_seed < 0 or isinstance(organ_id, (bool, np.bool_))
+            or not isinstance(organ_id, (int, np.integer)) or organ_id <= 0):
+        raise ValueError("Primary yaw requires nonnegative integer seed and positive organ ID")
+    key = hashlib.sha256(f"drg-primary-yaw-v1:{random_seed}:{organ_id}".encode()).digest()
+    rng = np.random.default_rng(np.random.SeedSequence(np.frombuffer(key, dtype="<u4")))
+    return float(rng.vonmises(math.radians(mean_deg), kappa))

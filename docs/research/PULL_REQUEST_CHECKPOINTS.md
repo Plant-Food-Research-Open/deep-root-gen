@@ -11,8 +11,10 @@ not authorize a merge, release, biological adoption or new experiment budget.
 | --- | --- | --- |
 | [1: public runtime](https://github.com/junqi108/deep-root-gen-PFR-open/pull/1) | Existing 1.0 runtime, standalone CLI, graph/statistic code, synthetic examples and tests | GitHub main; review runtime/API compatibility and CI |
 | [2: optional tropism](https://github.com/junqi108/deep-root-gen-PFR-open/pull/2) | Explicit Fichtl-inspired mode, public input, legacy golden regressions and assumptions | Checkpoint 1; review parameter semantics and default preservation |
-| 3: controlled replay, this change | Four-arm replay, shared boundary, keyed streams, invariant/budget/recovery checks and public method | Checkpoint 2; review algorithm, synthetic checks and scientific claim limits |
-| 4: explicit observation contract | Hierarchical raw IDs, declared point-set verification and canonical soil axes | Checkpoint 3; qualify raw/RSML inputs locally before new comparisons |
+| [3: controlled replay](https://github.com/junqi108/deep-root-gen-PFR-open/pull/3) | Four-arm replay, shared boundary, keyed streams, invariant/budget/recovery checks and public method | Checkpoint 2; review algorithm, synthetic checks and scientific claim limits |
+| [4: explicit observation contract](https://github.com/junqi108/deep-root-gen-PFR-open/pull/4) | Hierarchical raw IDs, declared point-set verification and canonical soil axes | Checkpoint 3; qualify raw/RSML inputs locally before new comparisons |
+
+| 5: optional construction controls | Capped-site redistribution, keyed yaw, buried origin, explicit current-length CDFs and validation guards | Checkpoint4; review opt-in semantics, mesh invariants, synthetic checks and local-data boundary |
 
 Review the stack in order. After merging a prerequisite, retarget its dependent
 PR to main and verify the resulting diff before marking it ready. The current
@@ -64,21 +66,15 @@ identity fields and stored lengths. Per-edge and total-length checks run inside
 of that frozen implementation or this PR's validation claim. The method is
 retained unchanged to preserve its prior identity.
 
-Every observation-referenced quantity requires a joint mapping: the observed
-RSML reference point/axes and model-side S=20 cm, depth=20-z. The public dataset
-README defines raw digitizer axes and graft point 0 but does not establish the
-exported RSML transform or identify stem point 1 as physical soil. This remains
-an unresolved observation contract, not a demonstrated export bug. Post-excavation
-preservation of in-situ geometry and branch attachment definitions also need
-evidence. Published means/SDs are inputs; scaled lengths and truncated insertion
-angles have different realised distributions. No biomass conversion is inferred.
-
-The next scientific checkpoint should establish an authoritative landmark, axis
-and attachment contract using documentation/export metadata or explicit author
-confirmation, before choosing a configuration or fitting. Accept a mapping from
-that evidence, never because it improves a score. An observation-side mapping
-change can reuse existing model-coordinate graphs; a model-side scaffold/surface
-change needs a new explicitly bounded experiment. This PR launches neither.
+The original checkpoint3 physical observation contract was unresolved. The
+subsequent explicit point-set contract tool permits a recovered geometric
+mapping qualified independently of model scores. Current local research uses
+the declared v2 soil/basal/axis mapping and retains the original observations.
+See [current construction scope and provenance](SO4_CONSTRUCTION_CONTINUATION.md)
+for the effective observation convention, owner authorization, superseded stage
+budgets, partly parameterized traits and native-versus-controlled distinctions.
+Verify each newly supplied input; coordinate correspondence alone does not
+qualify acquisition accuracy, completeness or graph topology.
 
 ## Commands for public qualification
 

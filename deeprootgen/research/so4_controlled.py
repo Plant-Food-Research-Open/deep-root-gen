@@ -192,10 +192,12 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
         if hasattr(parameters, "model_dump")
         else dict(parameters)
     )
-    # Inspected init/position paths do not branch on tropism or soil surface.
-    # Preserve supplied settings in metadata; invariance is qualified synthetically.
+    # Legacy construction is treatment-independent. Optional yaw/origin stages
+    # now run during primary positioning; controlled origin surface is fixed.
     values.update(random_seed=int(seed), simulation_tag="SO4-T2-controlled-INITIAL")
     p = RootSimulationModel(**values)
+    if p.research_base_depth_cm is not None and p.soil_surface_z_cm != 20.0:
+        raise ValueError("Controlled origin initialization requires soil surface z=20 cm")
     sim = RootSystemSimulation(simulation_tag=p.simulation_tag, random_seed=seed)
     sim.init_organs(p)
     sim.position_secondary_roots(p)
@@ -363,6 +365,10 @@ def replay_arm(
     skeleton.verify()
     if arm not in ARMS or surface_z != 20.0:
         raise ValueError("Controlled design needs arms A-D and shared surface z=20 cm")
+    parameters = skeleton.payload["parameters"]
+    if (parameters.get("research_base_depth_cm") is not None
+            and parameters.get("soil_surface_z_cm") != surface_z):
+        raise ValueError("Saved origin surface disagrees with controlled replay surface")
     insertion_mode, continuation_mode = ARMS[arm]
     original = pd.DataFrame(skeleton.payload["nodes"]).set_index("node_id", drop=False)
     nodes = original.copy(deep=True)
@@ -535,6 +541,40 @@ def replay_arm(
     )
 
 
+def _validate_rooted_tree(nodes, pairs):
+    """Check structural tree validity separately from numerical geometry."""
+    roots = nodes.loc[nodes.order.eq(0)]
+    if (len(roots) != 1 or roots.iloc[0].parent_id != -1
+            or int(nodes.parent_id.eq(-1).sum()) != 1
+            or not nodes.loc[nodes.order.ne(0), "order"].gt(0).all()):
+        raise ValueError("Graph requires exactly one base/root with parent -1")
+    base_id = int(roots.iloc[0].node_id)
+    ids = set(nodes.node_id)
+    parents = {int(row.node_id): int(row.parent_id)
+               for row in nodes.loc[nodes.order.gt(0)].itertuples()}
+    if any(parent not in ids for parent in parents.values()):
+        raise ValueError("Graph contains a missing parent reference")
+    finished = {base_id}
+    for start in parents:
+        current, path = start, set()
+        while current not in finished:
+            if current in path:
+                raise ValueError("Graph contains a directed cycle")
+            path.add(current)
+            current = parents[current]
+        finished.update(path)
+    children = {node: [] for node in ids}
+    for parent, child in pairs:
+        children[parent].append(child)
+    reachable, pending = set(), [base_id]
+    while pending:
+        node = pending.pop()
+        reachable.add(node)
+        pending.extend(children[node])
+    if reachable != ids:
+        raise ValueError("Graph contains nodes unreachable from its base")
+
+
 def validate_geometry(nodes, edges, surface_z=None):
     """Finite connected graph and conserved per-segment lengths; no apex constraint."""
     if (
@@ -551,6 +591,7 @@ def validate_geometry(nodes, edges, surface_z=None):
     }
     if pairs != expected or len(edges) != len(expected):
         raise ValueError("Graph edge/parent mismatch")
+    _validate_rooted_tree(nodes, pairs)
     measured, stored = [], []
     for row in nodes.itertuples():
         if row.order <= 0:

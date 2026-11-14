@@ -12,6 +12,7 @@ from deeprootgen.research.so4_controlled import (
     Skeleton,
     apply_boundary,
     construct_skeleton,
+    digest,
     fichtl_proposal,
     frame,
     keyed_rng,
@@ -666,3 +667,49 @@ def test_large_synthetic_four_arm_stress():
         assert result["diagnostics"]["replays"] == {"physical": 1, "counterfactual": 0}
         validate_geometry(result["nodes"], result["edges"], 20)
     assert all(value == hashes[0] for value in hashes)
+
+
+def test_geometry_rejects_disconnected_cycle_with_isolated_base(rsa_nodes):
+    # Every edge has positive geometric length, all IDs exist, edges=N-1,
+    # and the stored total is exact. Those numerical checks alone passed before.
+    nodes = rsa_nodes.iloc[:3].copy()
+    nodes.loc[nodes.node_id.eq(1), ["parent_id", "x", "y", "z", "length"]] = [2, 0., 0., -1., 1.]
+    nodes.loc[nodes.node_id.eq(2), ["parent_id", "x", "y", "z", "length"]] = [1, 0., 0., -2., 1.]
+    edges = pd.DataFrame({"parent_id": [2, 1], "child_id": [1, 2]})
+    assert len(edges) == len(nodes) - 1
+    assert nodes.length.sum() == 2.
+    with pytest.raises(ValueError, match="directed cycle"):
+        validate_geometry(nodes, edges, 20.)
+
+
+@pytest.mark.parametrize("case", ["multiple_bases", "missing_base", "extra_root_parent", "missing_parent"])
+def test_geometry_rejects_invalid_root_and_parent_structure(rsa_nodes, case):
+    nodes = rsa_nodes.copy()
+    if case == "multiple_bases":
+        nodes.loc[nodes.node_id.eq(2), ["order", "parent_id"]] = [0, -1]
+    elif case == "missing_base":
+        nodes.loc[nodes.node_id.eq(0), "order"] = 1
+    elif case == "extra_root_parent":
+        nodes.loc[nodes.node_id.eq(2), "parent_id"] = -1
+    else:
+        nodes.loc[nodes.node_id.eq(2), "parent_id"] = 999
+    edges = nodes.loc[nodes.order.gt(0), ["parent_id", "node_id"]].rename(columns={"node_id": "child_id"})
+    expected_error = "missing parent" if case == "missing_parent" else "exactly one base/root"
+    with pytest.raises(ValueError, match=expected_error):
+        validate_geometry(nodes, edges, 20.)
+
+
+def test_geometry_accepts_rooted_tree_with_nonzero_base_id(rsa_nodes):
+    nodes = rsa_nodes.copy()
+    nodes.loc[:, "node_id"] += 10
+    nodes.loc[nodes.order.gt(0), "parent_id"] += 10
+    edges = nodes.loc[nodes.order.gt(0), ["parent_id", "node_id"]].rename(columns={"node_id": "child_id"})
+    validate_geometry(nodes, edges, 20.)
+
+
+def test_replay_rejects_saved_origin_surface_mismatch(rsa_nodes):
+    initial = skeleton(rsa_nodes)
+    initial.payload["parameters"] = dict(research_base_depth_cm=7., soil_surface_z_cm=25.)
+    initial = Skeleton(initial.payload, digest(initial.payload))
+    with pytest.raises(ValueError, match="Saved origin surface disagrees"):
+        replay_arm(initial, "D", SETTINGS, POLICY)

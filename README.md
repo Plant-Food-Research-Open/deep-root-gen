@@ -123,3 +123,8 @@ The [explicit observation-frame contract](docs/research/OBSERVATION_FRAME_CONTRA
 preserves hierarchical raw IDs and verifies a declared raw-to-RSML point mapping
 before canonical soil conversion. Use it to qualify local inputs; the legacy grid
 helper's reference convention alone does not establish a physical soil surface.
+
+The [optional construction continuation](docs/research/SO4_CONSTRUCTION_CONTINUATION.md)
+adds explicit research controls for attachment placement, primary yaw, buried
+origin and current organ-length distributions. Each retains legacy defaults;
+measured distributions and comparison artifacts remain local.

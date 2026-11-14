@@ -17,8 +17,9 @@ from numpy.random import default_rng
 
 from ..data_model import RootNodeModel, RootSimulationModel, RootType, RootTypeModel
 from ..spatial import get_transform_matrix, make_homogenous
-from ..utils.branching import sample_branch_sites
-from ..utils.tropism import insertion_heading, sample_heading
+from ..utils.branching import redistribute_capped_sites, sample_branch_sites
+from ..utils.current_length import sample_current_lengths
+from ..utils.tropism import insertion_heading, sample_heading, sample_primary_yaw
 from .hgraph import RootNode, RootSystemGraph
 from .soil import Soil
 
@@ -67,6 +68,9 @@ class RootOrgan:
         return np.sort(diameters)[::-1]
 
     def init_lengths(self, segments_per_root: int) -> np.ndarray:
+        cdf = self._current_length_cdf()
+        if cdf is not None and not hasattr(self, "_current_length_expected_organ_id"):
+            raise ValueError("Current-length sampling requires a captured next organ ID")
         order = self.parent_node.node_data.order + 1
         if order > 1:
             reduction_factor = self.length_reduction**self.parent_node.node_data.order
@@ -78,7 +82,21 @@ class RootOrgan:
         segment_samples = self.rng.uniform(0, 1, segments_per_root)
         segment_samples = np.sort(segment_samples)[::-1]
         segment_samples /= segment_samples.sum()
-        return segment_samples * root_length
+        legacy_lengths = segment_samples * root_length
+        if cdf is None:
+            return legacy_lengths
+        lengths, diagnostics = sample_current_lengths(
+            cdf, segments_per_root, self.input_parameters.random_seed,
+            self._current_length_expected_organ_id, int(order),
+        )
+        diagnostics["legacy_compatibility_draw_count"] = 1 + segments_per_root
+        self.current_length_diagnostics = diagnostics
+        return lengths
+
+    def _current_length_cdf(self):
+        cdfs = getattr(self.input_parameters, "research_current_length_cdfs_cm", None)
+        order = int(self.parent_node.node_data.order) + 1
+        return None if cdfs is None else cdfs.get(order)
 
     def add_child_node(
         self,
@@ -186,6 +204,13 @@ class RootOrgan:
             ceiling_threshold=float(p.ceiling_threshold),
             max_branches=n_requested,
         )
+        if getattr(p, "research_branch_placement", "legacy_spacing") == "redistribute_capped":
+            sites = redistribute_capped_sites(
+                parent_xyz=polyline,
+                retained_count=len(sites),
+                floor_threshold=float(p.floor_threshold),
+                ceiling_threshold=float(p.ceiling_threshold),
+            )
         if not sites:
             return diameters, lengths, coordinates, []
         sites = np.asarray(sites, dtype=float)
@@ -237,6 +262,9 @@ class RootOrgan:
         """Construct the root chain and remember the actual insertion nodes."""
         if self.segments:
             raise RuntimeError("This organ has already been constructed")
+        if hasattr(self, "current_length_diagnostics"):
+            if self.parent_node.G.organ_id != self.current_length_diagnostics["expected_organ_id"]:
+                raise ValueError("Next biological organ ID changed after current-length sampling")
         insertion_set = set(attachment_indices)
         self.lateral_attachment_nodes = []
         for i in range(len(lengths)):
@@ -252,10 +280,19 @@ class RootOrgan:
                 new_organ=(i == 0),
             )
             if i == 0:
+                if hasattr(self, "current_length_diagnostics"):
+                    if node.node_data.organ_id != self.current_length_diagnostics["expected_organ_id"]:
+                        raise ValueError("Allocated biological organ ID disagrees with current-length sampling key")
+                    self.current_length_diagnostics["allocated_organ_id"] = int(node.node_data.organ_id)
                 self.base_node = node
             if i in insertion_set:
                 self.lateral_attachment_nodes.append(node)
         self.mass = self.calculate_mass()
+        if hasattr(self, "current_length_diagnostics"):
+            realised = float(self.get_lengths().sum())
+            if not np.isclose(realised, self.current_length_diagnostics["sampled_current_length_cm"], rtol=0, atol=1e-8):
+                raise ValueError("Post-subdivision current organ length conservation exceeds 1e-8 cm")
+            self.current_length_diagnostics["post_subdivision_length_cm"] = realised
         return self.segments
 
     def calculate_mass(self) -> float:
@@ -308,12 +345,15 @@ class RootOrgan:
         self, segments_per_root: int, apex_diameter: float
     ) -> List[RootNode]:
         """Construct higher-order root, with additional attachment nodes if needed."""
+        if self._current_length_cdf() is not None:
+            self._current_length_expected_organ_id = int(self.parent_node.G.organ_id)
         diameters = self.init_diameters(segments_per_root, apex_diameter)
         lengths = self.init_lengths(segments_per_root)
         parent_data = self.parent_node.node_data
         parent_order = parent_data.order
         diameters += parent_data.diameter * 0.1**parent_order
-        lengths += parent_data.length * 0.1**parent_order
+        if self._current_length_cdf() is None:
+            lengths += parent_data.length * 0.1**parent_order
         coordinates = self.init_segment_coordinates(segments_per_root, lengths)
 
         root_type_name = (
@@ -541,6 +581,7 @@ class RootSystemSimulation:
         self.G: RootSystemGraph = RootSystemGraph()
         self.organs: Dict[int, List[RootOrgan]] = {}
         self.simulation_tag = simulation_tag
+        self.random_seed = random_seed
         self.rng = default_rng(random_seed)
 
     def get_yaw(self, number_of_roots: int) -> tuple:
@@ -712,6 +753,7 @@ class RootSystemSimulation:
         self, input_parameters: RootSimulationModel
     ) -> Dict[int, List[RootOrgan]]:
         """Construct organs; daughters attach at sampled parent arc-length sites."""
+        self._validate_primary_yaw_seed(input_parameters)
         self.organs = {
             order: [] for order in range(1, int(input_parameters.max_order) + 1)
         }
@@ -753,7 +795,22 @@ class RootSystemSimulation:
                     )
         return self.organs
 
+    def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
+        if (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
+                and getattr(input_parameters, "research_current_length_cdfs_cm", None) is None):
+            return
+        constructor_seed = getattr(self, "random_seed", None)
+        parameter_seed = getattr(input_parameters, "random_seed", None)
+        if (constructor_seed is None or parameter_seed is None
+                or isinstance(constructor_seed, (bool, np.bool_))
+                or not isinstance(constructor_seed, (int, np.integer))
+                or isinstance(parameter_seed, (bool, np.bool_))
+                or not isinstance(parameter_seed, (int, np.integer))
+                or constructor_seed != parameter_seed):
+            raise ValueError("Research keyed initialization requires equal explicit constructor and parameter seeds")
+
     def position_secondary_roots(self, input_parameters: RootSimulationModel) -> None:
+        self._validate_primary_yaw_seed(input_parameters)
         for order in range(2, input_parameters.max_order + 1):
             for secondary_root in self.organs[order]:
                 yaw = self.rng.uniform(-30, 240)
@@ -770,6 +827,7 @@ class RootSystemSimulation:
                 secondary_root.cascading_transform()
 
     def position_primary_roots(self, input_parameters: RootSimulationModel) -> None:
+        self._validate_primary_yaw_seed(input_parameters)
         position_type = RootType.OUTER.value
         yaw_base, yaw_noise_base, yaw = self.get_yaw(input_parameters.outer_root_num)
         for primary_root in self.organs[1]:
@@ -788,6 +846,88 @@ class RootSystemSimulation:
             primary_root.cascading_update_transform(pitch=pitch, yaw=yaw)
             primary_root.cascading_transform()
             yaw += yaw_base + self.rng.uniform(-yaw_noise_base, yaw_noise_base)
+
+        if getattr(input_parameters, "research_primary_yaw_mean_deg", None) is not None:
+            self.apply_primary_yaw_initialization(input_parameters)
+        if getattr(input_parameters, "research_base_depth_cm", None) is not None:
+            self.apply_root_origin_initialization(input_parameters)
+
+    def apply_root_origin_initialization(self, input_parameters: RootSimulationModel) -> None:
+        """Translate the complete initial graph to an explicitly buried base.
+
+        Surface-aware research initialization only. No new edge, rotation,
+        length change or random draw; preceding yaw diagnostics are retained.
+        """
+        values = (getattr(input_parameters, "research_base_origin_x_cm", None),
+                  getattr(input_parameters, "research_base_origin_y_cm", None),
+                  getattr(input_parameters, "research_base_depth_cm", None))
+        surface = getattr(input_parameters, "soil_surface_z_cm", None)
+        if (any(value is None or not math.isfinite(value) for value in values)
+                or values[2] <= 0 or surface is None or not math.isfinite(surface)
+                or "soil_surface_z_cm" not in getattr(input_parameters, "model_fields_set", set())
+                or getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024"):
+            raise ValueError("Root-origin initialization requires explicit finite x/y/positive depth and surface in fichtl2024")
+        base = self.G.base_node.node_data
+        old = np.array([base.x, base.y, base.z], dtype=float)
+        target = np.array([values[0], values[1], surface - values[2]], dtype=float)
+        nodes = self.G.nodes
+        coordinates = np.array([[node.node_data.x, node.node_data.y, node.node_data.z] for node in nodes])
+        if not np.isfinite(coordinates).all() or not np.isfinite(target).all():
+            raise ValueError("Root-origin initialization requires finite graph coordinates and target")
+        translated = target + (coordinates - old)
+        if not np.isfinite(translated).all():
+            raise ValueError("Root-origin translation produced nonfinite coordinates")
+        for node, xyz in zip(nodes, translated):
+            node.node_data.x, node.node_data.y, node.node_data.z = xyz
+        self.root_origin_diagnostics = dict(
+            stage="after_primary_positioning_and_yaw_before_tropism",
+            old_base_cm=old.tolist(), target_base_cm=target.tolist(),
+            delta_cm=(target - old).tolist(), soil_surface_z_cm=surface,
+            base_depth_cm=values[2], translated_node_count=len(nodes),
+        )
+
+    def apply_primary_yaw_initialization(self, input_parameters: RootSimulationModel) -> None:
+        """Rigid initial-subtree yaw after native positioning, before tropism.
+
+        The basal-to-apex chord defines yaw. Rotate about the unchanged system
+        base; keep every z value unchanged and never draw from self.rng.
+        """
+        self._validate_primary_yaw_seed(input_parameters)
+        base = self.G.base_node.node_data
+        origin = np.array([base.x, base.y, base.z], dtype=float)
+        plans = []
+        for primary in self.organs[1]:
+            chord = primary.get_apex_coordinates() - origin
+            if not np.isfinite(chord).all() or np.linalg.norm(chord[:2]) <= 1e-12:
+                raise ValueError("Primary azimuth is undefined for a zero-horizontal chord")
+            organ_id = int(primary.segments[0].node_data.organ_id)
+            assigned = sample_primary_yaw(
+                input_parameters.research_primary_yaw_mean_deg,
+                input_parameters.research_primary_yaw_kappa,
+                input_parameters.random_seed, organ_id,
+            )
+            old_yaw = math.atan2(chord[1], chord[0])
+            delta = assigned - old_yaw
+            rotation = np.array([[math.cos(delta), -math.sin(delta)],
+                                 [math.sin(delta), math.cos(delta)]])
+            plans.append((primary, organ_id, old_yaw, assigned, delta, rotation))
+        self.primary_yaw_diagnostics = []
+        for primary, organ_id, old_yaw, assigned, delta, rotation in plans:
+            subtree = [primary]
+            while subtree:
+                organ = subtree.pop()
+                coordinates = organ.get_coordinates().copy()
+                coordinates[:, :2] = (coordinates[:, :2] - origin[:2]) @ rotation.T + origin[:2]
+                organ.set_coordinates(coordinates)
+                subtree.extend(organ.child_organs)
+            realised_chord = primary.get_apex_coordinates() - origin
+            realised = math.atan2(realised_chord[1], realised_chord[0])
+            self.primary_yaw_diagnostics.append(dict(
+                organ_id=organ_id, stream_version="drg-primary-yaw-v1",
+                base_cm=origin.tolist(), old_yaw_deg=math.degrees(old_yaw),
+                assigned_yaw_deg=math.degrees(assigned), realised_yaw_deg=math.degrees(realised),
+                rotation_deg=math.degrees(delta),
+            ))
 
     def validate(
         self,
@@ -832,13 +972,23 @@ class RootSystemSimulation:
                 for organ in self.organs[order]:
                     organ.grow(simulation, input_parameters)
 
+    def _check_optional_primary_validation(self, input_parameters: RootSimulationModel) -> None:
+        if (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
+                and getattr(input_parameters, "research_base_depth_cm", None) is None):
+            return
+        for primary in self.organs[1]:
+            if getattr(primary, "validation_reorientations", 0) or primary.invalid_root:
+                raise ValueError("Primary validation changed or invalidated optional yaw/origin initialization")
+
     def run(self, input_parameters: RootSimulationModel) -> None:
+        self._validate_primary_yaw_seed(input_parameters)
         self.init_organs(input_parameters)
         # self.grow(self, input_parameters)
         self.position_secondary_roots(input_parameters)
         self.position_primary_roots(input_parameters)
         if getattr(input_parameters, "tropism_mode", "legacy") == "fichtl2024":
             self.validate(input_parameters, pitch=60, orders=(1,))
+            self._check_optional_primary_validation(input_parameters)
             self.apply_fichtl_tropism(input_parameters)
             self.validate(
                 input_parameters,
@@ -849,6 +999,7 @@ class RootSystemSimulation:
         else:
             self.apply_gravitropism(input_parameters.gravitropism)
             self.validate(input_parameters, pitch=60)
+            self._check_optional_primary_validation(input_parameters)
 
     def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
         """Keep the generated primary scaffold; reconstruct attached lateral paths.

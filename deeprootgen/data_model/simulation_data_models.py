@@ -11,6 +11,8 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from ..utils.current_length import validate_current_length_cdf
+
 
 class Config:
     arbitrary_types_allowed = True
@@ -77,6 +79,18 @@ class RootEdgeModel(BaseModel):
     child_id: int
 
 
+class CurrentLengthCDF(BaseModel):
+    """Explicit discrete current organ-length CDF; support is in cm."""
+
+    lengths_cm: List[float]
+    cumulative_probabilities: List[float]
+
+    @model_validator(mode="after")
+    def validate_discrete_cdf(self):
+        validate_current_length_cdf(self.lengths_cm, self.cumulative_probabilities)
+        return self
+
+
 class RootSimulationModel(BaseModel):
     """
     The root system architecture simulation data model.
@@ -122,6 +136,13 @@ class RootSimulationModel(BaseModel):
     no_root_zone: Optional[float] = 1e-4
     floor_threshold: Optional[float] = 0.4
     ceiling_threshold: Optional[float] = 0.9
+    research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
+    research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
+    research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+    research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
+    research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+    research_base_origin_y_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+    research_base_depth_cm: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
     tropism_mode: Literal["legacy", "fichtl2024"] = "legacy"
     soil_surface_z_cm: float = Field(default=0.0, ge=0, allow_inf_nan=False)
     fichtl_probability_down: Optional[float] = Field(default=None, ge=0, le=1)
@@ -132,6 +153,36 @@ class RootSimulationModel(BaseModel):
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_current_length_orders(self):
+        cdfs = self.research_current_length_cdfs_cm
+        if cdfs is not None:
+            if not cdfs or any(order not in (2, 3) or order > self.max_order for order in cdfs):
+                raise ValueError("Current-length CDFs require a nonempty selection of supported orders 2/3")
+            if self.random_seed is None or self.segments_per_root <= 0:
+                raise ValueError("Current-length CDFs require an explicit random_seed and positive segments_per_root")
+        return self
+
+    @model_validator(mode="after")
+    def require_explicit_root_origin(self):
+        values = (self.research_base_origin_x_cm, self.research_base_origin_y_cm, self.research_base_depth_cm)
+        if any(value is not None for value in values):
+            if any(value is None for value in values):
+                raise ValueError("Research base origin x/y/depth must be supplied together")
+            if "soil_surface_z_cm" not in self.model_fields_set:
+                raise ValueError("Research base origin requires an explicit soil_surface_z_cm")
+            if self.tropism_mode != "fichtl2024":
+                raise ValueError("Research base origin currently requires fichtl2024 mode")
+        return self
+
+    @model_validator(mode="after")
+    def require_paired_primary_yaw_parameters(self):
+        if (self.research_primary_yaw_mean_deg is None) != (self.research_primary_yaw_kappa is None):
+            raise ValueError("Research primary yaw mean and kappa must be supplied together")
+        if self.research_primary_yaw_mean_deg is not None and self.random_seed is None:
+            raise ValueError("Research primary yaw requires an explicit random_seed")
+        return self
 
     @model_validator(mode="after")
     def require_explicit_fichtl_parameters(self):
