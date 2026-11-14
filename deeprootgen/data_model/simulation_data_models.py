@@ -12,6 +12,7 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..utils.current_length import validate_current_length_cdf
+from ..utils.primary_attachment import validate_distal_fraction, validate_distal_scope
 from ..utils.tertiary_length_rank import validate_rank_scope, validate_rank_strength
 from ..utils.branching import validate_parent2_branch_zone
 from ..utils.tropism import (
@@ -162,6 +163,7 @@ class RootSimulationModel(BaseModel):
     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     research_primary_yaw_reverse_probability: Optional[float] = None
     research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
+    research_primary_attachment_distal_fraction: Optional[float] = None
     research_primary_inclination_bias: Optional[float] = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
     research_base_origin_y_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
@@ -177,6 +179,25 @@ class RootSimulationModel(BaseModel):
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @field_validator("research_primary_attachment_distal_fraction", mode="before")
+    @classmethod
+    def validate_primary_distal_fraction(cls, value):
+        return validate_distal_fraction(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_explicit_primary_distal_seed(cls, values):
+        if isinstance(values, dict) and validate_distal_fraction(values.get("research_primary_attachment_distal_fraction")):
+            seed = values.get("random_seed")
+            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+                raise ValueError("Primary attachment placement requires explicit nonnegative integer seed")
+        return values
+
+    @model_validator(mode="after")
+    def require_primary_distal_scope(self):
+        validate_distal_scope(self)
+        return self
 
     @field_validator("research_tertiary_length_rank_strength", mode="before")
     @classmethod

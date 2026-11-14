@@ -23,6 +23,7 @@ from ..utils.branching import (
     sample_branch_sites, validate_parent2_branch_zone,
 )
 from ..utils.current_length import sample_current_lengths
+from ..utils.primary_attachment import FIELD as ATTACH_FIELD, validate_distal_fraction, validate_distal_scope
 from ..utils.tertiary_length_rank import plan_tertiary_length_family, validate_rank_scope, validate_rank_strength
 from ..utils.primary_orientation import chord_angles, check_edge_conservation, inclination_rotation
 from ..utils.tropism import (
@@ -859,6 +860,10 @@ class RootSystemSimulation:
         return self.organs
 
     def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
+        if validate_distal_scope(input_parameters):
+            if self.random_seed is None:
+                raise ValueError("Primary attachment placement requires matching explicit constructor seed")
+            validate_distal_scope(input_parameters, self.random_seed)
         if validate_rank_scope(input_parameters):
             if self.random_seed is None:
                 raise ValueError("Tertiary length rank requires matching explicit constructor seed")
@@ -1133,7 +1138,8 @@ class RootSystemSimulation:
     def run(self, input_parameters: RootSimulationModel) -> None:
         if (getattr(input_parameters, "research_current_length_grid", None) is not None
                 or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None
-                or validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None))):
+                or validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None))
+                or validate_distal_fraction(getattr(input_parameters, ATTACH_FIELD, None))):
             raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native run is unsupported")
         self._validate_primary_yaw_seed(input_parameters)
         self.init_organs(input_parameters)
@@ -1164,7 +1170,8 @@ class RootSystemSimulation:
         """
         if (getattr(parameters, "research_current_length_grid", None) is not None
                 or getattr(parameters, "research_parent2_branch_zone_cm", None) is not None
-                or validate_rank_strength(getattr(parameters, "research_tertiary_length_rank_strength", None))):
+                or validate_rank_strength(getattr(parameters, "research_tertiary_length_rank_strength", None))
+                or validate_distal_fraction(getattr(parameters, ATTACH_FIELD, None))):
             raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native tropism is unsupported")
         self._validate_primary_yaw_seed(parameters)
         row_kappas = getattr(parameters, "research_insertion_row_axial_kappa", None)

@@ -13,6 +13,7 @@ import pandas as pd
 
 from ..data_model import RootSimulationModel
 from ..utils.current_length import STREAM_VERSION, _cdf_arrays, select_current_length
+from ..utils.primary_attachment import FIELD as ATTACH_FIELD
 from ..utils.tertiary_length_rank import FIELD as RANK_FIELD, VERSION as RANK_VERSION, plan_tertiary_length_family
 from ..utils.tropism import insertion_heading, order_sigma_metadata, row_axial_insertion_heading, validate_row_axial_kappas
 from .so4_controlled import (
@@ -64,9 +65,10 @@ def _scope(skeleton, settings, arm, surface_z):
         if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
                 or seed < 0 or seed != skeleton.payload["seed"] or values.get("research_current_length_grid") != GRID):
             raise ValueError("Construction-step route requires active grid and matching explicit seed")
-    from .so4_controlled import validate_saved_primary_yaw_reversal, validate_saved_tertiary_length_rank
+    from .so4_controlled import validate_saved_primary_yaw_reversal, validate_saved_tertiary_length_rank, validate_saved_primary_attachment
     validate_saved_primary_yaw_reversal(skeleton, settings)
     validate_saved_tertiary_length_rank(skeleton, settings)
+    validate_saved_primary_attachment(skeleton, settings)
     saved = RootSimulationModel(**skeleton.payload["parameters"])
     requested = RootSimulationModel(**settings)
     if saved.research_current_length_grid != GRID or requested.research_current_length_grid != GRID:
@@ -74,7 +76,7 @@ def _scope(skeleton, settings, arm, surface_z):
     saved_values, requested_values = saved.model_dump(), requested.model_dump()
     for key, value in saved_values.items():
         if not key.startswith("fichtl_") and key not in {"simulation_tag", "research_insertion_row_axial_kappa", "research_fichtl_sigma_by_order"}:
-            if key in {"research_primary_yaw_reverse_probability", RANK_FIELD} and not requested_values[key] and not value:
+            if key in {"research_primary_yaw_reverse_probability", RANK_FIELD, ATTACH_FIELD} and not requested_values[key] and not value:
                 continue
             if requested_values[key] != value:
                 raise ValueError(f"Construction settings disagree with INITIAL: {key}")
@@ -247,6 +249,8 @@ def _validate_rank_families(skeleton, parameters, nodes):
 def validate_construction_metadata(skeleton):
     """Read-only preflight for a captured INITIAL; no simulation or length draws."""
     parameters, _ = _scope(skeleton, skeleton.payload["parameters"], "D", 20.)
+    from .primary_attachment import validate_primary_attachment_provenance
+    validate_primary_attachment_provenance(skeleton)
     nodes, edges = pd.DataFrame(skeleton.payload["nodes"]), pd.DataFrame(skeleton.payload["edges"])
     validate_geometry(nodes, edges)
     if nodes.loc[nodes.order.le(1), "z"].max() > 20.:

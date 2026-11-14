@@ -25,6 +25,7 @@ from deeprootgen.utils.tropism import (
 )
 
 from deeprootgen.utils.tertiary_length_rank import FIELD as RANK_FIELD, validate_rank_strength
+from deeprootgen.utils.primary_attachment import FIELD as ATTACH_FIELD, validate_distal_fraction
 
 ARMS = {
     "A": ("legacy", "legacy"),
@@ -200,7 +201,8 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
         else dict(parameters)
     )
     reversal = validate_primary_yaw_reverse_probability(values.get("research_primary_yaw_reverse_probability"))
-    if reversal or validate_rank_strength(values.get(RANK_FIELD)) or values.get("research_current_length_grid") is not None:
+    distal = validate_distal_fraction(values.get(ATTACH_FIELD))
+    if distal or reversal or validate_rank_strength(values.get(RANK_FIELD)) or values.get("research_current_length_grid") is not None:
         if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
                 or not isinstance(values.get("random_seed"), (int, np.integer))
                 or values.get("random_seed") != seed or isinstance(values.get("random_seed"), (bool, np.bool_))):
@@ -219,6 +221,8 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
     if nodes.invalid_root.any():
         raise ValueError("INITIAL unexpectedly contains invalid nodes")
     saved_parameters = p.model_dump()
+    # Capture the equivalent untreated INITIAL first; relocation is pure tables.
+    saved_parameters.pop(ATTACH_FIELD, None)
     if p.research_current_length_grid is None:
         saved_parameters.pop("research_current_length_grid", None)
     if p.research_parent2_branch_zone_cm is None:
@@ -248,6 +252,9 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
         if o["order"] == 2
     ):
         raise ValueError("Frozen primary attachment exceeds common surface")
+    if distal:
+        from .primary_attachment import relocate_primary_attachments
+        return relocate_primary_attachments(skeleton, distal)
     return skeleton
 
 
@@ -433,6 +440,16 @@ def validate_saved_tertiary_length_rank(skeleton, settings, legacy=False):
     return saved
 
 
+def validate_saved_primary_attachment(skeleton, settings, legacy=False):
+    saved = validate_distal_fraction(skeleton.payload["parameters"].get(ATTACH_FIELD)) or 0.
+    requested = validate_distal_fraction(settings.get(ATTACH_FIELD)) or 0.
+    if saved != requested:
+        raise ValueError("Primary attachment placement setting disagrees with saved INITIAL")
+    if saved and legacy:
+        raise ValueError("Primary attachment placement requires named construction-step replay")
+    return saved
+
+
 def replay_arm(
     skeleton: Skeleton,
     arm: str,
@@ -447,6 +464,7 @@ def replay_arm(
     parameters = skeleton.payload["parameters"]
     validate_saved_primary_yaw_reversal(skeleton, settings)
     validate_saved_tertiary_length_rank(skeleton, settings, legacy=True)
+    validate_saved_primary_attachment(skeleton, settings, legacy=True)
     if (parameters.get("research_current_length_grid") is not None
             or settings.get("research_current_length_grid") is not None
             or parameters.get("research_parent2_branch_zone_cm") is not None
