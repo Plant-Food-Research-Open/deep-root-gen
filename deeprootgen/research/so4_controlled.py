@@ -17,7 +17,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from deeprootgen.utils.tropism import _basis, insertion_heading
+from deeprootgen.utils.tropism import (
+    _basis, insertion_heading, row_axial_controls_active,
+    row_axial_insertion_heading, validate_row_axial_kappas,
+)
 
 ARMS = {
     "A": ("legacy", "legacy"),
@@ -354,6 +357,19 @@ def invariant_hashes(nodes):
     )
 
 
+def _controlled_row_kappas(settings, insertion_mode, seed):
+    """Validate the optional insertion control before mutating replay nodes."""
+    kappas = validate_row_axial_kappas(settings.get("research_insertion_row_axial_kappa"))
+    if row_axial_controls_active(kappas):
+        if insertion_mode != "fichtl" or settings.get("tropism_mode") != "fichtl2024":
+            raise ValueError("Active row-axial controls require Fichtl insertion (arms B/D) and mode")
+        input_seed = settings.get("random_seed")
+        if (isinstance(input_seed, (bool, np.bool_)) or not isinstance(input_seed, (int, np.integer))
+                or input_seed != seed):
+            raise ValueError("Active row-axial input seed must match saved skeleton seed")
+    return kappas
+
+
 def replay_arm(
     skeleton: Skeleton,
     arm: str,
@@ -370,6 +386,7 @@ def replay_arm(
             and parameters.get("soil_surface_z_cm") != surface_z):
         raise ValueError("Saved origin surface disagrees with controlled replay surface")
     insertion_mode, continuation_mode = ARMS[arm]
+    row_kappas = _controlled_row_kappas(settings, insertion_mode, skeleton.payload["seed"])
     original = pd.DataFrame(skeleton.payload["nodes"]).set_index("node_id", drop=False)
     nodes = original.copy(deep=True)
     edges = pd.DataFrame(skeleton.payload["edges"])
@@ -404,10 +421,18 @@ def replay_arm(
                 keyed_rng(seed, oid, 0, "insertion"),
             )
         )
+        row_report = None
+        if row_kappas is not None and insertion_mode == "fichtl":
+            assigned, row_report = row_axial_insertion_heading(
+                tangent, assigned, row_kappas.get(order), seed, oid, order,
+            )
+            row_report.update(realisation_stage="controlled_exact_first_segment_then_common_projection",
+                              row_alignment_by_arc=[])
         assigned = unit(assigned)
         old_frame = frame(stored[0])
         current_frame = minimal_rotation(stored[0], assigned) @ old_frame
         initial_frame = current_frame.copy()
+        arc = 0.
         for index, nid in enumerate(organ["node_ids"]):
             length = float(nodes.loc[nid, "length"])
             start_id = int(nodes.loc[nid, "parent_id"])
@@ -437,6 +462,16 @@ def replay_arm(
                 diagnostics=boundary_receipt,
             )
             nodes.loc[nid, XYZ] = start + length * accepted
+            if row_report is not None:
+                if index == 0:
+                    row_report["post_boundary_heading"] = accepted.tolist()
+                    row_report["post_boundary_polar_angle_deg"] = float(np.degrees(np.arccos(np.clip(accepted @ tangent, -1., 1.))))
+                row_report["row_alignment_by_arc"].append(dict(
+                    node_id=nid, arc_start_cm=arc, arc_end_cm=arc + length,
+                    row_projection=float(accepted[1]), axial_row_alignment=float(accepted[1]**2),
+                    alignment_with_insertion=float(accepted @ assigned), boundary_intervention=intervened,
+                ))
+            arc += length
             if index > 0:
                 old_frame = (
                     minimal_rotation(stored[index - 1], stored[index]) @ old_frame
@@ -490,6 +525,8 @@ def replay_arm(
                         parent_tangent=tangent.tolist(),
                     )
                 )
+                if row_report is not None:
+                    organ_receipts[-1]["row_axial_insertion"] = row_report
     nodes = nodes.reset_index(drop=True)
     expected = invariant_hashes(original.reset_index(drop=True))
     actual = invariant_hashes(nodes)

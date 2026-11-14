@@ -14,7 +14,9 @@ not authorize a merge, release, biological adoption or new experiment budget.
 | [3: controlled replay](https://github.com/junqi108/deep-root-gen-PFR-open/pull/3) | Four-arm replay, shared boundary, keyed streams, invariant/budget/recovery checks and public method | Checkpoint 2; review algorithm, synthetic checks and scientific claim limits |
 | [4: explicit observation contract](https://github.com/junqi108/deep-root-gen-PFR-open/pull/4) | Hierarchical raw IDs, declared point-set verification and canonical soil axes | Checkpoint 3; qualify raw/RSML inputs locally before new comparisons |
 
-| 5: optional construction controls | Capped-site redistribution, keyed yaw, buried origin, explicit current-length CDFs and validation guards | Checkpoint4; review opt-in semantics, mesh invariants, synthetic checks and local-data boundary |
+| [5: optional construction controls](https://github.com/junqi108/deep-root-gen-PFR-open/pull/5) | Capped-site redistribution, keyed yaw, buried origin, explicit current-length CDFs and validation guards | Checkpoint4; review opt-in semantics, mesh invariants, synthetic checks and local-data boundary |
+
+| 6: optional insertion azimuth preference | Per-order row-axis axial concentration, polar-angle/RNG invariants and combined synthetic replay fixture | Checkpoint5; review the explicit research assumption and row/vertical effects |
 
 Review the stack in order. After merging a prerequisite, retarget its dependent
 PR to main and verify the resulting diff before marking it ready. The current
@@ -91,3 +93,10 @@ an ensemble; `--prepare` writes a source/input manifest without any attempt.
 The caller owns the separate end-to-end bound described by the method. CI and
 routine qualification must not launch the fixed empirical ensemble as a smoke
 test or silently create another attempt budget.
+
+The [insertion-azimuth rule](SO4_INSERTION_ROW_AXIAL.md) is a separate optional
+research anisotropy assumption. It preserves the sampled parent-relative polar
+angle, with independent axial streams and unchanged continuation/boundary laws.
+It is not a row-tropism coefficient reported in the cited paper. None and zero
+retain existing geometry/RNG. Public qualification includes603 integrated tests;
+actual fitting and observation comparisons remain local.

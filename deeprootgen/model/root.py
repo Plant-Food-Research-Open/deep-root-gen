@@ -19,7 +19,10 @@ from ..data_model import RootNodeModel, RootSimulationModel, RootType, RootTypeM
 from ..spatial import get_transform_matrix, make_homogenous
 from ..utils.branching import redistribute_capped_sites, sample_branch_sites
 from ..utils.current_length import sample_current_lengths
-from ..utils.tropism import insertion_heading, sample_heading, sample_primary_yaw
+from ..utils.tropism import (
+    insertion_heading, row_axial_controls_active, row_axial_insertion_heading,
+    sample_heading, sample_primary_yaw,
+)
 from .hgraph import RootNode, RootSystemGraph
 from .soil import Soil
 
@@ -796,8 +799,12 @@ class RootSystemSimulation:
         return self.organs
 
     def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
+        row_active = row_axial_controls_active(getattr(input_parameters, "research_insertion_row_axial_kappa", None))
+        if row_active and getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024":
+            raise ValueError("Active row-axial insertion requires Fichtl mode")
         if (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
-                and getattr(input_parameters, "research_current_length_cdfs_cm", None) is None):
+                and getattr(input_parameters, "research_current_length_cdfs_cm", None) is None
+                and not row_active):
             return
         constructor_seed = getattr(self, "random_seed", None)
         parameter_seed = getattr(input_parameters, "random_seed", None)
@@ -1008,6 +1015,10 @@ class RootSystemSimulation:
         This is a static, optional kernel with explicit insertion/surface
         assumptions, not temporal CPlantBox growth or an exact 2024 replay.
         """
+        self._validate_primary_yaw_seed(parameters)
+        row_kappas = getattr(parameters, "research_insertion_row_axial_kappa", None)
+        if row_kappas is not None:
+            self.row_insertion_diagnostics = []
         by_id = {n.node_data.node_id: n for n in self.G.nodes}
         original = {
             k: np.array([n.node_data.x, n.node_data.y, n.node_data.z])
@@ -1057,6 +1068,20 @@ class RootSystemSimulation:
                     else parameters.fichtl_theta3_sd_deg
                 )
                 heading = insertion_heading(tangent, mean, sd, self.rng)
+                row_report = None
+                if row_kappas is not None:
+                    heading, row_report = row_axial_insertion_heading(
+                        tangent, heading, row_kappas.get(order), parameters.random_seed,
+                        int(organ.segments[0].node_data.organ_id), order,
+                    )
+                    row_report.update(
+                        order=order, organ_id=int(organ.segments[0].node_data.organ_id),
+                        realisation_stage="native_search_from_segment1_with_candidate_surface_filter",
+                        row_alignment_by_arc=[],
+                    )
+                    self.row_insertion_diagnostics.append(row_report)
+                insertion = heading.copy()
+                arc = 0.
                 for node in organ.segments:
                     length = lengths[node.node_data.node_id]
                     heading, diagnostics = sample_heading(
@@ -1073,6 +1098,19 @@ class RootSystemSimulation:
                         start_z=position[2],
                         surface_z=parameters.soil_surface_z_cm,
                     )
+                    if row_report is not None:
+                        if not row_report["row_alignment_by_arc"]:
+                            row_report["post_boundary_heading"] = heading.tolist()
+                            row_report["post_search_and_boundary_polar_angle_deg"] = float(np.degrees(np.arccos(
+                                np.clip(heading @ (tangent / np.linalg.norm(tangent)), -1., 1.))))
+                        row_report["row_alignment_by_arc"].append(dict(
+                            node_id=int(node.node_data.node_id), arc_start_cm=arc, arc_end_cm=arc + length,
+                            row_projection=float(heading[1]), axial_row_alignment=float(heading[1]**2),
+                            alignment_with_insertion=float(heading @ insertion),
+                            surface_fallback=bool(diagnostics["surface_fallback"]),
+                            rejected_surface_candidates=diagnostics["rejected_surface"],
+                        ))
+                    arc += length
                     position = position + length * heading
                     node.node_data.x, node.node_data.y, node.node_data.z = position
                     self.tropism_diagnostics["segments"] += 1

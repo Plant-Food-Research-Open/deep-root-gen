@@ -128,3 +128,8 @@ The [optional construction continuation](docs/research/SO4_CONSTRUCTION_CONTINUA
 adds explicit research controls for attachment placement, primary yaw, buried
 origin and current organ-length distributions. Each retains legacy defaults;
 measured distributions and comparison artifacts remain local.
+
+The [optional insertion-azimuth preference](docs/research/SO4_INSERTION_ROW_AXIAL.md)
+tests model-frame row anisotropy while retaining sampled insertion polar angles.
+It is an explicit research assumption with unchanged defaults and continuation;
+its global vertical effects require separate diagnosis.

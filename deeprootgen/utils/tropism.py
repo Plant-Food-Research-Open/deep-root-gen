@@ -103,3 +103,95 @@ def sample_primary_yaw(mean_deg, kappa, random_seed, organ_id):
     key = hashlib.sha256(f"drg-primary-yaw-v1:{random_seed}:{organ_id}".encode()).digest()
     rng = np.random.default_rng(np.random.SeedSequence(np.frombuffer(key, dtype="<u4")))
     return float(rng.vonmises(math.radians(mean_deg), kappa))
+
+
+ROW_AXIAL_STREAM_VERSION = "drg-insertion-row-axial-v1"
+
+
+def validate_row_axial_kappas(mapping, max_order=3):
+    """Normalize explicit order keys, without inventing a concentration."""
+    if mapping is None:
+        return None
+    if not isinstance(mapping, dict) or not mapping:
+        raise ValueError("Row-axial insertion needs a nonempty order mapping")
+    result = {}
+    for key, value in mapping.items():
+        if isinstance(key, (bool, np.bool_)) or str(key) not in {"2", "3"}:
+            raise ValueError("Row-axial insertion supports selected orders 2/3")
+        order = int(key)
+        if order > max_order or order in result:
+            raise ValueError("Row-axial insertion order is unsupported or duplicated")
+        try:
+            kappa = float(value)
+        except (TypeError, ValueError) as error:
+            raise ValueError("Row-axial kappa must be finite and nonnegative") from error
+        if not np.isfinite(kappa) or kappa < 0:
+            raise ValueError("Row-axial kappa must be finite and nonnegative")
+        result[order] = kappa
+    return result
+
+
+def row_axial_controls_active(mapping):
+    return mapping is not None and any(kappa > 0 for kappa in mapping.values())
+
+
+def _row_axial_stream(seed, organ_id, order, purpose):
+    key = hashlib.sha256(f"{ROW_AXIAL_STREAM_VERSION}:{seed}:{order}:{organ_id}:{purpose}".encode()).digest()
+    return np.random.default_rng(np.random.SeedSequence(np.frombuffer(key, dtype="<u4")))
+
+
+def row_axial_insertion_heading(parent_direction, original_heading, kappa,
+                                seed=None, organ_id=None, order=None):
+    """Bias azimuth around the projected row axis, preserving the polar draw.
+
+    Invoke AFTER the unchanged original insertion sampler. No shared RNG is
+    accepted or consumed. None/zero and geometric degeneracies return the exact
+    original vector. This research anisotropy is not a Fichtl coefficient.
+    """
+    tangent = _basis(parent_direction)[0]
+    original = np.asarray(original_heading, dtype=float)
+    if (original.shape != (3,) or not np.isfinite(original).all()
+            or not np.isclose(np.linalg.norm(original), 1., rtol=0, atol=1e-10)):
+        raise ValueError("Original insertion heading must be a finite unit vector")
+    if kappa is not None and (not np.isfinite(kappa) or kappa < 0):
+        raise ValueError("Row-axial kappa must be finite and nonnegative")
+    if kappa is not None and kappa > 0:
+        if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer)) or seed < 0
+                or isinstance(organ_id, (bool, np.bool_)) or not isinstance(organ_id, (int, np.integer)) or organ_id <= 0
+                or isinstance(order, (bool, np.bool_)) or not isinstance(order, (int, np.integer)) or order not in (2, 3)):
+            raise ValueError("Active row-axial insertion requires explicit integer seed/organ/order")
+    cosine = float(np.clip(original @ tangent, -1., 1.))
+    sine = float(np.linalg.norm(original - cosine * tangent))
+    projected = np.array([0., 1., 0.]) - tangent[1] * tangent
+    rho = float(np.linalg.norm(projected))
+    fallback = ("disabled" if kappa is None else "zero_kappa" if kappa == 0 else
+                "parent_parallel_row" if rho < 1e-12 else "zero_polar" if sine < 1e-12 else None)
+    phi = branch = eta = None
+    chosen = original
+    if fallback is None:
+        first = projected / rho
+        # Remove projection-rounding error near the parallel-row threshold.
+        first = first - (first @ tangent) * tangent
+        first /= np.linalg.norm(first)
+        second = np.cross(tangent, first)
+        second /= np.linalg.norm(second)
+        eta = float(_row_axial_stream(seed, organ_id, order, "axial_angle").vonmises(0., kappa))
+        branch = int(_row_axial_stream(seed, organ_id, order, "axial_branch").integers(0, 2))
+        phi = float((eta / 2. + branch * np.pi) % (2. * np.pi))
+        chosen = cosine * tangent + sine * (np.cos(phi) * first + np.sin(phi) * second)
+        chosen /= np.linalg.norm(chosen)
+    report = dict(
+        old_heading=original.tolist(), new_heading=chosen.tolist(),
+        old_polar_angle_deg=float(np.degrees(np.arccos(cosine))),
+        new_polar_angle_deg=float(np.degrees(np.arccos(np.clip(chosen @ tangent, -1., 1.)))),
+        row_projection_norm=rho, phi_rad=phi, eta_rad=eta, axial_branch=branch,
+        kappa=None if kappa is None else float(kappa), fallback=fallback,
+        stream_version=ROW_AXIAL_STREAM_VERSION,
+        stream_used=fallback is None,
+        stream_identity=dict(seed=None if seed is None else int(seed),
+                             organ_id=None if organ_id is None else int(organ_id),
+                             order=None if order is None else int(order),
+                             purposes=["axial_angle", "axial_branch"]),
+        old_row_projection=float(original[1]), new_row_projection=float(chosen[1]),
+    )
+    return chosen, report

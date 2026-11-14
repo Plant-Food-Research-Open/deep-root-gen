@@ -12,6 +12,7 @@ from typing import Dict, List, Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 from ..utils.current_length import validate_current_length_cdf
+from ..utils.tropism import row_axial_controls_active, validate_row_axial_kappas
 
 
 class Config:
@@ -138,6 +139,7 @@ class RootSimulationModel(BaseModel):
     ceiling_threshold: Optional[float] = 0.9
     research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
     research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
+    research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
     research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
@@ -153,6 +155,16 @@ class RootSimulationModel(BaseModel):
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_insertion_row_axial(self):
+        self.research_insertion_row_axial_kappa = validate_row_axial_kappas(
+            self.research_insertion_row_axial_kappa, self.max_order,
+        )
+        if row_axial_controls_active(self.research_insertion_row_axial_kappa):
+            if self.tropism_mode != "fichtl2024" or self.random_seed is None:
+                raise ValueError("Active row-axial insertion requires Fichtl mode and explicit random_seed")
+        return self
 
     @model_validator(mode="after")
     def validate_current_length_orders(self):
