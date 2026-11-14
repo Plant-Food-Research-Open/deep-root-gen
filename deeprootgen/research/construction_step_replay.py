@@ -61,6 +61,8 @@ def _scope(skeleton, settings, arm, surface_z):
         if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
                 or seed < 0 or seed != skeleton.payload["seed"] or values.get("research_current_length_grid") != GRID):
             raise ValueError("Construction-step route requires active grid and matching explicit seed")
+    from .so4_controlled import validate_saved_primary_yaw_reversal
+    validate_saved_primary_yaw_reversal(skeleton, settings)
     saved = RootSimulationModel(**skeleton.payload["parameters"])
     requested = RootSimulationModel(**settings)
     if saved.research_current_length_grid != GRID or requested.research_current_length_grid != GRID:
@@ -68,6 +70,8 @@ def _scope(skeleton, settings, arm, surface_z):
     saved_values, requested_values = saved.model_dump(), requested.model_dump()
     for key, value in saved_values.items():
         if not key.startswith("fichtl_") and key not in {"simulation_tag", "research_insertion_row_axial_kappa", "research_fichtl_sigma_by_order"}:
+            if key == "research_primary_yaw_reverse_probability" and not requested_values[key] and not value:
+                continue
             if requested_values[key] != value:
                 raise ValueError(f"Construction settings disagree with INITIAL: {key}")
     if saved.research_base_depth_cm is not None and saved.soil_surface_z_cm != surface_z:

@@ -13,7 +13,10 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from ..utils.current_length import validate_current_length_cdf
 from ..utils.branching import validate_parent2_branch_zone
-from ..utils.tropism import row_axial_controls_active, validate_fichtl_sigma_by_order, validate_row_axial_kappas
+from ..utils.tropism import (
+    row_axial_controls_active, validate_fichtl_sigma_by_order, validate_row_axial_kappas,
+    validate_primary_yaw_reverse_probability,
+)
 
 
 class Config:
@@ -155,6 +158,7 @@ class RootSimulationModel(BaseModel):
     research_parent2_branch_zone_cm: Optional[Parent2BranchZone] = None
     research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+    research_primary_yaw_reverse_probability: Optional[float] = None
     research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
     research_primary_inclination_bias: Optional[float] = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
@@ -234,10 +238,27 @@ class RootSimulationModel(BaseModel):
                 raise ValueError("Research base origin currently requires fichtl2024 mode")
         return self
 
+    @model_validator(mode="before")
+    @classmethod
+    def require_explicit_reversal_seed(cls, values):
+        if isinstance(values, dict) and validate_primary_yaw_reverse_probability(
+                values.get("research_primary_yaw_reverse_probability")):
+            seed = values.get("random_seed")
+            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+                raise ValueError("Active primary yaw reversal requires explicit nonnegative integer seed")
+        return values
+
+    @field_validator("research_primary_yaw_reverse_probability", mode="before")
+    @classmethod
+    def validate_yaw_reverse_probability(cls, value):
+        return validate_primary_yaw_reverse_probability(value)
+
     @model_validator(mode="after")
     def require_paired_primary_yaw_parameters(self):
         if (self.research_primary_yaw_mean_deg is None) != (self.research_primary_yaw_kappa is None):
             raise ValueError("Research primary yaw mean and kappa must be supplied together")
+        if self.research_primary_yaw_reverse_probability and self.research_primary_yaw_mean_deg is None:
+            raise ValueError("Active primary yaw reversal requires explicit yaw mean/kappa")
         if self.research_primary_yaw_mean_deg is not None and self.random_seed is None:
             raise ValueError("Research primary yaw requires an explicit random_seed")
         return self

@@ -167,6 +167,39 @@ def sample_primary_yaw(mean_deg, kappa, random_seed, organ_id):
     return float(rng.vonmises(math.radians(mean_deg), kappa))
 
 
+PRIMARY_YAW_REVERSAL_VERSION = "drg-primary-yaw-reversal-v1"
+
+
+def validate_primary_yaw_reverse_probability(value):
+    """Strict dimensionless research probability; None and zero are inactive."""
+    if value is None:
+        return None
+    if (isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, float, np.integer, np.floating))
+            or not 0 <= value <= 1 or not np.isfinite(value)):
+        raise ValueError("Primary yaw reversal probability must be a finite nonbool number in [0,1]")
+    return float(value)
+
+
+def reverse_primary_yaw(yaw, probability, random_seed, organ_id):
+    """Independent Bernoulli pi reversal of an already sampled primary yaw."""
+    probability = validate_primary_yaw_reverse_probability(probability)
+    if not probability:
+        return yaw, None
+    if (not np.isfinite(yaw) or isinstance(random_seed, (bool, np.bool_))
+            or not isinstance(random_seed, (int, np.integer)) or random_seed < 0
+            or isinstance(organ_id, (bool, np.bool_))
+            or not isinstance(organ_id, (int, np.integer)) or organ_id <= 0):
+        raise ValueError("Primary yaw reversal requires finite yaw, nonnegative integer seed and positive organ ID")
+    key = hashlib.sha256(f"{PRIMARY_YAW_REVERSAL_VERSION}:{random_seed}:{organ_id}".encode()).digest()
+    rng = np.random.default_rng(np.random.SeedSequence(np.frombuffer(key, dtype="<u4")))
+    uniform = float(rng.random())
+    reversed_polarity = bool(uniform < probability)
+    target = yaw + math.pi * reversed_polarity
+    return target, dict(stream_version=PRIMARY_YAW_REVERSAL_VERSION, probability=probability,
+                        uniform=uniform, reversed=reversed_polarity,
+                        original_yaw_deg=math.degrees(yaw), target_yaw_deg=math.degrees(target))
+
+
 ROW_AXIAL_STREAM_VERSION = "drg-insertion-row-axial-v1"
 
 

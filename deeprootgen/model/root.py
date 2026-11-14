@@ -27,6 +27,7 @@ from ..utils.primary_orientation import chord_angles, check_edge_conservation, i
 from ..utils.tropism import (
     insertion_heading, row_axial_controls_active, row_axial_insertion_heading,
     resolve_fichtl_sigma, sample_heading, sample_primary_yaw, validate_fichtl_sigma_by_order,
+    reverse_primary_yaw, validate_primary_yaw_reverse_probability,
 )
 from .hgraph import RootNode, RootSystemGraph
 from .soil import Soil
@@ -832,6 +833,19 @@ class RootSystemSimulation:
         return self.organs
 
     def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
+        reversal = validate_primary_yaw_reverse_probability(
+            getattr(input_parameters, "research_primary_yaw_reverse_probability", None))
+        if reversal and (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
+                         or getattr(input_parameters, "research_primary_yaw_kappa", None) is None):
+            raise ValueError("Active primary yaw reversal requires explicit yaw mean/kappa")
+        if reversal:
+            mean = input_parameters.research_primary_yaw_mean_deg
+            kappa = input_parameters.research_primary_yaw_kappa
+            if (isinstance(mean, (bool, np.bool_)) or not isinstance(mean, (int, float, np.integer, np.floating))
+                    or not np.isfinite(mean) or not -180 <= mean <= 180
+                    or isinstance(kappa, (bool, np.bool_)) or not isinstance(kappa, (int, float, np.integer, np.floating))
+                    or not np.isfinite(kappa) or not 0 <= kappa <= 100):
+                raise ValueError("Active primary yaw reversal requires valid explicit yaw mean/kappa")
         sigma_map = getattr(input_parameters, "research_fichtl_sigma_by_order", None)
         if sigma_map is not None:
             if getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024":
@@ -852,7 +866,7 @@ class RootSystemSimulation:
                 or not isinstance(constructor_seed, (int, np.integer))
                 or isinstance(parameter_seed, (bool, np.bool_))
                 or not isinstance(parameter_seed, (int, np.integer))
-                or constructor_seed != parameter_seed):
+                or constructor_seed != parameter_seed or (reversal and parameter_seed < 0)):
             raise ValueError("Research keyed initialization requires equal explicit constructor and parameter seeds")
 
     def position_secondary_roots(self, input_parameters: RootSimulationModel) -> None:
@@ -1006,13 +1020,17 @@ class RootSystemSimulation:
                 input_parameters.research_primary_yaw_kappa,
                 input_parameters.random_seed, organ_id,
             )
+            assigned, reversal = reverse_primary_yaw(
+                assigned, getattr(input_parameters, "research_primary_yaw_reverse_probability", None),
+                input_parameters.random_seed, organ_id,
+            )
             old_yaw = math.atan2(chord[1], chord[0])
             delta = assigned - old_yaw
             rotation = np.array([[math.cos(delta), -math.sin(delta)],
                                  [math.sin(delta), math.cos(delta)]])
-            plans.append((primary, organ_id, old_yaw, assigned, delta, rotation))
+            plans.append((primary, organ_id, old_yaw, assigned, delta, rotation, reversal))
         self.primary_yaw_diagnostics = []
-        for primary, organ_id, old_yaw, assigned, delta, rotation in plans:
+        for primary, organ_id, old_yaw, assigned, delta, rotation, reversal in plans:
             subtree = [primary]
             while subtree:
                 organ = subtree.pop()
@@ -1027,6 +1045,7 @@ class RootSystemSimulation:
                 base_cm=origin.tolist(), old_yaw_deg=math.degrees(old_yaw),
                 assigned_yaw_deg=math.degrees(assigned), realised_yaw_deg=math.degrees(realised),
                 rotation_deg=math.degrees(delta),
+                **({"polarity_reversal": reversal} if reversal is not None else {}),
             ))
 
     def validate(
