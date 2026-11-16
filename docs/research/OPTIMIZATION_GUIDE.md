@@ -22,6 +22,25 @@ Basal point diameter, midpoint diameter and exported volume-equivalent cylinder
 diameter are also distinct. Fine-root SRL uses sampled fine length divided by
 matched sampled dry mass; it is not a whole-system biomass conversion.
 
+Map the actual measurement location before comparing diameters. A midpoint of
+an excavated portion need not be the midpoint of a complete generated axis;
+recovered endpoints may be cut rather than living tips. A ratio of marginal
+order medians is not a median of paired daughter/parent ratios. Report these
+estimands separately. Unbranched recovered lengths may be censored lower bounds,
+not complete axes or observed first-branch locations.
+
+Match fine-root diameter-class length shares jointly with sampled mass and SRL.
+A bulk mass or SRL match can conceal the wrong diameter distribution and therefore
+the wrong length per unit mass. Whole-cell voxel distributions are model-only
+unless an equivalent observed grid exists; pooled core distributions retain core
+sampling support even when positions are ignored.
+
+Branch-junction and terminal-endpoint density/depth can diagnose topology beyond
+RLD. Define junctions as distinct daughter-attachment sites and distinguish
+represented endpoints from active apices. Use these as optimization targets only
+with comparable observed counts and censoring rules. Do not invent data for
+unrepresented root orders or confuse projection crossings with junctions.
+
 ## Priorities for further construction work
 
 1. **Reconcile anatomical inputs jointly.** Keep each measurement's population

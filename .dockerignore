@@ -177,3 +177,9 @@ slurm-*.out
 .env
 .env.*
 !.env.local.example
+
+# Keep local empirical results out of build contexts as well as Git.
+[Cc]alvin*/
+[Rr]oot_[Aa]rchitecture_[Pp]resentation*/
+**/[Cc]alvin*/
+**/[Rr]oot_[Aa]rchitecture_[Pp]resentation*/

@@ -1,5 +1,20 @@
 # Active Calvin population research
 
+## Current review entrypoint (16 November 2026)
+
+Use the public [model review guide](../MODEL_REVIEW_GUIDE.md) for constructor
+selection, input names, units and audit sequence. The local
+`Calvin_Current_Best_Review_2026-11-16/REVIEW_USAGE.md` links the retained
+illustrations, exact scenario configurations and order tables. Its
+`REVIEW_REPORT.md` is the current consolidated scientific assessment; the
+selected illustrations do not establish population or core-RLD qualification.
+The local `START_HERE.html` in that review folder now indexes saved-graph core,
+whole-cell, diameter, layer-mass and topology diagnostics. Its report records
+the measurement-location and ratio-definition corrections; order 6 remains
+unrepresented. These are read-only analyses, not a new calibration.
+All Calvin result directories and root-architecture presentation directories
+are excluded by repository ignore rules, including future dated folders.
+
 ## Optimization handoff (16 November 2026)
 
 Read the local synthesis at

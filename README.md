@@ -4,6 +4,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.10-blue)](https://www.python.org)
 [![License](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24216942.svg)](https://doi.org/10.5281/zenodo.24216942)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/Plant-Food-Research-Open/deep-root-gen/HEAD?urlpath=lab/tree/notebooks/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit)](https://github.com/pre-commit/pre-commit)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
@@ -60,6 +61,14 @@ Root system architecture (RSA) plays an important role in plant growth and devel
 DeepRootGen provides a computational framework for generating synthetic three-dimensional root system architectures using a stochastic, parameterised root simulation model. The model represents individual root organs and segments within a hierarchical graph, allowing their geometry, topology and spatial distribution to be analysed.
 
 See [RUNNING.md](RUNNING.md) for current installation and runtime qualification status.
+
+For current model routes, the complete input dictionary, units and a practical
+scientific review workflow, start with the
+[model review guide](docs/MODEL_REVIEW_GUIDE.md). Check
+[PR integration status](docs/PR_INTEGRATION_STATUS.md) for the distinction
+between local research source and merged GitHub code. Calvin settings and
+result folders are local research artifacts excluded from Git and deployment
+contexts.
 
 Use this repository as an independent Codex project. Start with the
 [development and setup guide](docs/DEVELOPMENT.md),
