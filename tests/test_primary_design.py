@@ -393,11 +393,21 @@ def test_inactive_field_retains_preimplementation_initial_identity():
         RootSimulationModel(**dict(spec, research_primary_design=None)), 42
     )
     assert "research_primary_design" not in omitted.payload["parameters"]
-    assert (
-        omitted.sha256
-        == explicit_none.sha256
-        == "87b5eae47aff0685b192fb8a4734664d00c601ba9ca69dbbcacf29ba3edd8b90"
-    )
+    try:
+        assert (
+            omitted.sha256
+            == explicit_none.sha256
+            == "87b5eae47aff0685b192fb8a4734664d00c601ba9ca69dbbcacf29ba3edd8b90"
+        )
+    except AssertionError:
+        from tests.hash_failure_diagnostics import record_failure
+
+        record_failure(
+            "inactive-primary-design",
+            {"omitted": omitted.payload, "explicit_none": explicit_none.payload},
+            "87b5eae47aff0685b192fb8a4734664d00c601ba9ca69dbbcacf29ba3edd8b90",
+        )
+        raise
 
 
 @pytest.mark.parametrize("maximum", [4, 5])

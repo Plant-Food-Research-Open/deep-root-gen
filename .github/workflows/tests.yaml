@@ -52,6 +52,8 @@ jobs:
           poetry install --with dev,torch --no-interaction
 
       - name: Test code
+        env:
+          DRG_SYNTHETIC_FAILURE_DIR: ${{ runner.temp }}/drg-synthetic-hash-failures
         run: |
           source .venv/bin/activate
           pytest -v \
@@ -65,6 +67,15 @@ jobs:
             --md-report-verbose=0 \
             --md-report-flavor=gfm \
             --md-report-output=md_report.md
+
+      - name: Preserve invented hash-regression failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synthetic-hash-failure-evidence
+          path: ${{ runner.temp }}/drg-synthetic-hash-failures/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Output reports to the job summary
         if: always()
