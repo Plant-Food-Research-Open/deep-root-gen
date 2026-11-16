@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.research import so4_controlled as controlled
 from deeprootgen.research import construction_step_replay as canonical
@@ -150,8 +152,7 @@ def test_both_replay_guards_and_combined_canonical_zone_sigma():
 
 def test_none_zero_prechange_subprocess_exact_bytes_rng(tmp_path):
     current = Path(__file__).parents[1]
-    old = Path('/tmp/drg-primary-yaw-reversal-public/preimplementation/source')
-    assert (old / 'deeprootgen/model/root.py').is_file()
+    old = materialize_reference(current, tmp_path, 'primary_yaw_reversal')
     script = NONE_PARITY_SCRIPT.replace('research_fichtl_sigma_by_order', FIELD).replace(
         "('explicit_none',{'" + FIELD + "':None})", "('explicit_none',{'" + FIELD + "':None}),('explicit_zero',{'" + FIELD + "':0.})")
     configs = dict(native_legacy=parameters(**YAW).model_dump(),
@@ -165,12 +166,11 @@ def test_none_zero_prechange_subprocess_exact_bytes_rng(tmp_path):
             values['research_fichtl_sigma_by_order'] = {'2': .04, '3': .3}
         if name == 'graph':
             values['research_fichtl_sigma_by_order'] = None  # Includes legacy continuation arms A/B.
-    overlay = next(p for p in sys.path if p.endswith('/locked-overlay'))
     results, hashes = {}, {}
     for name, source in [('old', old), ('current', current)]:
         run = subprocess.run([sys.executable, '-c', script], input=json.dumps(configs), capture_output=True,
                              text=True, check=True, timeout=90, cwd=source,
-                             env={**os.environ, 'PYTHONPATH': overlay + os.pathsep + str(source), 'PYTHONDONTWRITEBYTECODE': '1'})
+                             env=subprocess_environment(source))
         result = json.loads(run.stdout)
         assert Path(result['loaded_root']).resolve() == (source / 'deeprootgen/model/root.py').resolve()
         assert result['outputs']['omitted'] == result['outputs']['explicit_none'] == result['outputs']['explicit_zero']

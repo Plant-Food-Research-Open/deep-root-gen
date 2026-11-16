@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.research import construction_step_replay as canonical
 from deeprootgen.research import so4_controlled as controlled
@@ -255,7 +257,7 @@ def test_authentication_rejects_resealed_metadata_tampering(mutation):
 
 def test_none_zero_prechange_native_graph_canonical_active_sigma_q_parity(tmp_path):
     current = Path(__file__).parents[1]
-    old = Path('/tmp/drg-tertiary-length-rank-public/preimplementation/source')
+    old = materialize_reference(current, tmp_path, 'tertiary_length_rank')
     script = NONE_PARITY_SCRIPT.replace('research_fichtl_sigma_by_order', FIELD).replace(
         "('explicit_none',{'" + FIELD + "':None})", "('explicit_none',{'" + FIELD + "':None}),('explicit_zero',{'" + FIELD + "':0.})")
     from tests.test_primary_yaw_initialization import parameters as legacy_parameters
@@ -267,12 +269,11 @@ def test_none_zero_prechange_native_graph_canonical_active_sigma_q_parity(tmp_pa
     configs['native_fichtl']['research_fichtl_sigma_by_order'] = {2: .04, 3: .3}
     for config in configs.values():
         config.pop(FIELD, None)
-    overlay = next(p for p in sys.path if p.endswith('/locked-overlay'))
     results, hashes = {}, {}
     for name, source in [('old', old), ('current', current)]:
         run = subprocess.run([sys.executable, '-c', script], input=json.dumps(configs), capture_output=True,
                              text=True, check=True, timeout=90, cwd=source,
-                             env={**os.environ, 'PYTHONPATH': overlay + os.pathsep + str(source), 'PYTHONDONTWRITEBYTECODE': '1'})
+                             env=subprocess_environment(source))
         result = json.loads(run.stdout)
         assert Path(result['loaded_root']).resolve() == (source / 'deeprootgen/model/root.py').resolve()
         assert result['outputs']['omitted'] == result['outputs']['explicit_none'] == result['outputs']['explicit_zero']

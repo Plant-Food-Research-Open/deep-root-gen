@@ -13,6 +13,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.model import root as root_module
 from deeprootgen.utils.branching import MAX_PARENT2_BRANCH_SITES, parent2_zone_sites
@@ -184,11 +186,9 @@ print(json.dumps({'loaded_root_module':module.__file__,'outputs':outputs,'explic
 
 @pytest.mark.parametrize("mode", ["legacy", "fichtl2024"])
 def test_native_omitted_and_none_exact_prechange_subprocess_parity(mode, tmp_path):
-    """Optional public snapshot dependency; current qualification supplies it."""
+    """Always compare exact native output against self-contained public source."""
     current = Path(__file__).parents[1]
-    old = Path(os.environ.get("DRG_PUBLIC_PRECHANGE_SOURCE", "/tmp/drg-construction-step-public/20261114T123053880028Z/source"))
-    if not (old / "deeprootgen/model/root.py").is_file():
-        pytest.skip("Qualified public prechange source snapshot is unavailable")
+    old = materialize_reference(current, tmp_path, 'parent2_branch_zone')
     config = json.loads((current / "examples/synthetic_minimal.json").read_text())
     config.update(max_order=2, min_sec_root_num=1, max_sec_root_num=2,
                   min_sec_root_length=2., max_sec_root_length=3., interbranch_distance=2.,
@@ -199,12 +199,9 @@ def test_native_omitted_and_none_exact_prechange_subprocess_parity(mode, tmp_pat
                       fichtl_theta2_deg=50., fichtl_theta2_sd_deg=5.,
                       fichtl_theta3_deg=50., fichtl_theta3_sd_deg=5.)
     assert "research_parent2_branch_zone_cm" not in config
-    # The overlay is an already-approved dependency directory; do not obtain
-    # any inputs from the canonical runtime or other checkouts.
-    overlay = next(path for path in sys.path if path.endswith("/locked-overlay"))
     results, hashes = {}, {}
     for label, source in (("prechange", old), ("current", current)):
-        environment = {**os.environ, "PYTHONPATH": overlay + os.pathsep + str(source), "PYTHONDONTWRITEBYTECODE": "1"}
+        environment = subprocess_environment(source)
         completed = subprocess.run([sys.executable, "-c", NATIVE_PARITY_SCRIPT], input=json.dumps(config),
                                    text=True, capture_output=True, check=True, timeout=45, env=environment, cwd=source)
         results[label] = json.loads(completed.stdout)

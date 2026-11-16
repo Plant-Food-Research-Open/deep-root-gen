@@ -1,0 +1,1261 @@
+diff --git a/deeprootgen/data_model/simulation_data_models.py b/deeprootgen/data_model/simulation_data_models.py
+index ffe3cfacff701d3ccdb376fee36e60e8d8d48e1f..a47c095ca252a8e4982a4dad5fb85d81661418b3 100644
+--- a/deeprootgen/data_model/simulation_data_models.py
++++ b/deeprootgen/data_model/simulation_data_models.py
+@@ -9,16 +9,11 @@
+ from enum import Enum
+ from typing import Dict, List, Literal, Optional
+ 
+-from pydantic import BaseModel, Field, field_validator, model_validator
++from pydantic import BaseModel, Field, model_validator
+ 
+ from ..utils.current_length import validate_current_length_cdf
+-from ..utils.primary_attachment import validate_distal_fraction, validate_distal_scope
+-from ..utils.tertiary_length_rank import validate_rank_scope, validate_rank_strength
+ from ..utils.branching import validate_parent2_branch_zone
+-from ..utils.tropism import (
+-    row_axial_controls_active, validate_fichtl_sigma_by_order, validate_row_axial_kappas,
+-    validate_primary_yaw_reverse_probability,
+-)
++from ..utils.tropism import row_axial_controls_active, validate_row_axial_kappas
+ 
+ 
+ class Config:
+@@ -157,13 +152,10 @@ class RootSimulationModel(BaseModel):
+     research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
+     research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
+     research_current_length_grid: Optional[Literal["construction_steps_v1"]] = None
+-    research_tertiary_length_rank_strength: Optional[float] = None
+     research_parent2_branch_zone_cm: Optional[Parent2BranchZone] = None
+     research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
+     research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+-    research_primary_yaw_reverse_probability: Optional[float] = None
+     research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
+-    research_primary_attachment_distal_fraction: Optional[float] = None
+     research_primary_inclination_bias: Optional[float] = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+     research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+     research_base_origin_y_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+@@ -172,7 +164,6 @@ class RootSimulationModel(BaseModel):
+     soil_surface_z_cm: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+     fichtl_probability_down: Optional[float] = Field(default=None, ge=0, le=1)
+     fichtl_sigma: Optional[float] = Field(default=None, ge=0)
+-    research_fichtl_sigma_by_order: Optional[Dict[int, float]] = None
+     fichtl_trials_type2: Optional[float] = Field(default=None, ge=0, le=100)
+     fichtl_trials_type3: Optional[float] = Field(default=None, ge=0, le=100)
+     fichtl_theta2_deg: Optional[float] = Field(default=None, ge=0, le=90)
+@@ -180,57 +171,6 @@ class RootSimulationModel(BaseModel):
+     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
+     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+ 
+-    @field_validator("research_primary_attachment_distal_fraction", mode="before")
+-    @classmethod
+-    def validate_primary_distal_fraction(cls, value):
+-        return validate_distal_fraction(value)
+-
+-    @model_validator(mode="before")
+-    @classmethod
+-    def require_explicit_primary_distal_seed(cls, values):
+-        if isinstance(values, dict) and validate_distal_fraction(values.get("research_primary_attachment_distal_fraction")):
+-            seed = values.get("random_seed")
+-            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+-                raise ValueError("Primary attachment placement requires explicit nonnegative integer seed")
+-        return values
+-
+-    @model_validator(mode="after")
+-    def require_primary_distal_scope(self):
+-        validate_distal_scope(self)
+-        return self
+-
+-    @field_validator("research_tertiary_length_rank_strength", mode="before")
+-    @classmethod
+-    def validate_tertiary_rank_strength(cls, value):
+-        return validate_rank_strength(value)
+-
+-    @model_validator(mode="before")
+-    @classmethod
+-    def require_explicit_tertiary_rank_seed(cls, values):
+-        if isinstance(values, dict) and validate_rank_strength(values.get("research_tertiary_length_rank_strength")):
+-            seed = values.get("random_seed")
+-            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+-                raise ValueError("Tertiary length rank requires explicit nonnegative integer seed")
+-        return values
+-
+-    @model_validator(mode="after")
+-    def require_tertiary_rank_scope(self):
+-        validate_rank_scope(self)
+-        return self
+-
+-    @model_validator(mode="after")
+-    def require_fichtl_order_sigmas(self):
+-        if self.research_fichtl_sigma_by_order is not None:
+-            if self.tropism_mode != "fichtl2024":
+-                raise ValueError("Order sigma overrides require fichtl2024 mode")
+-            validate_fichtl_sigma_by_order(self.research_fichtl_sigma_by_order, self.max_order)
+-        return self
+-
+-    @field_validator("research_fichtl_sigma_by_order", mode="before")
+-    @classmethod
+-    def validate_order_sigma_mapping(cls, value):
+-        return validate_fichtl_sigma_by_order(value)
+-
+     @model_validator(mode="after")
+     def validate_construction_step_scope(self):
+         if self.research_parent2_branch_zone_cm is not None and self.research_current_length_grid != "construction_steps_v1":
+@@ -280,27 +220,10 @@ def require_explicit_root_origin(self):
+                 raise ValueError("Research base origin currently requires fichtl2024 mode")
+         return self
+ 
+-    @model_validator(mode="before")
+-    @classmethod
+-    def require_explicit_reversal_seed(cls, values):
+-        if isinstance(values, dict) and validate_primary_yaw_reverse_probability(
+-                values.get("research_primary_yaw_reverse_probability")):
+-            seed = values.get("random_seed")
+-            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+-                raise ValueError("Active primary yaw reversal requires explicit nonnegative integer seed")
+-        return values
+-
+-    @field_validator("research_primary_yaw_reverse_probability", mode="before")
+-    @classmethod
+-    def validate_yaw_reverse_probability(cls, value):
+-        return validate_primary_yaw_reverse_probability(value)
+-
+     @model_validator(mode="after")
+     def require_paired_primary_yaw_parameters(self):
+         if (self.research_primary_yaw_mean_deg is None) != (self.research_primary_yaw_kappa is None):
+             raise ValueError("Research primary yaw mean and kappa must be supplied together")
+-        if self.research_primary_yaw_reverse_probability and self.research_primary_yaw_mean_deg is None:
+-            raise ValueError("Active primary yaw reversal requires explicit yaw mean/kappa")
+         if self.research_primary_yaw_mean_deg is not None and self.random_seed is None:
+             raise ValueError("Research primary yaw requires an explicit random_seed")
+         return self
+diff --git a/deeprootgen/model/root.py b/deeprootgen/model/root.py
+index 5e62f4c22b5b49f3aefd18db1b091c930b588ed9..80de039c59a72299714cec247900f6d4f3811c42 100644
+--- a/deeprootgen/model/root.py
++++ b/deeprootgen/model/root.py
+@@ -23,13 +23,10 @@
+     sample_branch_sites, validate_parent2_branch_zone,
+ )
+ from ..utils.current_length import sample_current_lengths
+-from ..utils.primary_attachment import FIELD as ATTACH_FIELD, validate_distal_fraction, validate_distal_scope
+-from ..utils.tertiary_length_rank import plan_tertiary_length_family, validate_rank_scope, validate_rank_strength
+ from ..utils.primary_orientation import chord_angles, check_edge_conservation, inclination_rotation
+ from ..utils.tropism import (
+     insertion_heading, row_axial_controls_active, row_axial_insertion_heading,
+-    resolve_fichtl_sigma, sample_heading, sample_primary_yaw, validate_fichtl_sigma_by_order,
+-    reverse_primary_yaw, validate_primary_yaw_reverse_probability,
++    sample_heading, sample_primary_yaw,
+ )
+ from .hgraph import RootNode, RootSystemGraph
+ from .soil import Soil
+@@ -96,17 +93,10 @@ def init_lengths(self, segments_per_root: int) -> np.ndarray:
+         legacy_lengths = segment_samples * root_length
+         if cdf is None:
+             return legacy_lengths
+-        if order == 3 and validate_rank_strength(getattr(self.input_parameters, "research_tertiary_length_rank_strength", None)):
+-            if not hasattr(self, "_tertiary_length_plan"):
+-                raise ValueError("Active tertiary rank requires a preplanned biological sibling family")
+-            lengths, diagnostics = copy.deepcopy(self._tertiary_length_plan)
+-            if diagnostics["expected_organ_id"] != self._current_length_expected_organ_id:
+-                raise ValueError("Prospective tertiary family ID disagrees with next allocation")
+-        else:
+-            lengths, diagnostics = sample_current_lengths(
+-                cdf, segments_per_root, self.input_parameters.random_seed,
+-                self._current_length_expected_organ_id, int(order),
+-            )
++        lengths, diagnostics = sample_current_lengths(
++            cdf, segments_per_root, self.input_parameters.random_seed,
++            self._current_length_expected_organ_id, int(order),
++        )
+         diagnostics["legacy_compatibility_draw_count"] = 1 + segments_per_root
+         self.current_length_diagnostics = diagnostics
+         return lengths
+@@ -389,9 +379,6 @@ def construct_root_from_parent(
+         self, segments_per_root: int, apex_diameter: float
+     ) -> List[RootNode]:
+         """Construct higher-order root, with additional attachment nodes if needed."""
+-        rank_strength = validate_rank_scope(self.input_parameters)
+-        if rank_strength and self.parent_node.node_data.order == 2 and not hasattr(self, "_tertiary_length_plan"):
+-            raise ValueError("Active tertiary rank requires a preplanned biological sibling family")
+         if self._current_length_cdf() is not None:
+             self._current_length_expected_organ_id = int(self.parent_node.G.organ_id)
+         diameters = self.init_diameters(segments_per_root, apex_diameter)
+@@ -832,60 +819,19 @@ def init_organs(
+ 
+         for order in range(2, int(input_parameters.max_order) + 1):
+             for parent_organ in self.organs[order - 1]:
+-                rank_plans = None
+-                if order == 3 and validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None)):
+-                    sites = parent_organ.parent2_zone_diagnostics["sites_cm"]
+-                    if len(sites) != len(parent_organ.lateral_attachment_nodes):
+-                        raise ValueError("Tertiary rank family branch-site count disagrees with parent2 zone")
+-                    rank_plans, family = plan_tertiary_length_family(
+-                        input_parameters.research_current_length_cdfs_cm[3], input_parameters.segments_per_root,
+-                        input_parameters.random_seed, int(parent_organ.segments[0].node_data.organ_id),
+-                        int(self.G.organ_id), sites, input_parameters.research_tertiary_length_rank_strength,
+-                    )
+-                    parent_organ.tertiary_length_rank_family = family
+-                child_index = 0
+                 while parent_organ.lateral_attachment_nodes:
+                     child = parent_organ.add_child_organ(
+                         floor_threshold=input_parameters.floor_threshold,
+                         ceiling_threshold=input_parameters.ceiling_threshold,
+                     )
+-                    if rank_plans is not None:
+-                        child._tertiary_length_plan = rank_plans[child_index]
+                     self.organs[order].append(child)
+                     child.construct_root_from_parent(
+                         input_parameters.segments_per_root,
+                         input_parameters.apex_diameter,
+                     )
+-                    child_index += 1
+         return self.organs
+ 
+     def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
+-        if validate_distal_scope(input_parameters):
+-            if self.random_seed is None:
+-                raise ValueError("Primary attachment placement requires matching explicit constructor seed")
+-            validate_distal_scope(input_parameters, self.random_seed)
+-        if validate_rank_scope(input_parameters):
+-            if self.random_seed is None:
+-                raise ValueError("Tertiary length rank requires matching explicit constructor seed")
+-            validate_rank_scope(input_parameters, self.random_seed)
+-        reversal = validate_primary_yaw_reverse_probability(
+-            getattr(input_parameters, "research_primary_yaw_reverse_probability", None))
+-        if reversal and (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
+-                         or getattr(input_parameters, "research_primary_yaw_kappa", None) is None):
+-            raise ValueError("Active primary yaw reversal requires explicit yaw mean/kappa")
+-        if reversal:
+-            mean = input_parameters.research_primary_yaw_mean_deg
+-            kappa = input_parameters.research_primary_yaw_kappa
+-            if (isinstance(mean, (bool, np.bool_)) or not isinstance(mean, (int, float, np.integer, np.floating))
+-                    or not np.isfinite(mean) or not -180 <= mean <= 180
+-                    or isinstance(kappa, (bool, np.bool_)) or not isinstance(kappa, (int, float, np.integer, np.floating))
+-                    or not np.isfinite(kappa) or not 0 <= kappa <= 100):
+-                raise ValueError("Active primary yaw reversal requires valid explicit yaw mean/kappa")
+-        sigma_map = getattr(input_parameters, "research_fichtl_sigma_by_order", None)
+-        if sigma_map is not None:
+-            if getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024":
+-                raise ValueError("Order sigma overrides require fichtl2024 mode")
+-            validate_fichtl_sigma_by_order(sigma_map, input_parameters.max_order)
+         row_active = row_axial_controls_active(getattr(input_parameters, "research_insertion_row_axial_kappa", None))
+         if row_active and getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024":
+             raise ValueError("Active row-axial insertion requires Fichtl mode")
+@@ -901,7 +847,7 @@ def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> N
+                 or not isinstance(constructor_seed, (int, np.integer))
+                 or isinstance(parameter_seed, (bool, np.bool_))
+                 or not isinstance(parameter_seed, (int, np.integer))
+-                or constructor_seed != parameter_seed or (reversal and parameter_seed < 0)):
++                or constructor_seed != parameter_seed):
+             raise ValueError("Research keyed initialization requires equal explicit constructor and parameter seeds")
+ 
+     def position_secondary_roots(self, input_parameters: RootSimulationModel) -> None:
+@@ -1055,17 +1001,13 @@ def apply_primary_yaw_initialization(self, input_parameters: RootSimulationModel
+                 input_parameters.research_primary_yaw_kappa,
+                 input_parameters.random_seed, organ_id,
+             )
+-            assigned, reversal = reverse_primary_yaw(
+-                assigned, getattr(input_parameters, "research_primary_yaw_reverse_probability", None),
+-                input_parameters.random_seed, organ_id,
+-            )
+             old_yaw = math.atan2(chord[1], chord[0])
+             delta = assigned - old_yaw
+             rotation = np.array([[math.cos(delta), -math.sin(delta)],
+                                  [math.sin(delta), math.cos(delta)]])
+-            plans.append((primary, organ_id, old_yaw, assigned, delta, rotation, reversal))
++            plans.append((primary, organ_id, old_yaw, assigned, delta, rotation))
+         self.primary_yaw_diagnostics = []
+-        for primary, organ_id, old_yaw, assigned, delta, rotation, reversal in plans:
++        for primary, organ_id, old_yaw, assigned, delta, rotation in plans:
+             subtree = [primary]
+             while subtree:
+                 organ = subtree.pop()
+@@ -1080,7 +1022,6 @@ def apply_primary_yaw_initialization(self, input_parameters: RootSimulationModel
+                 base_cm=origin.tolist(), old_yaw_deg=math.degrees(old_yaw),
+                 assigned_yaw_deg=math.degrees(assigned), realised_yaw_deg=math.degrees(realised),
+                 rotation_deg=math.degrees(delta),
+-                **({"polarity_reversal": reversal} if reversal is not None else {}),
+             ))
+ 
+     def validate(
+@@ -1137,10 +1078,8 @@ def _check_optional_primary_validation(self, input_parameters: RootSimulationMod
+ 
+     def run(self, input_parameters: RootSimulationModel) -> None:
+         if (getattr(input_parameters, "research_current_length_grid", None) is not None
+-                or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None
+-                or validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None))
+-                or validate_distal_fraction(getattr(input_parameters, ATTACH_FIELD, None))):
+-            raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native run is unsupported")
++                or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None):
++            raise ValueError("Construction-step grid requires named controlled replay; native run is unsupported")
+         self._validate_primary_yaw_seed(input_parameters)
+         self.init_organs(input_parameters)
+         # self.grow(self, input_parameters)
+@@ -1169,10 +1108,8 @@ def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
+         assumptions, not temporal CPlantBox growth or an exact 2024 replay.
+         """
+         if (getattr(parameters, "research_current_length_grid", None) is not None
+-                or getattr(parameters, "research_parent2_branch_zone_cm", None) is not None
+-                or validate_rank_strength(getattr(parameters, "research_tertiary_length_rank_strength", None))
+-                or validate_distal_fraction(getattr(parameters, ATTACH_FIELD, None))):
+-            raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native tropism is unsupported")
++                or getattr(parameters, "research_parent2_branch_zone_cm", None) is not None):
++            raise ValueError("Construction-step grid requires named controlled replay; native tropism is unsupported")
+         self._validate_primary_yaw_seed(parameters)
+         row_kappas = getattr(parameters, "research_insertion_row_axial_kappa", None)
+         if row_kappas is not None:
+@@ -1195,9 +1132,6 @@ def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
+             "by_order": {},
+         }
+         for order in range(2, parameters.max_order + 1):
+-            sigma, sigma_receipt = resolve_fichtl_sigma(
+-                parameters.fichtl_sigma, order, getattr(parameters, "research_fichtl_sigma_by_order", None),
+-            )
+             by_order = {
+                 "segments": 0,
+                 "downward": 0,
+@@ -1206,7 +1140,6 @@ def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
+                 "length_sum_cm": 0.0,
+                 "min_step_cm": None,
+                 "max_step_cm": 0.0,
+-                **sigma_receipt,
+             }
+             self.tropism_diagnostics["by_order"][str(order)] = by_order
+             for organ in self.organs[order]:
+@@ -1250,7 +1183,7 @@ def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
+                         heading,
+                         length,
+                         parameters.fichtl_probability_down if order == 2 else 1.0,
+-                        sigma,
++                        parameters.fichtl_sigma,
+                         (
+                             parameters.fichtl_trials_type2
+                             if order == 2
+diff --git a/deeprootgen/research/construction_step_replay.py b/deeprootgen/research/construction_step_replay.py
+index f696d8c9b44fd8b043df96f738fd1d3efc91ecd6..f12733ccd3e711a73c36568e1c40a448249927cd 100644
+--- a/deeprootgen/research/construction_step_replay.py
++++ b/deeprootgen/research/construction_step_replay.py
+@@ -13,9 +13,7 @@
+ 
+ from ..data_model import RootSimulationModel
+ from ..utils.current_length import STREAM_VERSION, _cdf_arrays, select_current_length
+-from ..utils.primary_attachment import FIELD as ATTACH_FIELD
+-from ..utils.tertiary_length_rank import FIELD as RANK_FIELD, VERSION as RANK_VERSION, plan_tertiary_length_family
+-from ..utils.tropism import insertion_heading, order_sigma_metadata, row_axial_insertion_heading, validate_row_axial_kappas
++from ..utils.tropism import insertion_heading, row_axial_insertion_heading, validate_row_axial_kappas
+ from .so4_controlled import (
+     Skeleton, XYZ, apply_boundary, derived_edges, digest, fichtl_proposal,
+     frame, invariant_hashes, minimal_rotation, unit, validate_geometry,
+@@ -42,8 +40,6 @@ def capture_construction_steps(skeleton, simulation):
+         if organ["order"] == 1:
+             continue
+         source = lookup[organ["organ_id"]]
+-        if hasattr(source, "tertiary_length_rank_family"):
+-            organ["tertiary_length_rank_family"] = copy.deepcopy(source.tertiary_length_rank_family)
+         ids = source.construction_step_boundary_node_ids
+         points = [live[nid] for nid in [organ["parent_id"], *ids]]
+         organ["construction_steps"] = dict(
+@@ -65,19 +61,13 @@ def _scope(skeleton, settings, arm, surface_z):
+         if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
+                 or seed < 0 or seed != skeleton.payload["seed"] or values.get("research_current_length_grid") != GRID):
+             raise ValueError("Construction-step route requires active grid and matching explicit seed")
+-    from .so4_controlled import validate_saved_primary_yaw_reversal, validate_saved_tertiary_length_rank, validate_saved_primary_attachment
+-    validate_saved_primary_yaw_reversal(skeleton, settings)
+-    validate_saved_tertiary_length_rank(skeleton, settings)
+-    validate_saved_primary_attachment(skeleton, settings)
+     saved = RootSimulationModel(**skeleton.payload["parameters"])
+     requested = RootSimulationModel(**settings)
+     if saved.research_current_length_grid != GRID or requested.research_current_length_grid != GRID:
+         raise ValueError("Missing construction-step route")
+     saved_values, requested_values = saved.model_dump(), requested.model_dump()
+     for key, value in saved_values.items():
+-        if not key.startswith("fichtl_") and key not in {"simulation_tag", "research_insertion_row_axial_kappa", "research_fichtl_sigma_by_order"}:
+-            if key in {"research_primary_yaw_reverse_probability", RANK_FIELD, ATTACH_FIELD} and not requested_values[key] and not value:
+-                continue
++        if not key.startswith("fichtl_") and key not in {"simulation_tag", "research_insertion_row_axial_kappa"}:
+             if requested_values[key] != value:
+                 raise ValueError(f"Construction settings disagree with INITIAL: {key}")
+     if saved.research_base_depth_cm is not None and saved.soil_surface_z_cm != surface_z:
+@@ -85,28 +75,9 @@ def _scope(skeleton, settings, arm, surface_z):
+     return saved, requested
+ 
+ 
+-def _sampler_lengths(metadata, organ, parameters, seed, rank_expected=None):
++def _sampler_lengths(metadata, organ, parameters, seed):
+     """Authenticate recorded sampler provenance without drawing replacement lengths."""
+     sampler = metadata["sampler"]
+-    if rank_expected is not None:
+-        if not isinstance(sampler, dict):
+-            raise ValueError("Missing tertiary rank composite sampler provenance")
+-        expected_lengths, expected = rank_expected
+-        expected = copy.deepcopy(expected)
+-        expected.update(allocated_organ_id=organ["organ_id"], legacy_compatibility_draw_count=1 + parameters.segments_per_root)
+-        reported = copy.deepcopy(sampler)
+-        post = reported.pop("post_subdivision_length_cm", None)
+-        if digest(reported) != digest(expected):
+-            raise ValueError("Tertiary rank composite sampler/source/destination provenance mismatch")
+-        lengths = np.asarray(metadata["lengths_cm"], dtype=float)
+-        if (lengths.shape != expected_lengths.shape or not np.isfinite(lengths).all()
+-                or not np.array_equal(lengths, expected_lengths) or post is None
+-                or isinstance(post, bool) or not isinstance(post, (int, float)) or not np.isfinite(post)
+-                or not np.isclose(post, expected_lengths.sum(), rtol=0, atol=1e-8)):
+-            raise ValueError("Tertiary rank assigned construction lengths/provenance mismatch")
+-        return lengths
+-    if isinstance(sampler, dict) and sampler.get("stream_version") == RANK_VERSION:
+-        raise ValueError("Tertiary rank sampler is missing authenticated family")
+     required = {"quantile", "support_index", "normalized_weights", "cdf_sha256", "sampled_current_length_cm",
+                 "pre_subdivision_length_cm", "post_subdivision_length_cm"}
+     if not isinstance(sampler, dict) or not required.issubset(sampler):
+@@ -138,13 +109,13 @@ def _sampler_lengths(metadata, organ, parameters, seed, rank_expected=None):
+     return lengths
+ 
+ 
+-def _partition(organ, nodes, parameters, seed, rank_expected=None):
++def _partition(organ, nodes, parameters, seed):
+     metadata = organ.get("construction_steps")
+     if not isinstance(metadata, dict) or metadata.get("version") != VERSION:
+         raise ValueError("Missing or unsupported original construction partition")
+     if not {"sampler", "lengths_cm", "boundary_node_ids", "positioned_boundary_xyz"}.issubset(metadata):
+         raise ValueError("Missing original construction boundary metadata")
+-    lengths = _sampler_lengths(metadata, organ, parameters, seed, rank_expected)
++    lengths = _sampler_lengths(metadata, organ, parameters, seed)
+     ids, boundaries = organ["node_ids"], metadata["boundary_node_ids"]
+     if (len(ids) != len(set(ids)) or len(boundaries) != len(lengths)
+             or len(boundaries) != len(set(boundaries)) or any(nid not in ids for nid in boundaries)):
+@@ -186,81 +157,15 @@ def _partition(organ, nodes, parameters, seed, rank_expected=None):
+     return partitions
+ 
+ 
+-def _validate_rank_families(skeleton, parameters, nodes):
+-    """Recompute the declared keyed pool and exact family bijection, not a fit.
+-
+-    Re-deriving existing keyed records for authentication introduces no new
+-    architecture innovations or shared RNG consumption.
+-    """
+-    from ..utils.branching import parent2_zone_sites, validate_parent2_branch_zone
+-    from ..utils.current_length import sample_current_lengths
+-
+-    organs = skeleton.payload["organs"]
+-    by_id = {o["organ_id"]: o for o in organs}
+-    if (len(by_id) != len(organs) or set(by_id) != set(nodes.loc[nodes.order.gt(0), "organ_id"])):
+-        raise ValueError("Tertiary rank family/graph organ membership is incomplete or duplicated")
+-    parents = sorted((o for o in organs if o["order"] == 2), key=lambda o: o["organ_id"])
+-    next_id = int(nodes.loc[nodes.order.le(2), "organ_id"].max()) + 1
+-    seed = skeleton.payload["seed"]
+-    zone = validate_parent2_branch_zone(parameters.research_parent2_branch_zone_cm)
+-    expected, covered = {}, set()
+-    lookup = nodes.set_index("node_id")
+-    for parent in parents:
+-        metadata = parent.get("construction_steps")
+-        if not isinstance(metadata, dict) or not isinstance(metadata.get("sampler"), dict):
+-            raise ValueError("Missing parent2 construction sampler for tertiary rank family")
+-        _, draw = sample_current_lengths(parameters.research_current_length_cdfs_cm[2],
+-                                         parameters.segments_per_root, seed, parent["organ_id"], 2)
+-        sampler = metadata["sampler"]
+-        if any(digest(sampler.get(key)) != digest(value) for key, value in draw.items()):
+-            raise ValueError("Parent2 family CURRENT sampler does not match original keyed draw")
+-        sites = parent2_zone_sites(draw["sampled_current_length_cm"], **zone)
+-        children = [o for o in organs if o["order"] == 3 and o["parent_id"] in parent["node_ids"]]
+-        if any(isinstance(o.get("attachment_arc_cm"), bool)
+-               or not isinstance(o.get("attachment_arc_cm"), (int, float))
+-               or not np.isfinite(o["attachment_arc_cm"]) for o in children):
+-            raise ValueError("Tertiary rank family requires finite physical attachment arcs")
+-        children.sort(key=lambda o: (o["attachment_arc_cm"], o["organ_id"]))
+-        ids = [next_id + j for j in range(len(sites))]
+-        if (len(children) != len(sites) or [o["organ_id"] for o in children] != ids
+-                or not np.allclose([o["attachment_arc_cm"] for o in children], sites, rtol=0, atol=1e-8)):
+-            raise ValueError("Tertiary rank family IDs/sites disagree with original parent2 zone/birth order")
+-        # Authenticate origins against the actual graph, not only the receipt.
+-        for child, site in zip(children, sites):
+-            parent_node = lookup.loc[child["parent_id"]]
+-            arc = lookup.loc[parent["node_ids"]].loc[lambda frame: frame.segment_rank.le(parent_node.segment_rank), "length"].sum()
+-            if (int(parent_node.organ_id) != parent["organ_id"] or int(parent_node.order) != 2
+-                    or not np.isclose(arc, site, rtol=0, atol=1e-8)):
+-                raise ValueError("Tertiary rank family site disagrees with actual parent graph")
+-        plans, family = plan_tertiary_length_family(
+-            parameters.research_current_length_cdfs_cm[3], parameters.segments_per_root,
+-            seed, parent["organ_id"], next_id, sites, parameters.research_tertiary_length_rank_strength,
+-        )
+-        if digest(parent.get("tertiary_length_rank_family")) != digest(family):
+-            raise ValueError("Tertiary rank family permutation/quantiles/strength provenance mismatch")
+-        expected.update(zip(ids, plans))
+-        covered.update(o["organ_id"] for o in children)
+-        next_id += len(ids)
+-    if covered != {o["organ_id"] for o in organs if o["order"] == 3}:
+-        raise ValueError("Tertiary rank family authentication does not cover all order3 organs")
+-    return expected
+-
+-
+ def validate_construction_metadata(skeleton):
+     """Read-only preflight for a captured INITIAL; no simulation or length draws."""
+     parameters, _ = _scope(skeleton, skeleton.payload["parameters"], "D", 20.)
+-    from .primary_attachment import validate_primary_attachment_provenance
+-    validate_primary_attachment_provenance(skeleton)
+     nodes, edges = pd.DataFrame(skeleton.payload["nodes"]), pd.DataFrame(skeleton.payload["edges"])
+     validate_geometry(nodes, edges)
+     if nodes.loc[nodes.order.le(1), "z"].max() > 20.:
+         raise ValueError("Frozen primary scaffold exceeds physical soil surface")
+     lookup = nodes.set_index("node_id", drop=False)
+-    if (not parameters.research_tertiary_length_rank_strength
+-            and any("tertiary_length_rank_family" in organ for organ in skeleton.payload["organs"])):
+-        raise ValueError("Inactive tertiary rank cannot retain active family provenance")
+-    ranked = _validate_rank_families(skeleton, parameters, nodes) if parameters.research_tertiary_length_rank_strength else {}
+-    return {organ["organ_id"]: _partition(organ, lookup, parameters, skeleton.payload["seed"], ranked.get(organ["organ_id"]))
++    return {organ["organ_id"]: _partition(organ, lookup, parameters, skeleton.payload["seed"])
+             for organ in skeleton.payload["organs"] if organ["order"] > 1}
+ 
+ 
+@@ -365,5 +270,4 @@ def replay_construction_steps(skeleton, arm, settings, boundary_policy, surface_
+         organs=organs, construction_steps=steps, graph_fragments=fragments,
+         replays=dict(physical=1, counterfactual=0),
+         proposals="One-step construction-step proposals from actual starts; not a coherent graph; no per-fragment searches",
+-        **order_sigma_metadata(requested.fichtl_sigma, requested.research_fichtl_sigma_by_order),
+     ))
+diff --git a/deeprootgen/research/primary_attachment.py b/deeprootgen/research/primary_attachment.py
+deleted file mode 100644
+index a81f70f0bf2e42a26f8fd7c03358ffab5109dd07..0000000000000000000000000000000000000000
+--- a/deeprootgen/research/primary_attachment.py
++++ /dev/null
+@@ -1,300 +0,0 @@
+-"""Pure primary-curve attachment relocation; no simulator, proposal or RNG calls.
+-
+-The source must already be construction/sampler verified. This module checks
+-hashes, graph/curve/step geometry and deterministic placement; existing replay
+-preflight separately authenticates the unchanged source sampler records.
+-"""
+-
+-import copy
+-
+-import numpy as np
+-import pandas as pd
+-
+-from ..data_model import RootSimulationModel
+-from ..utils.primary_attachment import FIELD, validate_distal_fraction, validate_distal_scope
+-from .primary_scaffold import _subtree_ids
+-from .so4_controlled import Skeleton, XYZ, derived_edges, digest, minimal_rotation, unit, validate_geometry
+-
+-VERSION = 'so4-primary-attachment-distal-v1'
+-RECEIPT = 'primary_attachment_distal_v1'
+-CUTOFF_CM = 1e-12
+-CURVE_ATOL_CM = 1e-8
+-VOLUME_ATOL_CM3 = 1e-8  # Same existing numeric tolerance, separately named physical units.
+-
+-
+-def _verified_geometry(source):
+-    """No sampler re-derivation: verify geometry of an already verified source."""
+-    source.verify()
+-    nodes, edges = pd.DataFrame(source.payload['nodes']), pd.DataFrame(source.payload['edges'])
+-    validate_geometry(nodes, edges)
+-    if nodes.loc[nodes.order.le(1), 'z'].max() > 20.:
+-        raise ValueError('Original primary curve exceeds physical surface')
+-    rebuilt = Skeleton.from_tables(nodes, edges, source.payload['seed'], source.payload['parameters'])
+-    actual = {o['organ_id']: o for o in source.payload['organs']}
+-    expected = {o['organ_id']: o for o in rebuilt.payload['organs']}
+-    if len(actual) != len(source.payload['organs']) or actual.keys() != expected.keys():
+-        raise ValueError('Original organ membership is incomplete/duplicated')
+-    lookup = nodes.set_index('node_id')
+-    for oid, organ in actual.items():
+-        derived = expected[oid]
+-        if any(organ[key] != derived[key] for key in ('order', 'parent_id', 'node_ids')):
+-            raise ValueError('Original organ chain disagrees with graph')
+-        for key in ('headings', 'parent_tangent', 'attachment_arc_cm'):
+-            if not np.allclose(organ[key], derived[key], rtol=0, atol=CURVE_ATOL_CM):
+-                raise ValueError('Original organ geometry metadata disagrees with graph')
+-        if organ['order'] == 1:
+-            continue
+-        _verify_step_geometry(organ, lookup)
+-    return nodes, edges
+-
+-
+-def _verify_step_geometry(organ, nodes):
+-    metadata = organ.get('construction_steps')
+-    if not isinstance(metadata, dict) or metadata.get('version') != 'so4-construction-steps-v1':
+-        raise ValueError('Original positioned construction boundaries are required')
+-    lengths = np.asarray(metadata.get('lengths_cm'), dtype=float)
+-    boundaries = metadata.get('boundary_node_ids', [])
+-    ids = organ['node_ids']
+-    if (lengths.ndim != 1 or not len(lengths) or not np.isfinite(lengths).all()
+-            or (lengths <= CUTOFF_CM).any() or len(boundaries) != len(lengths)
+-            or len(set(boundaries)) != len(boundaries) or any(n not in ids for n in boundaries)):
+-        raise ValueError('Invalid original construction partition')
+-    points = nodes.loc[[organ['parent_id'], *boundaries], XYZ].to_numpy(float)
+-    recorded = np.asarray(metadata.get('positioned_boundary_xyz'), dtype=float)
+-    if recorded.shape != points.shape or not np.allclose(recorded, points, rtol=0, atol=CURVE_ATOL_CM):
+-        raise ValueError('Original positioned construction coordinates are stale')
+-    cumulative = np.cumsum(nodes.loc[ids, 'length'].to_numpy(float))
+-    previous = -1
+-    for j, (end_id, arc, length) in enumerate(zip(boundaries, np.cumsum(lengths), lengths)):
+-        end = ids.index(end_id)
+-        matches = np.flatnonzero(np.isclose(cumulative, arc, rtol=0, atol=CURVE_ATOL_CM))
+-        if len(matches) != 1 or int(matches[0]) != end or end <= previous:
+-            raise ValueError('Missing/ambiguous original construction arc')
+-        fragment_ids = ids[previous + 1:end + 1]
+-        fractions = np.cumsum(nodes.loc[fragment_ids, 'length'].to_numpy(float)) / length
+-        expected = points[j] + fractions[:, None] * (points[j + 1] - points[j])
+-        if (not np.isclose(np.linalg.norm(points[j + 1] - points[j]), length, rtol=0, atol=CURVE_ATOL_CM)
+-                or not np.allclose(expected, nodes.loc[fragment_ids, XYZ], rtol=0, atol=CURVE_ATOL_CM)):
+-            raise ValueError('Original construction corner/fragment geometry disagrees')
+-        previous = end
+-    if previous != len(ids) - 1:
+-        raise ValueError('Original construction partition does not cover apex')
+-
+-
+-def _primary_curves(source, nodes):
+-    lookup = nodes.set_index('node_id')
+-    curves = {}
+-    for organ in sorted(source.payload['organs'], key=lambda o: o['organ_id']):
+-        if organ['order'] != 1:
+-            continue
+-        ids = [organ['parent_id'], *organ['node_ids']]
+-        points = lookup.loc[ids, XYZ].to_numpy(float)
+-        geometric = np.linalg.norm(np.diff(points, axis=0), axis=1)
+-        stored = lookup.loc[organ['node_ids'], 'length'].to_numpy(float)
+-        if (not np.isfinite(geometric).all() or (geometric <= CUTOFF_CM).any()
+-                or not np.allclose(geometric, stored, rtol=0, atol=CURVE_ATOL_CM)):
+-            raise ValueError('Original primary geometric/stored lengths disagree')
+-        curves[organ['organ_id']] = dict(organ_id=organ['organ_id'], node_ids=ids,
+-                                         points_cm=points.tolist(), cumulative_cm=np.r_[0., np.cumsum(geometric)].tolist(),
+-                                         edge_lengths_cm=geometric.tolist(), stored_lengths_cm=stored.tolist(),
+-                                         child_diameters_cm=lookup.loc[organ['node_ids'], 'diameter'].tolist())
+-    return curves
+-
+-
+-def _placements(source, nodes, curves, fraction):
+-    lookup = nodes.set_index('node_id')
+-    plans = []
+-    for organ in sorted(source.payload['organs'], key=lambda o: o['organ_id']):
+-        if organ['order'] != 2:
+-            continue
+-        parent = lookup.loc[organ['parent_id']]
+-        if int(parent.order) != 1 or int(parent.organ_id) not in curves:
+-            raise ValueError('Root2 must attach to an original primary curve')
+-        curve = curves[int(parent.organ_id)]
+-        old_index = curve['node_ids'].index(organ['parent_id'])
+-        if old_index == 0:
+-            raise ValueError('Root2 origin cannot use a primary base with no incoming tangent')
+-        old_arc, total = curve['cumulative_cm'][old_index], curve['cumulative_cm'][-1]
+-        if not np.isclose(organ['attachment_arc_cm'], old_arc, rtol=0, atol=CURVE_ATOL_CM):
+-            raise ValueError('Original physical Root2 arc disagrees with primary curve')
+-        new_arc = total if old_arc == total else fraction * total + (1. - fraction) * old_arc
+-        if (not np.isfinite(new_arc) or (old_arc < total and not old_arc < new_arc < total)):
+-            raise ValueError('Distal site cannot be represented without endpoint snapping/nonprogress')
+-        plans.append(dict(organ_id=organ['organ_id'], primary_organ_id=int(parent.organ_id),
+-                          old_parent_id=organ['parent_id'], old_arc_cm=old_arc, new_arc_cm=new_arc,
+-                          primary_length_cm=total))
+-    for oid in curves:
+-        family = [p for p in plans if p['primary_organ_id'] == oid]
+-        for a, b in zip(sorted(family, key=lambda p: p['old_arc_cm']), sorted(family, key=lambda p: p['old_arc_cm'])[1:]):
+-            if a['old_arc_cm'] != b['old_arc_cm'] and a['new_arc_cm'] == b['new_arc_cm']:
+-                raise ValueError('Distinct distal sites rounded to a collision')
+-    return plans
+-
+-
+-def _subdivide(rows, curves, plans):
+-    next_id = max(rows) + 1
+-    attachments, inserted = {}, []
+-    for oid, curve in curves.items():
+-        arcs = np.asarray(curve['cumulative_cm'])
+-        old_ids = curve['node_ids']
+-        points = np.asarray(curve['points_cm'])
+-        sites = sorted({p['new_arc_cm'] for p in plans if p['primary_organ_id'] == oid})
+-        cuts = sorted(set(arcs.tolist()) | set(sites))
+-        vertex_ids = dict(zip(arcs.tolist(), old_ids))
+-        previous_id, rank = old_ids[0], 0
+-        for arc in cuts[1:]:
+-            edge = int(np.searchsorted(arcs[1:], arc, side='left'))
+-            original_child = old_ids[edge + 1]
+-            if arc in vertex_ids:
+-                nid = vertex_ids[arc]
+-            else:
+-                nid, next_id = next_id, next_id + 1
+-                t = (arc - arcs[edge]) / (arcs[edge + 1] - arcs[edge])
+-                xyz = points[edge] + t * (points[edge + 1] - points[edge])
+-                rows[nid] = copy.deepcopy(rows[original_child])
+-                rows[nid].update(node_id=nid, **dict(zip(XYZ, xyz.tolist())))
+-                inserted.append(nid)
+-                vertex_ids[arc] = nid
+-            # Constant original child diameter and all other cylinder properties
+-            # over every split piece. Only chain/rank/length change on old nodes.
+-            row = rows[nid]
+-            previous_arc = cuts[rank]
+-            stored_length = curve['stored_lengths_cm'][edge] * ((arc - previous_arc) / (arcs[edge + 1] - arcs[edge]))
+-            distance = np.linalg.norm(np.array([row[c] for c in XYZ]) - np.array([rows[previous_id][c] for c in XYZ]))
+-            if stored_length <= CUTOFF_CM or distance <= CUTOFF_CM or not np.isfinite(distance):
+-                raise ValueError('Unsplittable positive primary edge; no epsilon snapping')
+-            rank += 1
+-            row.update(parent_id=int(previous_id), segment_rank=rank, length=float(stored_length))
+-            previous_id = nid
+-        for site in sites:
+-            attachments[(oid, site)] = vertex_ids[site]
+-    return attachments, inserted
+-
+-
+-def _build(source, fraction):
+-    nodes, _ = _verified_geometry(source)
+-    curves = _primary_curves(source, nodes)
+-    plans = _placements(source, nodes, curves, fraction)
+-    rows = {int(row['node_id']): copy.deepcopy(row) for row in source.payload['nodes']}
+-    source_rows = copy.deepcopy(rows)
+-    attachments, inserted = _subdivide(rows, curves, plans)
+-    children = {nid: [] for nid in source_rows}
+-    for row in source.payload['nodes']:
+-        if row['order'] > 0:
+-            children[row['parent_id']].append(row['node_id'])
+-    organ_lookup = {o['organ_id']: o for o in source.payload['organs']}
+-    covered, transforms = set(), []
+-    for plan in plans:
+-        organ = organ_lookup[plan['organ_id']]
+-        old_parent_id = plan['old_parent_id']
+-        new_parent_id = attachments[(plan['primary_organ_id'], plan['new_arc_cm'])]
+-        old_parent, new_parent = source_rows[old_parent_id], rows[new_parent_id]
+-        old_anchor = np.array([old_parent[c] for c in XYZ])
+-        new_anchor = np.array([new_parent[c] for c in XYZ])
+-        old_tangent = unit(old_anchor - np.array([source_rows[old_parent['parent_id']][c] for c in XYZ]))
+-        new_tangent = unit(new_anchor - np.array([rows[new_parent['parent_id']][c] for c in XYZ]))
+-        rotation = minimal_rotation(old_tangent, new_tangent)
+-        ids = _subtree_ids(organ['node_ids'][0], children)
+-        if covered & ids or any(source_rows[nid]['order'] <= 1 for nid in ids):
+-            raise ValueError('Overlapping/non-Root2 subtree in primary placement')
+-        for nid in sorted(ids):
+-            point = np.array([source_rows[nid][c] for c in XYZ])
+-            xyz = new_anchor + rotation @ (point - old_anchor)
+-            rows[nid].update(dict(zip(XYZ, xyz.tolist())))
+-        rows[organ['node_ids'][0]]['parent_id'] = int(new_parent_id)
+-        covered.update(ids)
+-        transforms.append(dict(**plan, new_parent_id=int(new_parent_id), subtree_node_ids=sorted(ids),
+-                               old_anchor_cm=old_anchor.tolist(), new_anchor_cm=new_anchor.tolist(),
+-                               old_tangent=old_tangent.tolist(), new_tangent=new_tangent.tolist(), rotation=rotation.tolist()))
+-    if covered != {nid for nid, row in source_rows.items() if row['order'] > 1}:
+-        raise ValueError('Primary placement subtrees do not cover all higher orders')
+-    realised = pd.DataFrame([rows[nid] for nid in sorted(rows)])
+-    edges = derived_edges(realised)
+-    validate_geometry(realised, edges)
+-    _check_conservation(nodes, realised)
+-    parameters = copy.deepcopy(source.payload['parameters'])
+-    parameters[FIELD] = fraction
+-    result = Skeleton.from_tables(realised, edges, source.payload['seed'], parameters)
+-    live = realised.set_index('node_id')
+-    target_arcs = {plan['organ_id']: plan['new_arc_cm'] for plan in plans}
+-    for organ in result.payload['organs']:
+-        if (organ['order'] == 2
+-                and not np.isclose(organ['attachment_arc_cm'], target_arcs[organ['organ_id']], rtol=0, atol=CURVE_ATOL_CM)):
+-            raise ValueError('Rebuilt physical attachment arc disagrees with mathematical target')
+-        for key, value in organ_lookup[organ['organ_id']].items():
+-            if key not in organ:
+-                organ[key] = copy.deepcopy(value)
+-        if 'construction_steps' in organ:
+-            meta = organ['construction_steps']
+-            meta['positioned_boundary_xyz'] = live.loc[[organ['parent_id'], *meta['boundary_node_ids']], XYZ].to_numpy(float).tolist()
+-    for key, value in source.payload.items():
+-        if key not in result.payload:
+-            result.payload[key] = copy.deepcopy(value)
+-    result.payload[RECEIPT] = dict(version=VERSION, fraction=fraction, source_sha256=source.sha256,
+-                                   source_payload=copy.deepcopy(source.payload), primary_curves=list(curves.values()),
+-                                   inserted_node_ids=inserted, transforms=transforms,
+-                                   source_primary_sha256=digest(nodes.loc[nodes.order.le(1)].to_dict('records')),
+-                                   result_geometry_sha256=digest(result.payload),
+-                                   curve_equivalence_atol_cm=CURVE_ATOL_CM, volume_equivalence_atol_cm3=VOLUME_ATOL_CM3, tangent_convention='live incoming edge')
+-    result.sha256 = digest(result.payload)
+-    return result
+-
+-
+-def _check_conservation(original, result):
+-    for nodes in (original, result):
+-        if nodes.loc[nodes.order.le(1), 'z'].max() > 20.:
+-            raise ValueError('Relocated primary curve exceeds physical surface')
+-    for oid in original.loc[original.order.eq(1), 'organ_id'].unique():
+-        totals = []
+-        for nodes in (original, result):
+-            lookup = nodes.set_index('node_id')
+-            chain = nodes.loc[nodes.organ_id.eq(oid) & nodes.order.eq(1)]
+-            lengths = [np.linalg.norm(row[XYZ].to_numpy(float) - lookup.loc[int(row.parent_id), XYZ].to_numpy(float))
+-                       for _, row in chain.iterrows()]
+-            totals.append([sum(lengths), chain.length.sum(), float(np.sum(np.array(lengths) * (chain.diameter.to_numpy(float) / 2.)**2 * np.pi))])
+-        if (not np.allclose(totals[0][:2], totals[1][:2], rtol=0, atol=CURVE_ATOL_CM)
+-                or not np.isclose(totals[0][2], totals[1][2], rtol=0, atol=VOLUME_ATOL_CM3)):
+-            raise ValueError('Primary curve length/stored length/cylinder volume changed')
+-    a, b = original.loc[original.order.gt(1)].sort_values('node_id'), result.loc[result.order.gt(1)].sort_values('node_id')
+-    try:
+-        pd.testing.assert_frame_equal(a.drop(columns=[*XYZ, 'parent_id']).reset_index(drop=True),
+-                                      b.drop(columns=[*XYZ, 'parent_id']).reset_index(drop=True), check_exact=True)
+-    except AssertionError as error:
+-        raise ValueError('Primary placement changed higher-order dimensions/identities') from error
+-
+-
+-def relocate_primary_attachments(verified_untransformed_skeleton, b):
+-    """Return a new INITIAL with no simulator/proposal/RNG calls; never mutate.
+-
+-    Requires an already construction/sampler-verified untransformed source.
+-    None/zero preserve its exact payload; positive b must be strictly below1.
+-    """
+-    fraction = validate_distal_fraction(b)
+-    source = verified_untransformed_skeleton
+-    source.verify()
+-    if not fraction:
+-        return Skeleton(copy.deepcopy(source.payload), source.sha256)
+-    if RECEIPT in source.payload or validate_distal_fraction(source.payload['parameters'].get(FIELD)):
+-        raise ValueError('Primary attachment relocation requires an untransformed source; cannot compound')
+-    values = copy.deepcopy(source.payload['parameters'])
+-    values[FIELD] = fraction
+-    parameters = RootSimulationModel(**values)
+-    validate_distal_scope(parameters, source.payload['seed'])
+-    return _build(source, fraction)
+-
+-
+-def validate_primary_attachment_provenance(skeleton):
+-    """Authenticate source and deterministic TABLE transform, without RNG calls."""
+-    fraction = validate_distal_fraction(skeleton.payload['parameters'].get(FIELD))
+-    receipt = skeleton.payload.get(RECEIPT)
+-    if not fraction:
+-        if RECEIPT in skeleton.payload:
+-            raise ValueError('Inactive primary placement cannot retain active provenance')
+-        return
+-    if (not isinstance(receipt, dict) or receipt.get('version') != VERSION
+-            or not isinstance(receipt.get('source_payload'), dict) or not isinstance(receipt.get('source_sha256'), str)):
+-        raise ValueError('Active primary placement requires original source/transform provenance')
+-    source = Skeleton(receipt['source_payload'], receipt['source_sha256'])
+-    expected = relocate_primary_attachments(source, fraction)
+-    if digest(skeleton.payload) != expected.sha256:
+-        raise ValueError('Primary attachment source/curve/placement/transform provenance mismatch')
+diff --git a/deeprootgen/research/so4_controlled.py b/deeprootgen/research/so4_controlled.py
+index 9fe176f17a98d59ea1b10c1379159788796aab89..d3c3d9a7d1004eee07fc7c9d30c22cdf7598d193 100644
+--- a/deeprootgen/research/so4_controlled.py
++++ b/deeprootgen/research/so4_controlled.py
+@@ -20,13 +20,9 @@
+ 
+ from deeprootgen.utils.tropism import (
+     _basis, insertion_heading, row_axial_controls_active,
+-    order_sigma_metadata, resolve_fichtl_sigma, row_axial_insertion_heading, sample_fichtl_alpha,
+-    validate_fichtl_sigma_by_order, validate_row_axial_kappas, validate_primary_yaw_reverse_probability,
++    row_axial_insertion_heading, validate_row_axial_kappas,
+ )
+ 
+-from deeprootgen.utils.tertiary_length_rank import FIELD as RANK_FIELD, validate_rank_strength
+-from deeprootgen.utils.primary_attachment import FIELD as ATTACH_FIELD, validate_distal_fraction
+-
+ ARMS = {
+     "A": ("legacy", "legacy"),
+     "B": ("fichtl", "legacy"),
+@@ -200,9 +196,7 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
+         if hasattr(parameters, "model_dump")
+         else dict(parameters)
+     )
+-    reversal = validate_primary_yaw_reverse_probability(values.get("research_primary_yaw_reverse_probability"))
+-    distal = validate_distal_fraction(values.get(ATTACH_FIELD))
+-    if distal or reversal or validate_rank_strength(values.get(RANK_FIELD)) or values.get("research_current_length_grid") is not None:
++    if values.get("research_current_length_grid") is not None:
+         if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer))
+                 or not isinstance(values.get("random_seed"), (int, np.integer))
+                 or values.get("random_seed") != seed or isinstance(values.get("random_seed"), (bool, np.bool_))):
+@@ -221,18 +215,10 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
+     if nodes.invalid_root.any():
+         raise ValueError("INITIAL unexpectedly contains invalid nodes")
+     saved_parameters = p.model_dump()
+-    # Capture the equivalent untreated INITIAL first; relocation is pure tables.
+-    saved_parameters.pop(ATTACH_FIELD, None)
+     if p.research_current_length_grid is None:
+         saved_parameters.pop("research_current_length_grid", None)
+     if p.research_parent2_branch_zone_cm is None:
+         saved_parameters.pop("research_parent2_branch_zone_cm", None)
+-    if p.research_fichtl_sigma_by_order is None:
+-        saved_parameters.pop("research_fichtl_sigma_by_order", None)
+-    if not p.research_primary_yaw_reverse_probability:
+-        saved_parameters.pop("research_primary_yaw_reverse_probability", None)
+-    if not p.research_tertiary_length_rank_strength:
+-        saved_parameters.pop(RANK_FIELD, None)
+     skeleton = Skeleton.from_tables(nodes, edges, seed, saved_parameters)
+     if p.research_current_length_grid is not None:
+         from .construction_step_replay import capture_construction_steps
+@@ -252,9 +238,6 @@ def construct_skeleton(parameters, seed: int) -> Skeleton:
+         if o["order"] == 2
+     ):
+         raise ValueError("Frozen primary attachment exceeds common surface")
+-    if distal:
+-        from .primary_attachment import relocate_primary_attachments
+-        return relocate_primary_attachments(skeleton, distal)
+     return skeleton
+ 
+ 
+@@ -263,10 +246,7 @@ def fichtl_proposal(previous_frame, length, order, settings, rng):
+     if order not in (2, 3):
+         raise ValueError("Fichtl proposal supports orders 2 and 3")
+     trials = settings[f"fichtl_trials_type{order}"]
+-    sigma_map = settings.get("research_fichtl_sigma_by_order")
+-    if sigma_map is not None and settings.get("tropism_mode") != "fichtl2024":
+-        raise ValueError("Order sigma overrides require fichtl2024 mode")
+-    sigma, sigma_receipt = resolve_fichtl_sigma(settings["fichtl_sigma"], order, sigma_map)
++    sigma = settings["fichtl_sigma"]
+     probability = settings["fichtl_probability_down"]
+     previous_frame = np.asarray(previous_frame, dtype=float)
+     if (
+@@ -288,7 +268,7 @@ def fichtl_proposal(previous_frame, length, order, settings, rng):
+         raise ValueError("Invalid Fichtl proposal inputs")
+     scaled = trials * np.sqrt(length)
+     extra = int(np.floor(scaled)) + int(rng.random() < scaled % 1)
+-    alpha = sample_fichtl_alpha(length, sigma, extra + 1, rng)
++    alpha = settings["fichtl_sigma"] * np.sqrt(length) * rng.normal(size=extra + 1)
+     beta = rng.uniform(0, 2 * np.pi, size=extra + 1)
+     downward = bool(
+         rng.random() < (settings["fichtl_probability_down"] if order == 2 else 1.0)
+@@ -305,7 +285,6 @@ def fichtl_proposal(previous_frame, length, order, settings, rng):
+         selected_candidate=selected,
+         innovations_sha256=digest(innovations),
+         **innovations,
+-        **sigma_receipt,
+     )
+ 
+ 
+@@ -411,45 +390,6 @@ def _controlled_row_kappas(settings, insertion_mode, seed):
+     return kappas
+ 
+ 
+-def _controlled_order_sigma(settings, continuation_mode):
+-    mapping = settings.get("research_fichtl_sigma_by_order")
+-    if mapping is None:
+-        return None
+-    mapping = validate_fichtl_sigma_by_order(mapping, settings.get("max_order", 3))
+-    if continuation_mode != "fichtl" or settings.get("tropism_mode") != "fichtl2024":
+-        raise ValueError("Order sigma overrides require Fichtl continuation (arms C/D) and mode")
+-    return mapping
+-
+-
+-def validate_saved_primary_yaw_reversal(skeleton, settings):
+-    """Reversal is INITIAL construction, never a replay-time direction control."""
+-    key = "research_primary_yaw_reverse_probability"
+-    saved = validate_primary_yaw_reverse_probability(skeleton.payload["parameters"].get(key)) or 0.
+-    requested = validate_primary_yaw_reverse_probability(settings.get(key)) or 0.
+-    if saved != requested:
+-        raise ValueError("Primary yaw reversal setting disagrees with saved INITIAL")
+-
+-
+-def validate_saved_tertiary_length_rank(skeleton, settings, legacy=False):
+-    saved = validate_rank_strength(skeleton.payload["parameters"].get(RANK_FIELD)) or 0.
+-    requested = validate_rank_strength(settings.get(RANK_FIELD)) or 0.
+-    if saved != requested:
+-        raise ValueError("Tertiary length rank setting disagrees with saved INITIAL")
+-    if saved and legacy:
+-        raise ValueError("Tertiary length rank requires named construction-step replay, not legacy replay_arm")
+-    return saved
+-
+-
+-def validate_saved_primary_attachment(skeleton, settings, legacy=False):
+-    saved = validate_distal_fraction(skeleton.payload["parameters"].get(ATTACH_FIELD)) or 0.
+-    requested = validate_distal_fraction(settings.get(ATTACH_FIELD)) or 0.
+-    if saved != requested:
+-        raise ValueError("Primary attachment placement setting disagrees with saved INITIAL")
+-    if saved and legacy:
+-        raise ValueError("Primary attachment placement requires named construction-step replay")
+-    return saved
+-
+-
+ def replay_arm(
+     skeleton: Skeleton,
+     arm: str,
+@@ -462,9 +402,6 @@ def replay_arm(
+     if arm not in ARMS or surface_z != 20.0:
+         raise ValueError("Controlled design needs arms A-D and shared surface z=20 cm")
+     parameters = skeleton.payload["parameters"]
+-    validate_saved_primary_yaw_reversal(skeleton, settings)
+-    validate_saved_tertiary_length_rank(skeleton, settings, legacy=True)
+-    validate_saved_primary_attachment(skeleton, settings, legacy=True)
+     if (parameters.get("research_current_length_grid") is not None
+             or settings.get("research_current_length_grid") is not None
+             or parameters.get("research_parent2_branch_zone_cm") is not None
+@@ -474,7 +411,6 @@ def replay_arm(
+             and parameters.get("soil_surface_z_cm") != surface_z):
+         raise ValueError("Saved origin surface disagrees with controlled replay surface")
+     insertion_mode, continuation_mode = ARMS[arm]
+-    sigma_map = _controlled_order_sigma(settings, continuation_mode)
+     row_kappas = _controlled_row_kappas(settings, insertion_mode, skeleton.payload["seed"])
+     original = pd.DataFrame(skeleton.payload["nodes"]).set_index("node_id", drop=False)
+     nodes = original.copy(deep=True)
+@@ -663,7 +599,6 @@ def replay_arm(
+             surface_z_cm=surface_z,
+             replays={"physical": 1, "counterfactual": 0},
+             proposals="One-step unconstrained endpoints from actual origins; not a coherent graph",
+-            **(order_sigma_metadata(settings["fichtl_sigma"], sigma_map) if sigma_map is not None else {}),
+         ),
+     )
+ 
+diff --git a/deeprootgen/utils/primary_attachment.py b/deeprootgen/utils/primary_attachment.py
+deleted file mode 100644
+index 8de7fb8455f527d6b4764e0a46b60ad366a59683..0000000000000000000000000000000000000000
+--- a/deeprootgen/utils/primary_attachment.py
++++ /dev/null
+@@ -1,35 +0,0 @@
+-"""Strict opt-in scope for a static primary-curve attachment sensitivity."""
+-
+-import numpy as np
+-
+-from .current_length import _cdf_arrays
+-
+-FIELD = "research_primary_attachment_distal_fraction"
+-
+-
+-def validate_distal_fraction(value):
+-    if value is None:
+-        return None
+-    if (isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, float, np.integer, np.floating))
+-            or not 0 <= value < 1 or not np.isfinite(value)):
+-        raise ValueError("Primary attachment distal fraction must be finite nonbool numeric in [0,1)")
+-    return float(value)
+-
+-
+-def validate_distal_scope(parameters, constructor_seed=None):
+-    get = parameters.get if isinstance(parameters, dict) else lambda key, default=None: getattr(parameters, key, default)
+-    value = validate_distal_fraction(get(FIELD))
+-    if not value:
+-        return value
+-    seed = get('random_seed')
+-    if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer)) or seed < 0
+-            or (constructor_seed is not None and (isinstance(constructor_seed, (bool, np.bool_))
+-                or not isinstance(constructor_seed, (int, np.integer)) or constructor_seed != seed))):
+-        raise ValueError("Primary attachment placement requires matching explicit nonnegative integer seeds")
+-    cdfs = get('research_current_length_cdfs_cm')
+-    if (get('research_current_length_grid') != 'construction_steps_v1' or get('max_order') != 3
+-            or get('tropism_mode') != 'fichtl2024' or not isinstance(cdfs, dict) or set(cdfs) != {2, 3}):
+-        raise ValueError("Primary attachment placement requires controlled construction steps/Fichtl/max3/CDF2&3")
+-    for cdf in cdfs.values():
+-        _cdf_arrays(cdf)
+-    return value
+diff --git a/deeprootgen/utils/tertiary_length_rank.py b/deeprootgen/utils/tertiary_length_rank.py
+deleted file mode 100644
+index da27d804781f8ffb06c1b3ea1e0c6a45fb1eb3ba..0000000000000000000000000000000000000000
+--- a/deeprootgen/utils/tertiary_length_rank.py
++++ /dev/null
+@@ -1,113 +0,0 @@
+-"""Optional birth-position rank association of existing tertiary length draws.
+-
+-No new RNG key, marginal distribution, branch law or biological age is inferred.
+-"""
+-
+-import copy
+-
+-import numpy as np
+-
+-from .branching import validate_parent2_branch_zone
+-from .current_length import _cdf_arrays, sample_current_lengths
+-
+-VERSION = "drg-tertiary-length-rank-v1"
+-FIELD = "research_tertiary_length_rank_strength"
+-
+-
+-def validate_rank_strength(value):
+-    if value is None:
+-        return None
+-    if (isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, float, np.integer, np.floating))
+-            or not 0 <= value <= 1 or not np.isfinite(value)):
+-        raise ValueError("Tertiary length rank strength must be a finite nonbool number in [0,1]")
+-    return float(value)
+-
+-
+-def validate_rank_scope(parameters, constructor_seed=None):
+-    """Fail closed on active schema-bypassed construction inputs before mutation."""
+-    get = parameters.get if isinstance(parameters, dict) else lambda key, default=None: getattr(parameters, key, default)
+-    strength = validate_rank_strength(get(FIELD))
+-    if not strength:
+-        return strength
+-    seed = get("random_seed")
+-    if (isinstance(seed, (bool, np.bool_)) or not isinstance(seed, (int, np.integer)) or seed < 0
+-            or (constructor_seed is not None and (isinstance(constructor_seed, (bool, np.bool_))
+-                or not isinstance(constructor_seed, (int, np.integer)) or constructor_seed != seed))):
+-        raise ValueError("Tertiary length rank requires matching explicit nonnegative integer seeds")
+-    cdfs = get("research_current_length_cdfs_cm")
+-    if (get("research_current_length_grid") != "construction_steps_v1" or get("max_order") != 3
+-            or get("tropism_mode") != "fichtl2024" or not isinstance(cdfs, dict) or set(cdfs) != {2, 3}
+-            or get("research_parent2_branch_zone_cm") is None):
+-        raise ValueError("Tertiary length rank requires controlled construction steps/Fichtl/max3/CDF2&3/parent2 zone")
+-    validate_parent2_branch_zone(get("research_parent2_branch_zone_cm"))
+-    for cdf in cdfs.values():
+-        _cdf_arrays(cdf)
+-    return strength
+-
+-
+-def rank_permutation(quantiles, strength):
+-    """Return source index at each destination, using stable exact float scores."""
+-    strength = validate_rank_strength(strength) or 0.
+-    values = np.asanyarray(quantiles)
+-    if (np.ma.isMaskedArray(values) or values.ndim != 1 or values.dtype.kind not in "fiu"
+-            or not np.isfinite(values).all() or ((values < 0) | (values >= 1)).any()):
+-        raise ValueError("Original quantiles must be a finite real 1-D pool in [0,1)")
+-    values = values.astype(float)
+-    n = len(values)
+-    birth_ranks = (np.arange(n) + .5) / n if n else np.array([], dtype=float)
+-    scores = (1. - strength) * values - strength * birth_ranks
+-    pool = sorted(range(n), key=lambda j: (values[j], j))
+-    destinations = sorted(range(n), key=lambda j: (scores[j], j))
+-    permutation = [0] * n
+-    for destination, source in zip(destinations, pool):
+-        permutation[destination] = source
+-    return permutation, scores.tolist()
+-
+-
+-def plan_tertiary_length_family(cdf, segments_per_root, seed, family_organ_id, first_child_id, sites_cm, strength):
+-    """Plan existing keyed draws once before allocating an order3 sibling family.
+-
+-    The returned sampler has a NEW composite version. Nested original v1 draws
+-    retain their true owners; top expected/allocated IDs refer to destination.
+-    """
+-    strength = validate_rank_strength(strength)
+-    if strength is None:
+-        raise ValueError("Family planning requires explicit strength")
+-    for name, value, minimum in (("seed", seed, 0), ("segments_per_root", segments_per_root, 1)):
+-        if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)) or value < minimum:
+-            raise ValueError(f"Family {name} must be an integer >= {minimum}")
+-    _cdf_arrays(cdf)
+-    for value in (family_organ_id, first_child_id):
+-        if isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, np.integer)) or value <= 0:
+-            raise ValueError("Family and prospective child IDs must be positive integers")
+-    sites = np.asarray(sites_cm, dtype=float)
+-    if (sites.ndim != 1 or not np.isfinite(sites).all() or (sites <= 0).any() or (np.diff(sites) <= 0).any()):
+-        raise ValueError("Family sites must be finite positive strictly increasing cm")
+-    ids = [int(first_child_id + j) for j in range(len(sites))]
+-    draws = [sample_current_lengths(cdf, segments_per_root, seed, oid, 3)[1] for oid in ids]
+-    quantiles = [draw['quantile'] for draw in draws]
+-    permutation, scores = rank_permutation(quantiles, strength)
+-    family = dict(version=VERSION, strength=strength, family_organ_id=int(family_organ_id),
+-                  destination_organ_ids=ids, sites_cm=sites.tolist(), original_quantiles=quantiles,
+-                  scores=scores, source_indices=permutation)
+-    plans = []
+-    for j, source_index in enumerate(permutation):
+-        destination, source = draws[j], draws[source_index]
+-        weights = np.asarray(destination['normalized_weights'])
+-        lengths = source['sampled_current_length_cm'] * weights
+-        if not np.isfinite(lengths).all() or (lengths <= 1e-12).any():
+-            raise ValueError("Rank-assigned segments violate existing finite positive length cutoff")
+-        sampled = source['sampled_current_length_cm']
+-        if not np.isclose(lengths.sum(), sampled, rtol=0, atol=1e-8):
+-            raise ValueError("Rank-assigned CURRENT length conservation exceeds 1e-8 cm")
+-        sampler = dict(stream_version=VERSION, seed=int(seed), order=3,
+-                       expected_organ_id=ids[j], requested_segment_count=int(segments_per_root),
+-                       cdf_sha256=destination['cdf_sha256'], length_source_organ_id=ids[source_index],
+-                       weight_source_organ_id=ids[j], normalized_weights=weights.tolist(),
+-                       sampled_current_length_cm=sampled, pre_subdivision_length_cm=float(lengths.sum()),
+-                       destination_draw=copy.deepcopy(destination), source_draw=copy.deepcopy(source),
+-                       length_rank=dict(version=VERSION, strength=strength, family_organ_id=int(family_organ_id),
+-                                        destination_index=j, source_index=source_index,
+-                                        source_organ_id=ids[source_index], source_quantile=source['quantile']))
+-        plans.append((lengths, sampler))
+-    return plans, family
+diff --git a/deeprootgen/utils/tropism.py b/deeprootgen/utils/tropism.py
+index eca1575af279ae2badf58a553e37c9e90926c2f6..d7451227c2716ea46a11da8f6bcd26e8e0ebe4e4 100644
+--- a/deeprootgen/utils/tropism.py
++++ b/deeprootgen/utils/tropism.py
+@@ -43,68 +43,6 @@ def insertion_heading(parent_direction, mean_deg, sd_deg, rng):
+     )
+ 
+ 
+-SIGMA_OPERATOR_VERSION = "research-fichtl-sigma-by-order-v1"
+-
+-
+-def validate_fichtl_sigma_by_order(mapping, max_order=3):
+-    """Selected order2/3 overrides in rad/sqrt(cm); zero retains normal draws."""
+-    if mapping is None:
+-        return None
+-    if not isinstance(mapping, dict) or not mapping:
+-        raise ValueError("Order sigma overrides require a nonempty mapping")
+-    result = {}
+-    for key, value in mapping.items():
+-        if (isinstance(key, (bool, np.bool_))
+-                or not isinstance(key, (int, np.integer, str)) or str(key) not in {"2", "3"}):
+-            raise ValueError("Order sigma keys must be integer2/3 or exact JSON string keys")
+-        order = int(key)
+-        if order > max_order or order in result:
+-            raise ValueError("Order sigma key is unsupported or duplicated")
+-        if (isinstance(value, (bool, np.bool_))
+-                or not isinstance(value, (int, float, np.integer, np.floating))):
+-            raise ValueError("Order sigma values must be finite nonnegative nonbool scalars")
+-        try:
+-            value = float(value)
+-        except (ValueError, OverflowError) as error:
+-            raise ValueError("Order sigma values must be finite") from error
+-        if not np.isfinite(value) or value < 0:
+-            raise ValueError("Order sigma values must be finite nonnegative nonbool scalars")
+-        result[order] = value
+-    return result
+-
+-
+-def resolve_fichtl_sigma(global_sigma, order, mapping=None):
+-    """Return effective coefficient and active-only provenance, with no RNG."""
+-    if mapping is None:
+-        return global_sigma, {}
+-    overrides = validate_fichtl_sigma_by_order(mapping)
+-    if (isinstance(order, (bool, np.bool_)) or order not in (2, 3)
+-            or global_sigma is None or not np.isfinite(global_sigma) or global_sigma < 0):
+-        raise ValueError("Order sigma resolution requires valid order/global sigma")
+-    sigma = overrides.get(order, global_sigma)
+-    if sigma == global_sigma:
+-        sigma = global_sigma  # Preserve even signed-zero innovations when equal.
+-    return sigma, dict(sigma_operator_version=SIGMA_OPERATOR_VERSION,
+-                       effective_sigma_rad_per_sqrt_cm=float(sigma),
+-                       sigma_source="order_override" if order in overrides else "global_fallback")
+-
+-
+-def sample_fichtl_alpha(length_cm, sigma, count, rng):
+-    """Original equation/draw schedule; callers validate length/sigma/count.
+-
+-    Do not shortcut zero: the normal draw is part of the paired RNG schedule.
+-    """
+-    return sigma * np.sqrt(length_cm) * rng.normal(size=count)
+-
+-
+-def order_sigma_metadata(global_sigma, mapping=None):
+-    """Configured coefficients, including organs with no continuation search."""
+-    if mapping is None:
+-        return {}
+-    return dict(order_sigma_control={str(order): resolve_fichtl_sigma(global_sigma, order, mapping)[1]
+-                                     for order in (2, 3)})
+-
+-
+ def sample_heading(
+     previous,
+     length_cm,
+@@ -127,7 +65,7 @@ def sample_heading(
+     heading, first, second = _basis(previous)
+     scaled = trials * np.sqrt(length_cm)
+     extra = int(np.floor(scaled)) + int(rng.random() < scaled % 1)
+-    alpha = sample_fichtl_alpha(length_cm, sigma, extra + 1, rng)
++    alpha = sigma * np.sqrt(length_cm) * rng.normal(size=extra + 1)
+     beta = rng.uniform(0, 2 * np.pi, size=extra + 1)
+     candidates = np.cos(alpha)[:, None] * heading + np.sin(alpha)[:, None] * (
+         np.cos(beta)[:, None] * first + np.sin(beta)[:, None] * second
+@@ -167,39 +105,6 @@ def sample_primary_yaw(mean_deg, kappa, random_seed, organ_id):
+     return float(rng.vonmises(math.radians(mean_deg), kappa))
+ 
+ 
+-PRIMARY_YAW_REVERSAL_VERSION = "drg-primary-yaw-reversal-v1"
+-
+-
+-def validate_primary_yaw_reverse_probability(value):
+-    """Strict dimensionless research probability; None and zero are inactive."""
+-    if value is None:
+-        return None
+-    if (isinstance(value, (bool, np.bool_)) or not isinstance(value, (int, float, np.integer, np.floating))
+-            or not 0 <= value <= 1 or not np.isfinite(value)):
+-        raise ValueError("Primary yaw reversal probability must be a finite nonbool number in [0,1]")
+-    return float(value)
+-
+-
+-def reverse_primary_yaw(yaw, probability, random_seed, organ_id):
+-    """Independent Bernoulli pi reversal of an already sampled primary yaw."""
+-    probability = validate_primary_yaw_reverse_probability(probability)
+-    if not probability:
+-        return yaw, None
+-    if (not np.isfinite(yaw) or isinstance(random_seed, (bool, np.bool_))
+-            or not isinstance(random_seed, (int, np.integer)) or random_seed < 0
+-            or isinstance(organ_id, (bool, np.bool_))
+-            or not isinstance(organ_id, (int, np.integer)) or organ_id <= 0):
+-        raise ValueError("Primary yaw reversal requires finite yaw, nonnegative integer seed and positive organ ID")
+-    key = hashlib.sha256(f"{PRIMARY_YAW_REVERSAL_VERSION}:{random_seed}:{organ_id}".encode()).digest()
+-    rng = np.random.default_rng(np.random.SeedSequence(np.frombuffer(key, dtype="<u4")))
+-    uniform = float(rng.random())
+-    reversed_polarity = bool(uniform < probability)
+-    target = yaw + math.pi * reversed_polarity
+-    return target, dict(stream_version=PRIMARY_YAW_REVERSAL_VERSION, probability=probability,
+-                        uniform=uniform, reversed=reversed_polarity,
+-                        original_yaw_deg=math.degrees(yaw), target_yaw_deg=math.degrees(target))
+-
+-
+ ROW_AXIAL_STREAM_VERSION = "drg-insertion-row-axial-v1"
+ 
+ 

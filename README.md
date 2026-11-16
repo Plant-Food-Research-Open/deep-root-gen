@@ -500,3 +500,11 @@ The [optional insertion-azimuth preference](docs/research/SO4_INSERTION_ROW_AXIA
 tests model-frame row anisotropy while retaining sampled insertion polar angles.
 It is an explicit research assumption with unchanged defaults and continuation;
 its global vertical effects require separate diagnosis.
+
+# Experimental architecture research tools
+
+Optional Fichtl-inspired direction controls, matched four-arm replay, explicit
+construction controls and observation/evaluation contracts are documented in the
+[research guide](docs/research/README.md). Legacy simulation remains the default.
+These tools provide research interfaces and synthetic checks; they do not adopt a
+fitted configuration or establish biological validity.

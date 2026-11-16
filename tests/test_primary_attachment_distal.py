@@ -12,6 +12,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.research import so4_controlled as controlled
 from deeprootgen.research import construction_step_replay as canonical
@@ -274,7 +276,7 @@ def test_added_primary_cut_preserves_curve_and_semantic_step_innovations():
 
 def test_none_zero_isolated_prechange_parity_with_active_prior_controls(tmp_path):
     current = Path(__file__).parents[1]
-    old = Path('/tmp/drg-primary-attachment-public/preimplementation/source')
+    old = materialize_reference(current, tmp_path, 'primary_attachment_distal')
     script = NONE_PARITY_SCRIPT.replace('research_fichtl_sigma_by_order', FIELD).replace(
         "('explicit_none',{'" + FIELD + "':None})", "('explicit_none',{'" + FIELD + "':None}),('explicit_zero',{'" + FIELD + "':0.})")
     from tests.test_primary_yaw_initialization import parameters as legacy_parameters
@@ -285,12 +287,11 @@ def test_none_zero_isolated_prechange_parity_with_active_prior_controls(tmp_path
                    canonical=rank_parameters(.35, research_fichtl_sigma_by_order={2: .11, 3: .21}, **yaw).model_dump())
     for config in configs.values():
         config.pop(FIELD, None)
-    overlay = next(p for p in sys.path if p.endswith('/locked-overlay'))
     results, hashes = {}, {}
     for name, source in [('old', old), ('current', current)]:
         run = subprocess.run([sys.executable, '-c', script], input=json.dumps(configs), capture_output=True,
                              text=True, check=True, timeout=90, cwd=source,
-                             env={**os.environ, 'PYTHONPATH': overlay + os.pathsep + str(source), 'PYTHONDONTWRITEBYTECODE': '1'})
+                             env=subprocess_environment(source))
         record = json.loads(run.stdout)
         assert Path(record['loaded_root']).resolve() == (source / 'deeprootgen/model/root.py').resolve()
         assert record['outputs']['omitted'] == record['outputs']['explicit_none'] == record['outputs']['explicit_zero']
