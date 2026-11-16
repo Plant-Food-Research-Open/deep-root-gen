@@ -198,14 +198,15 @@ def test_save_form_parameters_includes_calibration_fields(monkeypatch, tmp_path)
     }
 
 
-def test_save_simulation_runs_writes_relative_outputs(monkeypatch, tmp_path):
+def test_save_simulation_runs_writes_configured_outputs(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "outputs").mkdir()
+    monkeypatch.setattr(subject, "OUT_DIR", str(tmp_path / "outputs"))
     monkeypatch.setattr(subject, "get_datetime_now", lambda: "now")
     output, filename = subject.save_simulation_runs(
         [{"task": "simulation", "tag": "a"}]
     )
     assert filename == "now-root-simulation-runs.csv"
+    assert Path(output).parent == tmp_path / "outputs"
     assert Path(output).exists()
     assert pd.read_csv(output).to_dict("records") == [
         {"task": "simulation", "tag": "a"}

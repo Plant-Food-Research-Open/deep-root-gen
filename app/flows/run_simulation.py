@@ -86,4 +86,4 @@ def run_simulation_flow(
         simulation_uuid (str):
             The simulation uuid.
     """
-    run_simulation.submit(input_parameters, simulation_uuid)
+    run_simulation.submit(input_parameters, simulation_uuid).result()

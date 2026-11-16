@@ -438,7 +438,65 @@ DeepRootGen is distributed under the GNU General Public License v3.0 (GPL-3.0). 
 
 - DeepRootGen Developer: James Bristow
 - DeepRootGen Project Supervisor: Junqi Zhu
+- Crop System Modeller: Xiumei Yang
 
 # Funding and Acknowledgements
 
 This work was funded by the New Zealand Ministry of Business, Innovation, and Employment (MBIE) through the Strategic Science Investment Fund (contract number C11X1702) as part of the Digital Horticultural Systems Ngā Pou Rangahau, a Growing Futures™ programme at Plant & Food Research. We sincerely thank the Fruit Physiology Group, orchard managers, and all those who contributed their time and effort to the management and operation of the orchards. Your dedication has been instrumental in the success of this project. Our gratitude extends to the wider Digital Horticultural Systems team for their invaluable support in the modelling and software development process. Our work would not have been possible without the considerable dedication and collaboration of all parties involved.
+
+## Offline runtime checkpoint (1.0.0)
+
+The public runtime checkpoint imports the qualified 1.0 Python implementation,
+node/edge exports, length-based branching, spatial statistics and synthetic
+regressions. It retains the Python 3.10 requirement and the recorded dependency
+lock. This source import is not a new calibration or physiological adoption.
+
+Run a service-free synthetic simulation after installing the locked environment:
+
+```bash
+python -m deeprootgen simulate --config examples/synthetic_minimal.json --outdir .runtime/synthetic-check
+python -m pytest -q --run-integration
+```
+
+The CLI saves `nodes.csv`, `edges.csv`, `roots.html` and a receipt to a fresh
+output directory. `DEEPROOTGEN_OUTPUT_DIR` controls library export location.
+No new ports or deployed services are introduced by this checkpoint. Node IDs,
+parent IDs, child-edge records and string classifications remain separate
+contracts; inspect current schemas rather than historical table examples above.
+Generated output, local environments, measured root grids, notebooks containing
+observations and machine-specific runtime receipts remain outside this PR.
+
+The generic RSML grid helper assumes the second stem point is its reference
+origin and RSML z is depth. This is an observation convention, not verified
+physical soil metadata; biological comparisons require an authoritative joint
+landmark/axis contract. Its regression fixtures contain synthetic XML only.
+
+## Optional SO4 research interface
+
+The opt-in `fichtl2024` mode and public input are documented in the
+[research-mode guide](docs/research/FICHTL_RESEARCH_MODE.md). Default legacy
+behavior is protected by synthetic golden regressions. Research inputs are
+explicit and remain separate from calibration or physiological adoption.
+
+## Controlled research and PR checkpoints
+
+The [controlled-replay method](docs/research/SO4_CONTROLLED_METHOD.md) describes
+the four-arm source-checkout tool and fixed invariants/budgets. See the
+[PR checkpoint guide](docs/research/PULL_REQUEST_CHECKPOINTS.md) for review order,
+public qualification commands, the frozen-method erratum and scientific limits.
+The default runtime and numerical tolerances remain unchanged by this tool.
+
+The [explicit observation-frame contract](docs/research/OBSERVATION_FRAME_CONTRACT.md)
+preserves hierarchical raw IDs and verifies a declared raw-to-RSML point mapping
+before canonical soil conversion. Use it to qualify local inputs; the legacy grid
+helper's reference convention alone does not establish a physical soil surface.
+
+The [optional construction continuation](docs/research/SO4_CONSTRUCTION_CONTINUATION.md)
+adds explicit research controls for attachment placement, primary yaw, buried
+origin and current organ-length distributions. Each retains legacy defaults;
+measured distributions and comparison artifacts remain local.
+
+The [optional insertion-azimuth preference](docs/research/SO4_INSERTION_ROW_AXIAL.md)
+tests model-frame row anisotropy while retaining sampled insertion polar angles.
+It is an explicit research assumption with unchanged defaults and continuation;
+its global vertical effects require separate diagnosis.

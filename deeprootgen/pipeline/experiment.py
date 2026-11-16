@@ -30,7 +30,7 @@ from ..model import RootSystemSimulation
 from ..statistics import get_summary_statistic_func, get_summary_statistics
 from ..statistics.root_grid_aggregation import aggregate_root_grid
 
-OUT_DIR = osp.join("/app", "outputs")
+OUT_DIR = os.environ.get("DEEPROOTGEN_OUTPUT_DIR", osp.join("/app", "outputs"))
 
 
 def get_datetime_now() -> str:
@@ -50,6 +50,7 @@ def get_outdir() -> str:
         str:
             The output directory.
     """
+    os.makedirs(OUT_DIR, exist_ok=True)
     return OUT_DIR
 
 
@@ -483,7 +484,7 @@ def save_simulation_runs(simulation_runs: list) -> tuple:
     df = pd.DataFrame(simulation_runs)
     date_now = get_datetime_now()
     file_name = f"{date_now}-root-simulation-runs.csv"
-    outfile = osp.join("outputs", file_name)
+    outfile = osp.join(get_outdir(), file_name)
     df.to_csv(outfile, index=False)
     return outfile, file_name
 
