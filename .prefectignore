@@ -166,3 +166,9 @@ mlruns
 *.xml
 slurm-*.out
 .python-version
+
+# Local empirical results and presentations are not deployment inputs.
+[Cc]alvin*/
+[Rr]oot_[Aa]rchitecture_[Pp]resentation*/
+**/[Cc]alvin*/
+**/[Rr]oot_[Aa]rchitecture_[Pp]resentation*/
