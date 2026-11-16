@@ -1,6 +1,19 @@
 # Grapevine3D 10 cm root-length grid
 
+**Historical v1 material — superseded for physical soil comparisons.**
+Read [the active v2 research state](research/ACTIVE_SO4_RESEARCH.md) first. The recovered soil frame
+uses RSML stem point0 as soil, point1 as basal, and explicit canonical horizontal
+axes. The original prepared grids, receipts and text below are preserved as
+history; earlier calls to increase shallow allocation are superseded.
+The coordinate audit is completed locally; current work targets population
+representation under the accepted13-trait/3-profile criterion.
+
+
 This is a local, descriptive analysis of the open [Grapevine3D dataset](https://doi.org/10.5281/zenodo.15632062). It prepares a spatial observation for later comparison with DeepRootGen. It does not fit or change the generator.
+
+For the staged reconstruction goal, upstream integration checks, paper-derived
+parameters and biomass options, see the [research plan](GRAPEVINE3D_RECONSTRUCTION_PLAN.md)
+and its [first evidence-review task](tasks/GRAPEVINE3D_01_EVIDENCE_AND_CONTRACT.md).
 
 ## Run
 

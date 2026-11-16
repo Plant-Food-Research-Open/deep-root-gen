@@ -371,6 +371,8 @@ The following documents provide additional development information:
 - [Development and setup guide](docs/DEVELOPMENT.md)
 - [Architecture and code map](docs/ARCHITECTURE.md)
 - [Review notes](docs/REVIEW_NOTES.md)
+- [Research optimization guide](docs/research/OPTIMIZATION_GUIDE.md)
+- [Optional mature-root cohort constructor](docs/research/COHORT_ROOT_CONSTRUCTION.md)
 - [Agent instructions](AGENTS.md)
 
 ## Running tests
