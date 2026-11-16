@@ -4,16 +4,17 @@ These text patches reconstruct earlier PUBLIC feature checkpoints inside pytest'
 fresh temporary directories. They contain source only, with no observations,
 fitted inputs, results, credentials or local-runtime packages.
 
-Each reference records its own `baseline_commit` in `manifest.json`. The five
-feature-reference patches retain baseline
-`12b23bfdfaf58e9461af90591bcf5784ddae447d` and their original bytes. The added
-pre-research reference uses PR15 baseline
-`b85f1ea03a27cc8ab26716edc51eb387e77c07a3`. Each patch is the package-only,
-non-renaming textual diff from its recorded baseline to its full
-`reference_commit`, generated with:
+Each reference records its immutable public `reference_commit` and the integrated
+package preimage `57732d5fa5d206b34b91b0076f323210e765e98c` in `manifest.json`. The patches were deliberately
+regenerated for this package revision, including formatting and newly added
+optional controls. Earlier fixture bytes remain in the public source history;
+reference postimages, comparison assertions and numerical tolerances are retained.
+Only the original reference module sets are restored; other package modules and
+installed dependencies stay common to both subprocesses. Generate each scoped
+patch with:
 
 ```text
-git diff --no-ext-diff --no-renames --full-index BASE REFERENCE -- deeprootgen
+git diff --no-ext-diff --no-renames --full-index BASE REFERENCE -- MODULE_PATHS
 ```
 
 References precede the feature whose missing/None/zero behavior is tested:
