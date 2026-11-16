@@ -113,3 +113,5 @@
 # with the python modules ``pickle``, ``dbm.*``,
 # ``shelve``, ``marshal``, ``anydbm``, & ``bsddb``
 # (among others).
+# Unified-diff fixtures need a single-space marker on empty context lines.
+tests/fixtures/public_checkpoint_references/*.patch whitespace=-blank-at-eol,-blank-at-eof
