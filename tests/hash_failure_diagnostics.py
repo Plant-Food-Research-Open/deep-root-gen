@@ -30,7 +30,7 @@ def record_failure(case, payloads, expected):
     try:
         if case not in {"physical-cap", "inactive-primary-design"}:
             raise ValueError("Only public synthetic regression cases are allowed")
-        if set(payloads) - {"actual", "omitted", "explicit_none"}:
+        if set(payloads) - {"actual", "omitted", "explicit_none", "reference"}:
             raise ValueError("Unexpected synthetic payload role")
         directory = Path(root)
         directory.mkdir(parents=True, exist_ok=True)
