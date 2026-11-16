@@ -95,3 +95,16 @@ included. Earlier source-checkpoint tests do not certify a new upstream tree;
 record fresh integrated checks. Independent review of the new research source
 remains pending; a draft PR and passing synthetic tests are not biological
 validation or approval to merge.
+
+
+## Additional optional research interfaces
+
+- [Model inputs and review](../MODEL_REVIEW_GUIDE.md): native versus separate research APIs, units, defaults and observation support.
+- [Cohort constructor](COHORT_ROOT_CONSTRUCTION.md): curved five-order crown-origin cohorts, taper and material accounting; caller owns biological parameters.
+- [Five-order primary and material contracts](FIVE_ORDER_PRIMARY_AND_MASS_METHOD.md), [higher orders](HIGHER_ORDER_RESEARCH.md), [primary fractions](PRIMARY_BRANCH_FRACTIONS.md) and [finite-core scope](FINITE_CORE_RESEARCH.md).
+- [Curvature](ORDER2_CURVATURE_METHOD.md), [roundoff reconciliation](NATIVE_LENGTH_ROUNDOFF.md), and [proposed primary taper](PRIMARY_ARCLENGTH_TAPER_PROPOSAL.md). Proposed laws are not automatically implemented or adopted.
+- [Sequential search](NOTEBOOK_PARAMETER_SEARCH.md): resumable Optuna workers, separate scoring modes, frozen candidates and fresh seeds. Distributed examples are invented; notebook execution is disabled by default.
+- [Saved-graph visualization](ROOT_ARCHITECTURE_VISUALIZATION.md) and [optimization guidance](OPTIMIZATION_GUIDE.md).
+- [Local runtime recipe](../../RUNNING.md): optional loopback-only service configuration; offline tests do not qualify service deployment.
+
+Observations, fitted configuration arrays, reference profiles and result artifacts remain local. Algorithm checks, scenario agreement, seed robustness and independent biological validation are separate claims. No new biological acceptance threshold or production default is adopted by this integration.

@@ -508,3 +508,5 @@ construction controls and observation/evaluation contracts are documented in the
 [research guide](docs/research/README.md). Legacy simulation remains the default.
 These tools provide research interfaces and synthetic checks; they do not adopt a
 fitted configuration or establish biological validity.
+
+The integrated [research interface index](docs/research/README.md) also covers optional five-order/cohort construction, curvature, resumable search and saved-graph views. Use [the model review guide](docs/MODEL_REVIEW_GUIDE.md) for parameter meanings and numerical checks.

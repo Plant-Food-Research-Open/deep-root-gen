@@ -13,23 +13,22 @@ for _variable in (
     os.environ[_variable] = "2"
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
-# Keep reviewed execution order: thread/CUDA controls precede research imports.
-import argparse  # noqa: E402
-import contextlib  # noqa: E402
-import fcntl  # noqa: E402
-import hashlib  # noqa: E402
-import importlib.metadata  # noqa: E402
-import json  # noqa: E402
-import platform  # noqa: E402
-import subprocess  # noqa: E402
-import sys  # noqa: E402
-import tempfile  # noqa: E402
-import time  # noqa: E402
-from pathlib import Path  # noqa: E402
+import argparse  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import contextlib  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import fcntl  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import hashlib  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import importlib.metadata  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import json  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import platform  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import subprocess  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import sys  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import tempfile  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+import time  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
+from pathlib import Path  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from deeprootgen.research.so4_controlled import (  # noqa: E402
+from deeprootgen.research.so4_controlled import (  # noqa: E402 - source-checkout CLI bootstrap precedes project imports
     Skeleton,
     construct_skeleton,
     digest,
@@ -391,7 +390,7 @@ def persist_receipt(directory, manifest, error=None):
     )
 
 
-def main(argv=None):  # noqa: C901 - preserve reviewed reservation/recovery ordering
+def main(argv=None):  # noqa: C901 - explicit research guard and construction branches
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True)
     parser.add_argument("--parameters", required=True)

@@ -1,7 +1,10 @@
 # Development, setup and validation
 
+Current environment/CLI/UI qualification is tracked in [RUNNING.md](../RUNNING.md).
+The evidence below is the historical 28 October reconnaissance snapshot.
+
 Commands refer to the verified checkout at
-`/home/jzhu/Workspace/Github/FruitCropXL/13-deep-root-gen-PFR-open`.
+`/path/to/deep-root-gen`.
 Prepared 2026-10-28 at revision
 `fc9136263eb7dff1b2e047d1cf3f0de8bdafbedf`.
 
@@ -13,7 +16,7 @@ probe logs remain in the local task output; they are not runtime prerequisites
 or raw-data artifacts in this repository.
 
 ```bash
-cd /home/jzhu/Workspace/Github/FruitCropXL/13-deep-root-gen-PFR-open
+cd /path/to/deep-root-gen
 git status --short --branch
 git rev-parse HEAD
 PYTHONDONTWRITEBYTECODE=1 poetry check --lock
