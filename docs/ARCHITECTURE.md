@@ -53,6 +53,31 @@ currently compatible importer.
 
 ## Validation boundaries
 
+### Optional offline research interfaces (16 November 2026)
+
+The source map above retains its historical review date. The following local
+research modules were inspected separately on 16 November; their presence does
+not imply integration with the native calibration, Dash or Prefect routes.
+
+| Source | Responsibility and boundary |
+|---|---|
+| `deeprootgen/research/cohort_root_generator.py` | `CohortRootGenerator.generate()` constructs a static five-order architecture with distributed crown emergence, hypothetical maturity cohorts, physical-step curvature, attachment rules and integrated taper volume. Returns a full crown support graph, a root-only observation projection, organ records and diagnostics. |
+| `deeprootgen/research/curvature_process.py`, `physical_step_replay.py`, `primary_curvature.py` | Correlated curvature primitives and separate optional replay/primary construction interfaces. The order-2-and-above physical replay and the cohort constructor have different primary-root handling; inspect the selected route before applying parameters. |
+| `deeprootgen/research/core_observation.py`, `mass_audit.py` | Qualified geometric root-segment support, finite cylindrical-core predictions and represented root-axis material audits. Crown mass needs a separate explicit term. |
+| `deeprootgen/research/area_mean_observation.py` | Virtual-core and pooling utilities for separately declared spatial supports. Enlarged windows do not enlarge actual measured samples. |
+| `deeprootgen/research/order_mass_allocation.py` | Separate diagnostic/material-allocation research API. Its constraints and rescaling semantics are not automatically part of the cohort constructor. |
+
+The full cohort crown graph contains nonmaterial connector edges. Use
+`observation_nodes` and `observation_edges` for root-only operators. Their
+`plant_id` values identify **primary trees**, not independent vines; sum trees
+for a single vine and supply crown mass separately. Equivalent-cylinder segment
+diameters conserve taper volume and differ from point basal or mid-axis diameter.
+
+Read the [cohort construction contract](research/COHORT_ROOT_CONSTRUCTION.md),
+[optimization guide](research/OPTIMIZATION_GUIDE.md), and
+[research interfaces](research/README.md) before continuing that
+research. Empirical settings and comparisons remain in excluded local folders.
+
 Direct simulation is the smallest prospective offline runtime check, but its
 imports still require the locked Python/Torch stack. A full Prefect flow adds
 tracking, storage and database effects; BentoML services load existing model
