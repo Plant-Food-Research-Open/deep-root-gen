@@ -1,5 +1,11 @@
 # Running DeepRootGen
 
+For the current source-derived parameter dictionary and scientific review
+procedure, use [MODEL_REVIEW_GUIDE.md](docs/MODEL_REVIEW_GUIDE.md).
+[PR_INTEGRATION_STATUS.md](docs/PR_INTEGRATION_STATUS.md) records the current
+local checks and the outstanding GitHub merge operation. Historical test and
+Docker receipts below remain tied to their original revisions.
+
 ## Upstream 1.0 integration (13 November 2026)
 
 The approved PFR upstream update at `80315af` is integrated with the local
