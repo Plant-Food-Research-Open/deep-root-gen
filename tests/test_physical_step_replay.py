@@ -538,7 +538,13 @@ def test_cap_default_output_bytes_match_pre_ou_source_epoch(
         key: value.to_dict("records") if hasattr(value, "to_dict") else value
         for key, value in result.items()
     }
-    assert digest(encoded) == expected
+    try:
+        assert digest(encoded) == expected
+    except AssertionError:
+        from tests.hash_failure_diagnostics import record_failure
+
+        record_failure("physical-cap", {"actual": encoded}, expected)
+        raise
 
 
 @pytest.mark.parametrize("cap", [2.0, 1.0, 0.5])
