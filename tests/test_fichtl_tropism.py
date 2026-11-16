@@ -2,6 +2,8 @@
 
 import json
 import hashlib
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -11,6 +13,7 @@ import pytest
 from deeprootgen.data_model import RootSimulationModel
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.utils.tropism import insertion_heading, sample_heading
+from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
 
 
 def parameters(mode="legacy"):
@@ -184,16 +187,72 @@ def test_boundary_and_schema_negative_cases():
             RootSimulationModel(**{**base, **update})
 
 
-def test_prechange_legacy_golden():
-    fixture = json.loads(
-        (Path(__file__).parent / "fixtures/fichtl_legacy_golden.json").read_text()
-    )
-    for case in fixture["cases"]:
-        p = RootSimulationModel(**case["parameters"])
-        sim = RootSystemSimulation(random_seed=p.random_seed)
-        sim.run(p)
-        for table, expected in zip(sim.G.as_df(), case["csv_sha256"]):
-            assert (
-                hashlib.sha256(table.to_csv(index=False).encode()).hexdigest()
-                == expected
-            )
+LEGACY_PARITY_SCRIPT = r"""
+import json
+from pathlib import Path
+import sys
+import deeprootgen.model.root as root_module
+import deeprootgen.data_model.simulation_data_models as schema_module
+import deeprootgen.utils.branching as branching_module
+
+outputs = []
+for values in json.loads(sys.stdin.read()):
+    parameters = schema_module.RootSimulationModel(**values)
+    simulation = root_module.RootSystemSimulation(random_seed=parameters.random_seed)
+    simulation.run(parameters)
+    nodes, edges = simulation.G.as_df()
+    outputs.append({
+        "csv": [table.to_csv(index=False) for table in (nodes, edges)],
+        "dtypes": [[[str(name), str(dtype)] for name, dtype in table.dtypes.items()]
+                   for table in (nodes, edges)],
+        "geometry": nodes[["node_id", "parent_id", "x", "y", "z", "length", "diameter"]].values.tolist(),
+        "rng": simulation.rng.bit_generator.state,
+    })
+print(json.dumps({"loaded_modules": {
+    "deeprootgen/model/root.py": str(Path(root_module.__file__).resolve()),
+    "deeprootgen/data_model/simulation_data_models.py": str(Path(schema_module.__file__).resolve()),
+    "deeprootgen/utils/branching.py": str(Path(branching_module.__file__).resolve()),
+}, "outputs": outputs}, sort_keys=True, allow_nan=False))
+"""
+
+
+def test_prechange_legacy_golden(tmp_path):
+    # Historical fixed digests remain an unchanged receipt of their original
+    # runtime. Acceptance compares both public sources on this SAME runtime.
+    fixture_path = Path(__file__).parent / "fixtures/fichtl_legacy_golden.json"
+    fixture = json.loads(fixture_path.read_text())
+    current = Path(__file__).parents[1]
+    reference = materialize_reference(current, tmp_path, "pre_research_legacy")
+    parameters = [case["parameters"] for case in fixture["cases"]]
+    results, source_hashes = {}, {}
+    for name, source in (("reference", reference), ("current", current)):
+        run = subprocess.run(
+            [sys.executable, "-c", LEGACY_PARITY_SCRIPT],
+            input=json.dumps(parameters), text=True, capture_output=True,
+            check=True, timeout=90, cwd=source,
+            env=subprocess_environment(source),
+        )
+        result = json.loads(run.stdout)
+        source_hashes[name] = {}
+        for module, loaded in result["loaded_modules"].items():
+            assert Path(loaded).resolve() == (source / module).resolve()
+            source_hashes[name][module] = hashlib.sha256((source / module).read_bytes()).hexdigest()
+        results[name] = result["outputs"]
+    for old, new in zip(results["reference"], results["current"]):
+        assert [value.encode("utf-8") for value in old["csv"]] == [value.encode("utf-8") for value in new["csv"]]
+        assert old["dtypes"] == new["dtypes"]
+        assert old["geometry"] == new["geometry"]
+        assert old["rng"] == new["rng"]
+    assert len(results["reference"]) == len(results["current"]) == len(parameters) == 2
+    receipt = {
+        "source_hashes": source_hashes,
+        "historical_fixture_sha256": hashlib.sha256(fixture_path.read_bytes()).hexdigest(),
+        "historical_csv_sha256": [case["csv_sha256"] for case in fixture["cases"]],
+        "paired_csv_sha256": {
+            name: [[hashlib.sha256(value.encode("utf-8")).hexdigest() for value in case["csv"]]
+                   for case in outputs] for name, outputs in results.items()
+        },
+        "exact_csv_dtypes_geometry_rng": True,
+        "parameters": parameters,
+    }
+    (tmp_path / "legacy_parity.json").write_text(json.dumps(receipt, indent=2) + "\n")

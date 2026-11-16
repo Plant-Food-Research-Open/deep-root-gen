@@ -13,6 +13,8 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
+from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.model import root as root_module
 from deeprootgen.research import construction_step_replay as canonical
@@ -254,9 +256,7 @@ print(json.dumps({'loaded_root':module.__file__,'outputs':outputs,'presence':pre
 
 def test_none_prechange_subprocess_serialization_diagnostics_geometry_rng_parity(tmp_path):
     current = Path(__file__).parents[1]
-    old = Path(os.environ.get("DRG_SIGMA_PRECHANGE_SOURCE", "/tmp/drg-order-sigma-public/preimplementation/source"))
-    if not (old / "deeprootgen/model/root.py").is_file():
-        pytest.skip("Qualified prechange public source snapshot unavailable")
+    old = materialize_reference(current, tmp_path, 'order_specific_sigma')
     base = json.loads((current / "examples/synthetic_minimal.json").read_text())
     base.update(max_order=3, min_sec_root_num=1, max_sec_root_num=2,
                 min_sec_root_length=2., max_sec_root_length=3., interbranch_distance=2.,
@@ -270,10 +270,9 @@ def test_none_prechange_subprocess_serialization_diagnostics_geometry_rng_parity
     for config in configs.values():
         config.pop("research_fichtl_sigma_by_order", None)
         assert "research_fichtl_sigma_by_order" not in config
-    overlay = next(path for path in sys.path if path.endswith("/locked-overlay"))
     results, hashes = {}, {}
     for name, source in (("prechange", old), ("current", current)):
-        env = {**os.environ, "PYTHONPATH": overlay + os.pathsep + str(source), "PYTHONDONTWRITEBYTECODE": "1"}
+        env = subprocess_environment(source)
         completed = subprocess.run([sys.executable, "-c", NONE_PARITY_SCRIPT], input=json.dumps(configs),
                                    text=True, capture_output=True, check=True, timeout=60, cwd=source, env=env)
         results[name] = json.loads(completed.stdout)
