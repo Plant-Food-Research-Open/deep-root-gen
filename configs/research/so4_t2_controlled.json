@@ -1,0 +1,57 @@
+{
+  "version": "SO4-T2-controlled-v1",
+  "purpose": "Frozen research diagnostic factorization, no observed fitting or biological adoption",
+  "parameters": "examples/research/so4_t2_fichtl2024.json",
+  "seeds": [
+    4101,
+    4102,
+    4103,
+    4104,
+    4105,
+    4106,
+    4107,
+    4108,
+    4109,
+    4110
+  ],
+  "arms": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "insertion_factor": "first segment exactly assigned heading before common physical boundary; search starts segment 2",
+  "boundary_policy": "minimum_angle_projection",
+  "surface_z_cm": 20,
+  "depth_operator": "20-z",
+  "scaffold": "DeepRootGen init_organs then position_secondary_roots then position_primary_roots; no run/validation/gravity",
+  "legacy_continuation": "stored local segment turns under deterministic rotation-minimizing frame transport",
+  "budget": {
+    "new_ensemble_attempts": 40,
+    "per_attempt_seconds": 60,
+    "generation_seconds": 900,
+    "end_to_end_seconds": 1800,
+    "workers": 1,
+    "threads": 2,
+    "new_output_bytes": 1073741824,
+    "automatic_retries": 0
+  },
+  "interpretation": "A/D are controlled research baselines; B/C are diagnostic hybrids; none is native legacy output or exact CPlantBox replay",
+  "parameter_sha256": "3fb6d8be9e011e0bcebebf0ccf53464dec9489bb1c9cbb4d84d7337a038b11f7",
+  "required_settings": {
+    "tropism_mode": "fichtl2024",
+    "soil_surface_z_cm": 20.0,
+    "gravitropism": 0.0,
+    "t": 0,
+    "max_order": 3,
+    "enable_soil": false,
+    "fichtl_probability_down": 0.65,
+    "fichtl_sigma": 0.2,
+    "fichtl_trials_type2": 2.0,
+    "fichtl_trials_type3": 1.0,
+    "fichtl_theta2_deg": 51.8,
+    "fichtl_theta2_sd_deg": 22.5,
+    "fichtl_theta3_deg": 50.4,
+    "fichtl_theta3_sd_deg": 22.5
+  }
+}

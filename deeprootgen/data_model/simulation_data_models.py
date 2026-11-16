@@ -5,10 +5,20 @@ root system architecture simulation procedures.
 
 """
 
+import math
 from enum import Enum
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from ..utils.current_length import validate_current_length_cdf
+from ..utils.primary_attachment import validate_distal_fraction, validate_distal_scope
+from ..utils.tertiary_length_rank import validate_rank_scope, validate_rank_strength
+from ..utils.branching import validate_parent2_branch_zone
+from ..utils.tropism import (
+    row_axial_controls_active, validate_fichtl_sigma_by_order, validate_row_axial_kappas,
+    validate_primary_yaw_reverse_probability,
+)
 
 
 class Config:
@@ -76,6 +86,29 @@ class RootEdgeModel(BaseModel):
     child_id: int
 
 
+class CurrentLengthCDF(BaseModel):
+    """Explicit discrete current organ-length CDF; support is in cm."""
+
+    lengths_cm: List[float]
+    cumulative_probabilities: List[float]
+
+    @model_validator(mode="after")
+    def validate_discrete_cdf(self):
+        validate_current_length_cdf(self.lengths_cm, self.cumulative_probabilities)
+        return self
+
+
+class Parent2BranchZone(BaseModel):
+    basal_cm: float
+    apical_cm: float
+    spacing_cm: float
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_zone(cls, values):
+        return validate_parent2_branch_zone(values)
+
+
 class RootSimulationModel(BaseModel):
     """
     The root system architecture simulation data model.
@@ -121,6 +154,187 @@ class RootSimulationModel(BaseModel):
     no_root_zone: Optional[float] = 1e-4
     floor_threshold: Optional[float] = 0.4
     ceiling_threshold: Optional[float] = 0.9
+    research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
+    research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
+    research_current_length_grid: Optional[Literal["construction_steps_v1"]] = None
+    research_tertiary_length_rank_strength: Optional[float] = None
+    research_parent2_branch_zone_cm: Optional[Parent2BranchZone] = None
+    research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
+    research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
+    research_primary_yaw_reverse_probability: Optional[float] = None
+    research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
+    research_primary_attachment_distal_fraction: Optional[float] = None
+    research_primary_inclination_bias: Optional[float] = Field(default=None, ge=0, le=1, allow_inf_nan=False)
+    research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+    research_base_origin_y_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+    research_base_depth_cm: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
+    tropism_mode: Literal["legacy", "fichtl2024"] = "legacy"
+    soil_surface_z_cm: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+    fichtl_probability_down: Optional[float] = Field(default=None, ge=0, le=1)
+    fichtl_sigma: Optional[float] = Field(default=None, ge=0)
+    research_fichtl_sigma_by_order: Optional[Dict[int, float]] = None
+    fichtl_trials_type2: Optional[float] = Field(default=None, ge=0, le=100)
+    fichtl_trials_type3: Optional[float] = Field(default=None, ge=0, le=100)
+    fichtl_theta2_deg: Optional[float] = Field(default=None, ge=0, le=90)
+    fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
+    fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
+    fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @field_validator("research_primary_attachment_distal_fraction", mode="before")
+    @classmethod
+    def validate_primary_distal_fraction(cls, value):
+        return validate_distal_fraction(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_explicit_primary_distal_seed(cls, values):
+        if isinstance(values, dict) and validate_distal_fraction(values.get("research_primary_attachment_distal_fraction")):
+            seed = values.get("random_seed")
+            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+                raise ValueError("Primary attachment placement requires explicit nonnegative integer seed")
+        return values
+
+    @model_validator(mode="after")
+    def require_primary_distal_scope(self):
+        validate_distal_scope(self)
+        return self
+
+    @field_validator("research_tertiary_length_rank_strength", mode="before")
+    @classmethod
+    def validate_tertiary_rank_strength(cls, value):
+        return validate_rank_strength(value)
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_explicit_tertiary_rank_seed(cls, values):
+        if isinstance(values, dict) and validate_rank_strength(values.get("research_tertiary_length_rank_strength")):
+            seed = values.get("random_seed")
+            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+                raise ValueError("Tertiary length rank requires explicit nonnegative integer seed")
+        return values
+
+    @model_validator(mode="after")
+    def require_tertiary_rank_scope(self):
+        validate_rank_scope(self)
+        return self
+
+    @model_validator(mode="after")
+    def require_fichtl_order_sigmas(self):
+        if self.research_fichtl_sigma_by_order is not None:
+            if self.tropism_mode != "fichtl2024":
+                raise ValueError("Order sigma overrides require fichtl2024 mode")
+            validate_fichtl_sigma_by_order(self.research_fichtl_sigma_by_order, self.max_order)
+        return self
+
+    @field_validator("research_fichtl_sigma_by_order", mode="before")
+    @classmethod
+    def validate_order_sigma_mapping(cls, value):
+        return validate_fichtl_sigma_by_order(value)
+
+    @model_validator(mode="after")
+    def validate_construction_step_scope(self):
+        if self.research_parent2_branch_zone_cm is not None and self.research_current_length_grid != "construction_steps_v1":
+            raise ValueError("Parent2 branch zone requires construction_steps_v1")
+        if self.research_current_length_grid is not None:
+            if (self.tropism_mode != "fichtl2024" or self.max_order != 3 or self.random_seed is None
+                    or self.research_current_length_cdfs_cm is None
+                    or set(self.research_current_length_cdfs_cm) != {2, 3}):
+                raise ValueError("Construction-step grid requires Fichtl/max_order3/explicit seed/CDF2&3")
+        return self
+
+    @model_validator(mode="after")
+    def require_seeded_primary_inclination(self):
+        if self.research_primary_inclination_bias and self.random_seed is None:
+            raise ValueError("Positive research primary inclination requires an explicit random_seed")
+        return self
+
+    @model_validator(mode="after")
+    def validate_insertion_row_axial(self):
+        self.research_insertion_row_axial_kappa = validate_row_axial_kappas(
+            self.research_insertion_row_axial_kappa, self.max_order,
+        )
+        if row_axial_controls_active(self.research_insertion_row_axial_kappa):
+            if self.tropism_mode != "fichtl2024" or self.random_seed is None:
+                raise ValueError("Active row-axial insertion requires Fichtl mode and explicit random_seed")
+        return self
+
+    @model_validator(mode="after")
+    def validate_current_length_orders(self):
+        cdfs = self.research_current_length_cdfs_cm
+        if cdfs is not None:
+            if not cdfs or any(order not in (2, 3) or order > self.max_order for order in cdfs):
+                raise ValueError("Current-length CDFs require a nonempty selection of supported orders 2/3")
+            if self.random_seed is None or self.segments_per_root <= 0:
+                raise ValueError("Current-length CDFs require an explicit random_seed and positive segments_per_root")
+        return self
+
+    @model_validator(mode="after")
+    def require_explicit_root_origin(self):
+        values = (self.research_base_origin_x_cm, self.research_base_origin_y_cm, self.research_base_depth_cm)
+        if any(value is not None for value in values):
+            if any(value is None for value in values):
+                raise ValueError("Research base origin x/y/depth must be supplied together")
+            if "soil_surface_z_cm" not in self.model_fields_set:
+                raise ValueError("Research base origin requires an explicit soil_surface_z_cm")
+            if self.tropism_mode != "fichtl2024":
+                raise ValueError("Research base origin currently requires fichtl2024 mode")
+        return self
+
+    @model_validator(mode="before")
+    @classmethod
+    def require_explicit_reversal_seed(cls, values):
+        if isinstance(values, dict) and validate_primary_yaw_reverse_probability(
+                values.get("research_primary_yaw_reverse_probability")):
+            seed = values.get("random_seed")
+            if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+                raise ValueError("Active primary yaw reversal requires explicit nonnegative integer seed")
+        return values
+
+    @field_validator("research_primary_yaw_reverse_probability", mode="before")
+    @classmethod
+    def validate_yaw_reverse_probability(cls, value):
+        return validate_primary_yaw_reverse_probability(value)
+
+    @model_validator(mode="after")
+    def require_paired_primary_yaw_parameters(self):
+        if (self.research_primary_yaw_mean_deg is None) != (self.research_primary_yaw_kappa is None):
+            raise ValueError("Research primary yaw mean and kappa must be supplied together")
+        if self.research_primary_yaw_reverse_probability and self.research_primary_yaw_mean_deg is None:
+            raise ValueError("Active primary yaw reversal requires explicit yaw mean/kappa")
+        if self.research_primary_yaw_mean_deg is not None and self.random_seed is None:
+            raise ValueError("Research primary yaw requires an explicit random_seed")
+        return self
+
+    @model_validator(mode="after")
+    def require_explicit_fichtl_parameters(self):
+        if self.soil_surface_z_cm and self.enable_soil:
+            raise ValueError(
+                "Offset soil surface requires the offline aligned observation route"
+            )
+        if self.tropism_mode == "fichtl2024":
+            if self.gravitropism != 0:
+                raise ValueError("Set legacy gravitropism to zero in fichtl2024 mode")
+            if self.max_order > 3:
+                raise ValueError(
+                    "fichtl2024 mode currently supports orders 1 through 3"
+                )
+            names = (
+                "fichtl_probability_down",
+                "fichtl_sigma",
+                "fichtl_trials_type2",
+                "fichtl_trials_type3",
+                "fichtl_theta2_deg",
+                "fichtl_theta2_sd_deg",
+                "fichtl_theta3_deg",
+                "fichtl_theta3_sd_deg",
+            )
+            if any(getattr(self, name) is None for name in names):
+                raise ValueError(
+                    "fichtl2024 mode requires explicit tropism/angle parameters"
+                )
+            if any(not math.isfinite(getattr(self, name)) for name in names):
+                raise ValueError("fichtl2024 parameters must be finite")
+        return self
 
 
 class ParameterIntervalModel(BaseModel):
