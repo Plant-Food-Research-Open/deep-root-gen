@@ -44,7 +44,10 @@ jobs:
         bash scripts/docs/create.sh
 
     - name: Deploy to GitHub pages 🚀
-      if: github.event_name != 'pull_request'
+      # Forks build documentation without publishing a separate Pages site.
+      if: >-
+        github.repository == 'Plant-Food-Research-Open/deep-root-gen' &&
+        github.event_name != 'pull_request'
       uses: JamesIves/github-pages-deploy-action@v4.4.1
       with:
         clean: false

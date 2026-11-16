@@ -78,3 +78,14 @@ The old fixed digest strings stay as provenance; no new CI digest is accepted.
 Failure evidence now includes the historical payload for direct comparison.
 Negative controls prove a changed payload fails, corrupted reference patch or
 postimage fails authentication, and diagnostics do not swallow the assertion.
+
+## Fork documentation deployment policy
+
+The fork has no configured Pages site (`has_pages: false`, verified 16 November
+2026); the README points to the authoritative PFR documentation site. The
+documentation workflow still builds on fork main pushes and manual dispatches,
+but its deployment step now runs only in
+`Plant-Food-Research-Open/deep-root-gen`. Upstream triggers and deployment action
+are unchanged. This deliberately skips fork publication; it does not repair or
+claim to repair the previous bot push HTTP 403. No token permissions, repository
+settings, credentials, or Pages configuration were changed.
