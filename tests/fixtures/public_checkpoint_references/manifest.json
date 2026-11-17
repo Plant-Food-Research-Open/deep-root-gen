@@ -169,6 +169,32 @@
         "deeprootgen/utils/primary_attachment.py": null,
         "deeprootgen/utils/tertiary_length_rank.py": null
       }
+    },
+    "pre_ou_physical": {
+      "patch": "pre_ou_physical.patch",
+      "patch_sha256": "652513c19329ca6dea1d979266407f596543f4d9892c67fbf5ef8c505dfeb90c",
+      "baseline_modules_sha256": {
+        "deeprootgen/research/physical_step_replay.py": "f426c8dc3fb68e8b2515eb3f45fe185ddd08ec6c3c3b672f0a217a39230273b8"
+      },
+      "reference_modules_sha256": {
+        "deeprootgen/research/physical_step_replay.py": "e4e7e4b545476e5e9944b1e094809b51780cfb232b8bfe2d78a7521f7434a16a"
+      },
+      "provenance": "Authenticated pre-feature source epoch; exact hashes recorded before feature implementation. Source only, no observations/results."
+    },
+    "pre_primary_design": {
+      "patch": "pre_primary_design.patch",
+      "patch_sha256": "b9b4036129d945c16f5edeaa928ebaabdd92930339aaee3106c90fe93402bb48",
+      "baseline_modules_sha256": {
+        "deeprootgen/research/so4_controlled.py": "11db452f748fffe1aa7705a126b4fc1575fdeda8137492c718e89f9f0eb50ba8",
+        "deeprootgen/data_model/simulation_data_models.py": "1eeea5bbd47dcae41ac01c59356690ad381dfd1fe04e25bb53eb5bbb4c8e6919",
+        "deeprootgen/model/root.py": "01efeb010c6892defea18335da13e6ecac56904787dca69dbe751fbc14ce91a5"
+      },
+      "reference_modules_sha256": {
+        "deeprootgen/research/so4_controlled.py": "d8c5f872770df786fac856dfe6cd92f1000f1496f04929b0419cadd616bf141b",
+        "deeprootgen/data_model/simulation_data_models.py": "1800c13f1c7cbda710cb679c6d35b22c7b90a5e37e555d65e1c47ce9197c2786",
+        "deeprootgen/model/root.py": "32c7888214085fc9a56157d89e7943d1770f8e3e53f8a8ad1f78203182bad8be"
+      },
+      "provenance": "Authenticated pre-feature source epoch; exact hashes recorded before feature implementation. Source only, no observations/results."
     }
   },
   "scope": "Restore changed public package modules to prior checkpoint bytes; untouched modules share the installed/public runtime on both sides."

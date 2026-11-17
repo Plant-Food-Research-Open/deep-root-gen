@@ -526,7 +526,7 @@ def test_all_physical_vertices_are_exported_with_no_chord_shortcuts():
     ],
 )
 def test_cap_default_output_bytes_match_pre_ou_source_epoch(
-    maximum, orders, cap, seed, expected
+    maximum, orders, cap, seed, expected, tmp_path
 ):
     # Recorded from public cap module SHA256 e4e7e4b545476e5e9944b1e094809b51780cfb232b8bfe2d78a7521f7434a16a,
     # before OU implementation. Includes nodes, edges, proposals and diagnostics.
@@ -538,7 +538,23 @@ def test_cap_default_output_bytes_match_pre_ou_source_epoch(
         key: value.to_dict("records") if hasattr(value, "to_dict") else value
         for key, value in result.items()
     }
-    assert digest(encoded) == expected
+    from tests.portable_hash_cases import historical_payload
+    from tests.hash_failure_diagnostics import canonical_bytes
+
+    reference = historical_payload(
+        tmp_path, "pre_ou_physical", ["physical", maximum, orders, cap, seed]
+    )
+    # expected retains the original cross-runtime digest as provenance only.
+    # Exact same-runtime bytes remain the acceptance contract, with no tolerance.
+    try:
+        assert canonical_bytes(encoded) == canonical_bytes(reference)
+    except AssertionError:
+        from tests.hash_failure_diagnostics import record_failure
+
+        record_failure(
+            "physical-cap", {"actual": encoded, "reference": reference}, expected
+        )
+        raise
 
 
 @pytest.mark.parametrize("cap", [2.0, 1.0, 0.5])

@@ -378,7 +378,7 @@ def test_duplicate_ids_constructor_seed_and_mutated_design_are_rejected():
         RootSystemSimulation(random_seed=42).init_organs(p)
 
 
-def test_inactive_field_retains_preimplementation_initial_identity():
+def test_inactive_field_retains_preimplementation_initial_identity(tmp_path):
     # Paired against the exact pre-edit source copy in
     # Preimplementation qualification used only invented public fixture values.
     spec = values(
@@ -393,11 +393,26 @@ def test_inactive_field_retains_preimplementation_initial_identity():
         RootSimulationModel(**dict(spec, research_primary_design=None)), 42
     )
     assert "research_primary_design" not in omitted.payload["parameters"]
-    assert (
-        omitted.sha256
-        == explicit_none.sha256
-        == "87b5eae47aff0685b192fb8a4734664d00c601ba9ca69dbbcacf29ba3edd8b90"
-    )
+    from tests.portable_hash_cases import historical_payload
+    from tests.hash_failure_diagnostics import canonical_bytes
+
+    reference = historical_payload(tmp_path, "pre_primary_design", ["initial"])
+    try:
+        assert canonical_bytes(omitted.payload) == canonical_bytes(reference)
+        assert omitted.sha256 == explicit_none.sha256
+    except AssertionError:
+        from tests.hash_failure_diagnostics import record_failure
+
+        record_failure(
+            "inactive-primary-design",
+            {
+                "omitted": omitted.payload,
+                "explicit_none": explicit_none.payload,
+                "reference": reference,
+            },
+            "87b5eae47aff0685b192fb8a4734664d00c601ba9ca69dbbcacf29ba3edd8b90",
+        )
+        raise
 
 
 @pytest.mark.parametrize("maximum", [4, 5])

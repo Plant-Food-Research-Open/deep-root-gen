@@ -64,3 +64,14 @@ current source with the same interpreter/dependencies/hardware. It asserts exact
 CSV bytes, table dtypes, geometry and final RNG state, plus loaded module paths.
 Historical digest differences across runners do not establish their cause and
 are not resolved by changing hashes or numerical tolerances.
+
+## Additional pre-OU and pre-primary-design epochs
+
+`pre_ou_physical` and `pre_primary_design` restore pre-feature source bytes
+independently retained by the original implementation qualification. Unlike the
+older entries these epochs do not have a separate published commit: exact module
+SHA256s are their identities, recorded before the changes and reverified before
+fixture generation. Only source-only diffs are included, never private run data,
+parameters or filesystem paths. The manifest binds current preimages, historical
+postimages and patch bytes. Same-runtime exact payload equality replaces the
+nonportable fixed floating digest, not the original historical digest values.

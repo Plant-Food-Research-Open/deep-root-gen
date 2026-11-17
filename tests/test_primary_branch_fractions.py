@@ -327,12 +327,12 @@ def test_native_initial_rng_daughter_lengths_and_primary_material_intervals_pres
             )
 
 
-def test_native_inactive_historical_initial_hash_remains_exact():
+def test_native_inactive_historical_initial_hash_remains_exact(tmp_path):
     from tests.test_primary_design import (
         test_inactive_field_retains_preimplementation_initial_identity,
     )
 
-    test_inactive_field_retains_preimplementation_initial_identity()
+    test_inactive_field_retains_preimplementation_initial_identity(tmp_path)
 
 
 def test_active_primary_fractions_bypass_unused_global_window_distribution(monkeypatch):
