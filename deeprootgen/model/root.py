@@ -58,6 +58,7 @@ class RootOrgan:
         root_type: RootTypeModel,
         simulation_tag: str,
         rng: np.random.Generator,
+        planned: bool = False,
     ) -> None:
         self.parent_node = parent_node
         self.segments: List[RootNode] = []
@@ -65,6 +66,14 @@ class RootOrgan:
         self.lateral_attachment_nodes: List[RootNode] = []
         self.input_parameters = input_parameters
         self.root_type = root_type
+        self.mass = 0.0
+        self.reset_transform()
+        self.simulation_tag = simulation_tag
+        self.rng = rng
+        self.invalid_root = False
+        if planned:
+            self.fine_root_threshold = input_parameters.fine_root_threshold
+            return
         self.base_diameter = input_parameters.base_diameter
         self.fine_root_threshold = input_parameters.fine_root_threshold
         self.proot_length_interval = np.array(
@@ -74,11 +83,6 @@ class RootOrgan:
             [input_parameters.min_sec_root_length, input_parameters.max_sec_root_length]
         )
         self.length_reduction = input_parameters.length_reduction
-        self.mass = 0.0
-        self.reset_transform()
-        self.simulation_tag = simulation_tag
-        self.rng = rng
-        self.invalid_root = False
 
     def init_diameters(
         self, segments_per_root: int, apex_diameter: float
@@ -201,6 +205,12 @@ class RootOrgan:
         factor = (1 - growth) ** -(current_order - 1)
         return int(math.ceil(n * factor))
 
+    def _requested_daughter_count(self):
+        count_mode = getattr(self.input_parameters, COUNTS_FIELD, None) is not None
+        if count_mode and not hasattr(self, "_conditioned_child_quota"):
+            raise ValueError("Count conditioning requires a planned per-parent quota before construction")
+        return self._conditioned_child_quota if count_mode else self._draw_lateral_count()
+
     def _prepare_branch_nodes(
         self,
         diameters: np.ndarray,
@@ -214,9 +224,7 @@ class RootOrgan:
         parent-organ segment, and is mapped to its new segment index.
         """
         count_mode = getattr(self.input_parameters, COUNTS_FIELD, None) is not None
-        if count_mode and not hasattr(self, "_conditioned_child_quota"):
-            raise ValueError("Count conditioning requires a planned per-parent quota before construction")
-        n_requested = self._conditioned_child_quota if count_mode else self._draw_lateral_count()
+        n_requested = RootOrgan._requested_daughter_count(self)
         zone = getattr(self.input_parameters, "research_parent2_branch_zone_cm", None)
         if zone is not None and int(self.parent_node.node_data.order) + 1 != 2:
             zone = None
@@ -682,6 +690,16 @@ class RootSystemSimulation:
     def get_yaw(self, number_of_roots: int) -> tuple:
         yaw_base = 360 / number_of_roots
         return yaw_base, yaw_base * 0.05, yaw_base
+
+    def _realize_organs(self, tasks, realize):
+        """Own parent-before-child scheduling for extended construction policies.
+
+        A policy can enqueue daughters after realizing their parent's curve and
+        point material. Preconstructed native plans use the same ordered queue.
+        """
+        self._organ_queue = tasks
+        while tasks:
+            realize(tasks.popleft())
 
     def plot_hierarchical_graph(
         self,
@@ -1279,7 +1297,47 @@ class RootSystemSimulation:
             if getattr(primary, "validation_reorientations", 0) or primary.invalid_root:
                 raise ValueError("Primary validation changed or invalidated optional yaw/origin/inclination initialization")
 
-    def run(self, input_parameters: RootSimulationModel) -> None:
+    def run(self, input_parameters: RootSimulationModel, *, initial_recorder=None) -> None:
+        from ..data_model.execution import RootSimulationConfig
+        if isinstance(input_parameters, RootSimulationConfig):
+            # Detach and revalidate: callers can mutate nested Pydantic objects.
+            input_parameters = RootSimulationConfig.model_validate(input_parameters.model_dump())
+            if len(self.G.nodes) != 1 or self.organs or getattr(self, '_extended_run_started', False):
+                raise ValueError("Use a fresh simulator for each extended run")
+            if self.random_seed != input_parameters.random_seed:
+                raise ValueError("Simulator and execution random_seed must match")
+            self._extended_run_started = True
+            self.result = None
+            if initial_recorder is not None and input_parameters.trajectory != 'construction_steps_v1':
+                raise ValueError('INITIAL recording requires construction-step execution')
+            if input_parameters.trajectory == 'cohort_v5':
+                from .cohort import run_cohort
+                run_cohort(self, input_parameters)
+                self._check_extended_result()
+                return
+            if input_parameters.trajectory == 'construction_steps_v1':
+                from .execution import run_construction_steps
+                run_construction_steps(self, input_parameters, initial_recorder=initial_recorder)
+                self._check_extended_result()
+                return
+            self.simulation_tag = input_parameters.simulation_tag
+            self._run_native(input_parameters.construction.parameters)
+            from .execution import SimulationResult
+            self.result = SimulationResult(metadata=dict(
+                schema_version=2, execution='native', seed=input_parameters.random_seed,
+                requested_simulation_tag=input_parameters.simulation_tag,
+                tropism_mode=input_parameters.construction.parameters.tropism_mode,
+                biological_validation=False))
+            self._check_extended_result()
+            return
+        if initial_recorder is not None:
+            raise ValueError('INITIAL recording requires extended construction-step execution')
+        if getattr(self, '_extended_run_started', False):
+            raise ValueError("Use a fresh simulator after an extended run")
+        self._run_native(input_parameters)
+
+    def _run_native(self, input_parameters):
+        """Retain native call and random-draw ordering for flat compatibility."""
         if (getattr(input_parameters, "research_current_length_grid", None) is not None
                 or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None
                 or validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None))
@@ -1293,6 +1351,7 @@ class RootSystemSimulation:
         if getattr(input_parameters, "tropism_mode", "legacy") == "fichtl2024":
             self.validate(input_parameters, pitch=60, orders=(1,))
             self._check_optional_primary_validation(input_parameters)
+
             self.apply_fichtl_tropism(input_parameters)
             self.validate(
                 input_parameters,
@@ -1304,6 +1363,14 @@ class RootSystemSimulation:
             self.apply_gravitropism(input_parameters.gravitropism)
             self.validate(input_parameters, pitch=60)
             self._check_optional_primary_validation(input_parameters)
+
+    def _check_extended_result(self):
+        from .integrity import validate_result
+        try:
+            validate_result(self)
+        except Exception:
+            self.result = None
+            raise
 
     def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
         """Keep the generated primary scaffold; reconstruct attached lateral paths.

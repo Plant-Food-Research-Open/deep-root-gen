@@ -16,3 +16,4 @@ from .simulation_data_models import (
     StatisticsComparisonModel,
     SummaryStatisticsModel,
 )
+from .execution import RootSimulationConfig

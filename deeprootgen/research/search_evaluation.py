@@ -346,11 +346,21 @@ def simulate_sample(parameters, seed: int, *, route: str):
     validated = validate_simulation_parameters(values, route=route)
     from .so4_controlled import construct_skeleton, digest, replay_arm
 
-    initial = construct_skeleton(validated, seed)
     if route == "construction_steps_v1":
-        from .construction_step_replay import replay_construction_steps
-        result = replay_construction_steps(initial, "D", validated, "minimum_angle_projection", surface_z=20.)
+        from ..data_model import RootSimulationConfig
+        from ..model import RootSystemSimulation
+        from .so4_controlled import capture_initial
+        snapshots = []
+        config = RootSimulationConfig(random_seed=seed, simulation_tag=validated['simulation_tag'],
+                                      construction=dict(kind='native', parameters=validated), trajectory='construction_steps_v1')
+        simulation = RootSystemSimulation(random_seed=seed)
+        simulation.run(config, initial_recorder=lambda sim, p: snapshots.append(capture_initial(sim, p)))
+        initial = snapshots[0]
+        nodes, edges = simulation.G.as_df()
+        result = dict(nodes=nodes, edges=edges)
     else:
+        # Archived graph-segment experiment; not a supported extended contract.
+        initial = construct_skeleton(validated, seed)
         result = replay_arm(initial, "D", validated, "minimum_angle_projection", surface_z=20.)
     sample = summarize_sample(result["nodes"], result["edges"], seed=seed, surface_z_cm=20.,
                               root_orders=list(range(1, validated["max_order"] + 1)))

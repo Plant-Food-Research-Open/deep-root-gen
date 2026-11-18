@@ -1,5 +1,19 @@
 # Architecture and code map
 
+For further AI-assisted changes, start with the [AI coding guide](AI_CODING_GUIDE.md)
+and [lessons learned](AI_CODING_LESSONS.md). They distinguish preserved contracts,
+current implementation and the proposed single-engine architecture.
+
+17 November integration update: [native execution and compatibility contracts](NATIVE_EXECUTION.md)
+now describe the supported engine. The route diagrams below retain the
+pre-consolidation source review; cohort generation and fresh SO4 construction-step
+samples now execute through native `RootSystemSimulation.run()`.
+
+For the current native, Fichtl/SO4 and Calvin input paths, see
+[input layers and detailed model flow](INPUT_LAYERS_AND_MODEL_FLOW.md). It
+separates shared construction, controlled replay, the cohort constructor and
+downstream observation inputs, with diagrams and a parameter crosswalk.
+
 Reviewed 2026-10-28 against code revision
 `fc9136263eb7dff1b2e047d1cf3f0de8bdafbedf`. Paths below are relative to this
 repository. This is a source map, not proof that the application runs locally.

@@ -16,13 +16,19 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     """
     import numpy as np
 
-    from .data_model import RootSimulationModel
+    from .data_model import RootSimulationModel, RootSimulationConfig
     from .model import RootSystemSimulation
 
     target = Path(outdir).expanduser().resolve()
     if target.exists():
         raise FileExistsError(f"Output directory already exists: {target}")
-    parameters = RootSimulationModel(**spec)
+    if "construction" in spec and "schema_version" not in spec:
+        raise ValueError("Extended construction requires explicit schema_version=2")
+    parameters = (
+        RootSimulationConfig(**spec)
+        if "schema_version" in spec
+        else RootSimulationModel(**spec)
+    )
     simulation = RootSystemSimulation(
         random_seed=parameters.random_seed,
         simulation_tag=parameters.simulation_tag,
@@ -37,8 +43,47 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     edges.to_csv(target / "edges.csv", index=False)
     resolved = parameters.model_dump()
     (target / "parameters.json").write_text(json.dumps(resolved, indent=2) + "\n")
-    figure = simulation.init_fig(parameters)
-    simulation.plot_root_system(figure, nodes).write_html(target / "roots.html")
+    if isinstance(parameters, RootSimulationConfig):
+        import plotly.graph_objects as go
+
+        figure = go.Figure()
+        lookup = nodes.set_index("node_id")
+        points = []
+        for parent, child in edges[["parent_id", "child_id"]].itertuples(
+            index=False, name=None
+        ):
+            points.extend(
+                [
+                    lookup.loc[parent, ["x", "y", "z"]].tolist(),
+                    lookup.loc[child, ["x", "y", "z"]].tolist(),
+                    [None, None, None],
+                ]
+            )
+        if points:
+            figure.add_trace(
+                go.Scatter3d(
+                    x=[p[0] for p in points],
+                    y=[p[1] for p in points],
+                    z=[p[2] for p in points],
+                    mode="lines",
+                    name="Root axes",
+                )
+            )
+        figure.update_layout(scene=dict(aspectmode="data"))
+        figure.write_html(target / "roots.html")
+        result = simulation.result
+        result.organ_table.to_csv(target / "organs.csv", index=False)
+        if not result.node_metadata.empty:
+            result.node_metadata.to_csv(target / "node_metadata.csv", index=False)
+        (target / "execution.json").write_text(
+            json.dumps(result.metadata, indent=2) + "\n"
+        )
+        (target / "crown_support.json").write_text(
+            json.dumps(result.crown_support, indent=2) + "\n"
+        )
+    else:
+        figure = simulation.init_fig(parameters)
+        simulation.plot_root_system(figure, nodes).write_html(target / "roots.html")
     versions = {
         name: importlib.metadata.version(name)
         for name in ("deeprootgen", "numpy", "pandas", "torch", "pydantic")

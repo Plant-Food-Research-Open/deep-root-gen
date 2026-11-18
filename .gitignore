@@ -178,3 +178,7 @@ coverage.json
 # Directory patterns apply at any depth and cover current and future dates.
 [Cc]alvin*/
 [Rr]oot_[Aa]rchitecture_[Pp]resentation*/
+
+# Locally generated printable documentation and PDF layout previews.
+/output/pdf/
+/tmp/pdfs/

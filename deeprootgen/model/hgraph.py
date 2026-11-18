@@ -119,7 +119,7 @@ class RootEdge:
 class RootSystemGraph:
     """The hierarchical graph representation of the root system."""
 
-    def __init__(self) -> None:
+    def __init__(self, create_base: bool = True) -> None:
         """RootSystemGraph constructor.
 
         Returns:
@@ -132,9 +132,13 @@ class RootSystemGraph:
         self.organ_id = 0
 
         # Base organ node
-        node_data = RootNodeModel()
-        node_data.organ_id = self.increment_organ_id()
-        self.base_node = self.add_node(node_data)
+        self.base_node = None
+        self.bases = []
+        if create_base:
+            node_data = RootNodeModel()
+            node_data.organ_id = self.increment_organ_id()
+            self.base_node = self.add_node(node_data)
+            self.bases.append(self.base_node)
 
         self.organ_columns = dict(
             organ_coordinates=["x", "y", "z"],
@@ -175,6 +179,29 @@ class RootSystemGraph:
         edge = RootEdge(self, edge_data)
         self.edges.append(edge)
         return edge
+
+    def apply_records(self, records):
+        """Commit a planned geometry edit without reallocating existing IDs.
+
+        New attachment cuts reserve explicit node IDs, while biological organ
+        IDs remain untouched. Native organ objects are rebound by their owner.
+        """
+        data = {nid: RootNodeModel(**row) for nid, row in records.items()}
+        edge_data = [RootEdgeModel(parent_id=records[n]['parent_id'], child_id=n)
+                     for n in sorted(records, key=lambda n: (records[n]['parent_id'], n))
+                     if records[n]['order'] > 0]
+        live = {node.node_data.node_id: node for node in self.nodes}
+        if not set(live).issubset(data):
+            raise ValueError('A geometry edit cannot silently remove native nodes')
+        for nid, row in data.items():
+            if nid not in live:
+                live[nid] = RootNode(self, row)
+            else:
+                live[nid].node_data = row
+        self.nodes = [live[n] for n in sorted(live)]
+        self.node_id = max(live) + 1
+        self.edges = [RootEdge(self, row) for row in edge_data]
+        return live
 
     def increment_node_id(self) -> int:
         """Increment the node ID.
@@ -254,14 +281,15 @@ class RootSystemGraph:
         elif edge_df is None:
             _, edge_df = self.as_df()
 
-        G = nx.from_pandas_edgelist(
+        G = (nx.Graph() if edge_df.empty else nx.from_pandas_edgelist(
             edge_df, "parent_id", "child_id", create_using=nx.Graph()
-        )
+        ))
+        G.add_nodes_from(node_df.node_id)
 
         def set_node_attributes(k: str, columns: list) -> None:
             columns.append("node_id")
             node_features = (
-                node_df[columns].set_index("node_id", drop=drop).T.squeeze().to_dict()
+                node_df[columns].set_index("node_id", drop=drop).T.to_dict()
             )
             nx.set_node_attributes(G, node_features, k)
 
@@ -273,7 +301,7 @@ class RootSystemGraph:
         set_node_attributes("organ_size", ["diameter", "length", "root_tissue_density"])
         set_node_attributes("organ_meta", ["simulation_tag", "invalid_root"])
 
-        node_features = node_df.set_index("node_id", drop=drop).T.squeeze().to_dict()
+        node_features = node_df.set_index("node_id", drop=drop).T.to_dict()
         nx.set_node_attributes(G, node_features, "x")
 
         return G

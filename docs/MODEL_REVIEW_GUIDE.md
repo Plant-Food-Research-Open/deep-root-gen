@@ -1,5 +1,14 @@
 # Model configurations, inputs and review workflow
 
+17 November integration update: [native execution and compatibility contracts](NATIVE_EXECUTION.md)
+now describe the supported engine. The route diagrams below retain the
+pre-consolidation source review; cohort generation and fresh SO4 construction-step
+samples now execute through native `RootSystemSimulation.run()`.
+
+For diagrams of how these interfaces connect and which functions they share,
+start with [input layers and detailed model flow](INPUT_LAYERS_AND_MODEL_FLOW.md).
+Its parameter crosswalk compares the same architectural controls across routes.
+
 Source review: 16 November 2026, local revision
 `3672959b6460bd9b06170bee0c8fdbd48b1e5d31`. This describes the local code;
 GitHub main and the public PR stack have different source identities. See

@@ -198,14 +198,16 @@ def test_real_tiny_route_is_repeatable_fresh_and_retains_requested_identity(rout
     values = parameters(active=route == "construction_steps_v1").model_dump()
     values["simulation_tag"] = "invented-notebook-run"
     original = copy.deepcopy(values)
-    calls, construct = [], so4_controlled.construct_skeleton
+    calls = []
+    function_name = 'capture_initial' if route == 'construction_steps_v1' else 'construct_skeleton'
+    construct = getattr(so4_controlled, function_name)
 
     def record(*args):
         result = construct(*args)
         calls.append(result)
         return result
 
-    monkeypatch.setattr(so4_controlled, "construct_skeleton", record)
+    monkeypatch.setattr(so4_controlled, function_name, record)
     first = search.simulate_sample(values, 42, route=route)
     second = search.simulate_sample(values, 42, route=route)
     assert first == second and len(calls) == 2 and calls[0] is not calls[1]
