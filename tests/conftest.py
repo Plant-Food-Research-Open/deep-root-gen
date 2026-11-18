@@ -7,6 +7,13 @@ import pandas as pd
 import pytest
 
 
+@pytest.fixture(scope="session")
+def native_reference_outputs(tmp_path_factory):
+    from tests.native_execution_reference import replay_native_contracts
+
+    return replay_native_contracts(tmp_path_factory.mktemp("native-execution-reference"))
+
+
 @pytest.fixture
 def rsa_nodes() -> pd.DataFrame:
     """3 organs, 5 valid segments, two 90-degree lateral junctions.

@@ -292,8 +292,13 @@ diameters. Native organ-average labels retain their meaning on untapered axes.
 | Dash/Prefect persistence, BentoML, native calibration/legacy statistics | Flat native requests only; Prefect rejects other requests before side effects |
 
 The unchanged historical reference commit is recorded in
-`tests/fixtures/native_execution_contracts.json`. Its expected hashes were
-computed from isolated reference source and were not regenerated.
+`tests/fixtures/native_execution_contracts.json`. Its original hashes record
+the exports from the reference runtime. The tests verify the SHA-256 of the
+archived Python source and its recorded modules, then replay the original
+synthetic inputs in a separate process using the current test environment.
+They require exact equality across that replay and the current archive
+entrypoint. The comparison covers tables, RNG states and applicable
+construction and cohort diagnostics.
 
 `limits.max_organs`, `max_nodes` and `max_stations` fail explicitly before the
 corresponding allocation; successful-run model identity excludes these limits.
