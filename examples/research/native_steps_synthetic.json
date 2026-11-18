@@ -1,0 +1,94 @@
+{
+  "schema_version": 2,
+  "random_seed": 42,
+  "simulation_tag": "invented-native-integration",
+  "construction": {
+    "kind": "native",
+    "parameters": {
+      "random_seed": 42,
+      "max_order": 3,
+      "root_ratio": 0.5,
+      "fine_root_threshold": 0.06,
+      "outer_root_num": 1,
+      "inner_root_num": 1,
+      "min_primary_length": 5.0,
+      "max_primary_length": 6.0,
+      "base_diameter": 0.11,
+      "diameter_reduction": 0.2,
+      "apex_diameter": 0.02,
+      "min_sec_root_num": 1,
+      "max_sec_root_num": 2,
+      "growth_sec_root": 0.2,
+      "min_sec_root_length": 2.0,
+      "max_sec_root_length": 3.0,
+      "segments_per_root": 2,
+      "length_reduction": 0.5,
+      "root_vary": 2.0,
+      "interbranch_distance": 0.5,
+      "mechanical_constraints": 0.5,
+      "root_tissue_density": 0.05,
+      "gravitropism": 0.0,
+      "t": 0,
+      "origin_min": 0.001,
+      "origin_max": 0.01,
+      "enable_soil": false,
+      "soil_layer_height": 0,
+      "soil_layer_width": 0,
+      "soil_n_layers": 0,
+      "soil_n_cols": 0,
+      "max_val_attempts": 50,
+      "simulation_tag": "synthetic-smoke-seed42",
+      "no_root_zone": 0.0001,
+      "floor_threshold": 0.4,
+      "ceiling_threshold": 0.9,
+      "research_branch_placement": "redistribute_capped",
+      "research_current_length_cdfs_cm": {
+        "2": {
+          "lengths_cm": [
+            10.0
+          ],
+          "cumulative_probabilities": [
+            1.0
+          ]
+        },
+        "3": {
+          "lengths_cm": [
+            2.0
+          ],
+          "cumulative_probabilities": [
+            1.0
+          ]
+        }
+      },
+      "research_current_length_grid": "construction_steps_v1",
+      "research_tertiary_length_rank_strength": null,
+      "research_parent2_branch_zone_cm": null,
+      "research_insertion_row_axial_kappa": null,
+      "research_primary_yaw_mean_deg": 35.0,
+      "research_primary_yaw_reverse_probability": null,
+      "research_primary_yaw_kappa": 2.0,
+      "research_primary_attachment_distal_fraction": null,
+      "research_primary_inclination_bias": 0.3,
+      "research_primary_design": null,
+      "research_primary_branch_zone_cm": null,
+      "research_primary_branch_fractions": null,
+      "research_base_origin_x_cm": 1.0,
+      "research_base_origin_y_cm": -2.0,
+      "research_base_depth_cm": 8.0,
+      "tropism_mode": "fichtl2024",
+      "soil_surface_z_cm": 20.0,
+      "fichtl_probability_down": 0.5,
+      "fichtl_sigma": 0.1,
+      "research_fichtl_sigma_by_order": null,
+      "research_higher_order_tropism": null,
+      "research_root_counts_by_order": null,
+      "fichtl_trials_type2": 1.0,
+      "fichtl_trials_type3": 1.0,
+      "fichtl_theta2_deg": 50.0,
+      "fichtl_theta2_sd_deg": 10.0,
+      "fichtl_theta3_deg": 50.0,
+      "fichtl_theta3_sd_deg": 10.0
+    }
+  },
+  "trajectory": "construction_steps_v1"
+}

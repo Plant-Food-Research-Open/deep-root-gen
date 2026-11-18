@@ -113,6 +113,12 @@ equations, unsupported compositions and the distinction between conditioning
 and prediction. `t` does not cause growth and cannot represent elapsed months.
 
 Caller-provided empirical bundles remain local. The distributed notebook defaults to invented inputs, and execution is disabled until explicitly enabled.
+The local D-04 starter bundle is
+`.runtime/research/so4-t4-order5-20261115-v1/d04_bundle/search_config.private.json`.
+Notebook 5 can select it explicitly; its execution flags still default to false.
+The local bundle records the RSML nesting/class inconsistency, retained label
+semantics and inactive biomass reference. It is a prepared conditional research
+case, not a fitted or biologically qualified T4 model. Do not publish the bundle.
 
 ## Population versus individual reconstruction
 

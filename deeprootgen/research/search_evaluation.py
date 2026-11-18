@@ -22,28 +22,19 @@ import numpy as np
 import pandas as pd
 
 from .population_evaluation import (
-    AGGREGATION,
-    PROFILE_AXES,
-    PROFILE_SUM_TOLERANCE,
-    TRAIT_UNITS,
-    Architecture10PercentContract,
-    ArchitectureComparisonSupport,
-    PopulationArchitecture,
-    evaluate_population_architecture,
+    AGGREGATION, PROFILE_AXES, PROFILE_SUM_TOLERANCE, TRAIT_UNITS,
+    Architecture10PercentContract, ArchitectureComparisonSupport,
+    PopulationArchitecture, evaluate_population_architecture,
 )
 
 from .order5_population_evaluation import (
-    VERSIONS as HIGHER_CONTRACT_VERSIONS,
-    HigherOrder10PercentContract,
+    VERSIONS as HIGHER_CONTRACT_VERSIONS, HigherOrder10PercentContract,
     evaluate_population_architecture as evaluate_higher_order_population,
-    trait_units_for_orders,
-    validate_root_orders,
+    trait_units_for_orders, validate_root_orders,
 )
 
 VERSION = "research-search-evaluation-v1"
-HIGHER_ORDER_VERSIONS = {
-    order: f"research-search-evaluation-order{order}-v1" for order in (4, 5)
-}
+HIGHER_ORDER_VERSIONS = {order: f"research-search-evaluation-order{order}-v1" for order in (4, 5)}
 ROUTES = ("graph_segments_v1", "construction_steps_v1")
 OBJECTIVE_MODES = ("population_mean", "per_seed_mean")
 ROOT_ORDERS = [1, 2, 3]
@@ -52,21 +43,15 @@ MAX_PROFILE_BINS = 100_000
 
 
 def _integer(value, name, minimum=0):
-    if (
-        isinstance(value, (bool, np.bool_))
-        or not isinstance(value, (int, np.integer))
-        or value < minimum
-    ):
+    if (isinstance(value, (bool, np.bool_))
+            or not isinstance(value, (int, np.integer)) or value < minimum):
         raise ValueError(f"{name} must be an integer >= {minimum}")
     return int(value)
 
 
 def _number(value, name, positive=False):
-    if (
-        isinstance(value, (bool, np.bool_))
-        or np.ma.isMaskedArray(value)
-        or not isinstance(value, (int, float, np.integer, np.floating))
-    ):
+    if (isinstance(value, (bool, np.bool_)) or np.ma.isMaskedArray(value)
+            or not isinstance(value, (int, float, np.integer, np.floating))):
         raise ValueError(f"{name} must be a finite real number")
     try:
         value = float(value)
@@ -102,13 +87,8 @@ def _profiles(values):
             raise ValueError("Each profile must be a nonempty sparse bin mapping")
         bins = {}
         for key, value in values[axis].items():
-            if (
-                not isinstance(key, str)
-                or re.fullmatch(r"0|-?[1-9][0-9]*", key) is None
-            ):
-                raise ValueError(
-                    "Profile bins must be canonical integer strings (no aliases)"
-                )
+            if not isinstance(key, str) or re.fullmatch(r"0|-?[1-9][0-9]*", key) is None:
+                raise ValueError("Profile bins must be canonical integer strings (no aliases)")
             index = int(key)
             if abs(index) > (2**53 // 10) - 1:
                 raise ValueError("Profile bin coordinates exceed exact numeric support")
@@ -116,12 +96,8 @@ def _profiles(values):
             if fraction < 0:
                 raise ValueError("Profile fractions must be nonnegative")
             bins[index] = fraction
-        if not math.isclose(
-            math.fsum(bins.values()), 1.0, rel_tol=0.0, abs_tol=PROFILE_SUM_TOLERANCE
-        ):
-            raise ValueError(
-                "Profile fractions must already be normalized; no renormalization"
-            )
+        if not math.isclose(math.fsum(bins.values()), 1., rel_tol=0., abs_tol=PROFILE_SUM_TOLERANCE):
+            raise ValueError("Profile fractions must already be normalized; no renormalization")
         result[axis] = bins
     return result
 
@@ -134,10 +110,7 @@ def _pilot_helpers():
     standard-library grid converter. It imports no Dash/Prefect/service layer.
     This bridge intentionally requires the repository's scripts directory.
     """
-    path = (
-        Path(__file__).resolve().parents[2]
-        / "scripts/research/grapevine3d_so4_pilot.py"
-    )
+    path = Path(__file__).resolve().parents[2] / "scripts/research/grapevine3d_so4_pilot.py"
     spec = importlib.util.spec_from_file_location("_drg_search_pilot", path)
     if spec is None or spec.loader is None:
         raise ValueError("Public research geometry operator is unavailable")
@@ -148,32 +121,13 @@ def _pilot_helpers():
 
 
 def _validate_graph(nodes, edges, root_orders):
-    required = {
-        "node_id",
-        "parent_id",
-        "organ_id",
-        "order",
-        "x",
-        "y",
-        "z",
-        "length",
-        "diameter",
-        "invalid_root",
-        "root_type",
-    }
-    if (
-        not isinstance(nodes, pd.DataFrame)
-        or not isinstance(edges, pd.DataFrame)
-        or not required.issubset(nodes)
-        or not {"parent_id", "child_id"}.issubset(edges)
-    ):
+    required = {"node_id", "parent_id", "organ_id", "order", "x", "y", "z",
+                "length", "diameter", "invalid_root", "root_type"}
+    if (not isinstance(nodes, pd.DataFrame) or not isinstance(edges, pd.DataFrame)
+            or not required.issubset(nodes) or not {"parent_id", "child_id"}.issubset(edges)):
         raise ValueError("Explicit root node/edge schema is required")
-    if (
-        nodes.empty
-        or nodes.columns.duplicated().any()
-        or edges.columns.duplicated().any()
-        or not nodes.node_id.is_unique
-    ):
+    if (nodes.empty or nodes.columns.duplicated().any() or edges.columns.duplicated().any()
+            or not nodes.node_id.is_unique):
         raise ValueError("Empty graph, duplicate columns or duplicate node IDs")
     parents, orders = {}, {}
     for row in nodes.itertuples(index=False):
@@ -184,50 +138,34 @@ def _validate_graph(nodes, edges, root_orders):
         if not isinstance(row.invalid_root, (bool, np.bool_)):
             raise ValueError("invalid_root flags must be strict booleans")
         if row.order > root_orders[-1]:
-            raise ValueError(
-                "Graph root order exceeds the explicit root_orders support"
-            )
+            raise ValueError("Graph root order exceeds the explicit root_orders support")
     bases = [node for node, order in orders.items() if order == 0]
-    if (
-        len(bases) != 1
-        or parents[bases[0]] != -1
-        or list(parents.values()).count(-1) != 1
-    ):
+    if len(bases) != 1 or parents[bases[0]] != -1 or list(parents.values()).count(-1) != 1:
         raise ValueError("Graph must contain exactly one order-0 base")
     base = bases[0]
-    if "plant_id" in nodes and (
-        nodes.plant_id.isna().any() or nodes.plant_id.nunique() != 1
-    ):
+    if "plant_id" in nodes and (nodes.plant_id.isna().any() or nodes.plant_id.nunique() != 1):
         raise ValueError("A sample must contain exactly one plant identity")
     roots = nodes.loc[nodes.node_id.ne(base)]
-    if (
-        not roots.root_type.isin(["fine", "structural"]).all()
-        or nodes.loc[nodes.node_id.eq(base), "root_type"].iloc[0] != "base"
-    ):
+    if (not roots.root_type.isin(["fine", "structural"]).all()
+            or nodes.loc[nodes.node_id.eq(base), "root_type"].iloc[0] != "base"):
         raise ValueError("Unknown root-only root_type mapping")
     if roots.organ_id.eq(nodes.loc[nodes.node_id.eq(base), "organ_id"].iloc[0]).any():
         raise ValueError("Root organ identity must differ from the base")
     if (roots.groupby("organ_id").order.nunique() > 1).any():
         raise ValueError("An organ cannot mix root orders")
-    pairs = [
-        (_integer(r.parent_id, "edge parent"), _integer(r.child_id, "edge child"))
-        for r in edges.itertuples(index=False)
-    ]
+    pairs = [(_integer(r.parent_id, "edge parent"), _integer(r.child_id, "edge child"))
+             for r in edges.itertuples(index=False)]
     expected = {(parent, child) for child, parent in parents.items() if child != base}
     if len(pairs) != len(expected) or set(pairs) != expected:
         raise ValueError("Edge/parent agreement or unique incoming edge failed")
     if any(parent not in parents for child, parent in parents.items() if child != base):
         raise ValueError("Missing graph parent")
-    if roots.length.le(0).any() or roots.diameter.lt(0).any():
-        raise ValueError(
-            "Root segments require positive length and nonnegative diameter"
-        )
+    if (roots.length.le(0).any() or roots.diameter.lt(0).any()):
+        raise ValueError("Root segments require positive length and nonnegative diameter")
     _pilot_helpers().check_graph(nodes, edges)
 
 
-def summarize_sample(
-    nodes, edges, *, seed: int, surface_z_cm: float = 20.0, root_orders=None
-):
+def summarize_sample(nodes, edges, *, seed: int, surface_z_cm: float = 20.0, root_orders=None):
     """Summarize one graph using the unchanged public soil-clipped operator.
 
     All declared traits must be positive. Absent orders, zero spans and undefined
@@ -246,32 +184,21 @@ def summarize_sample(
     for cell, length in cells.items():
         for index, axis in enumerate(PROFILE_AXES):
             profiles[axis][str(int(cell[index]))] += length / traits["soil_length_cm"]
-    profiles = {
-        axis: dict(sorted(bins.items(), key=lambda item: int(item[0])))
-        for axis, bins in profiles.items()
-    }
+    profiles = {axis: dict(sorted(bins.items(), key=lambda item: int(item[0])))
+                for axis, bins in profiles.items()}
     _profiles(profiles)
     invalid_metrics, _, _ = pilot.summarize_geometry(invalid)
     return dict(
-        seed=seed,
-        traits=traits,
-        profiles=profiles,
+        seed=seed, traits=traits, profiles=profiles,
         diagnostics=dict(
-            version=HIGHER_ORDER_VERSIONS.get(orders[-1], VERSION),
-            geometry_operator="grapevine3d_so4_pilot.summarize_geometry",
-            root_orders=orders.copy(),
-            surface_z_cm=surface,
-            length_source="geometric",
-            profile_bin_width_cm=10.0,
-            profile_normalization="per_architecture_soil_length",
-            node_count=len(nodes),
-            edge_count=len(edges),
-            invalid_child_count=len(invalid),
+            version=HIGHER_ORDER_VERSIONS.get(orders[-1], VERSION), geometry_operator="grapevine3d_so4_pilot.summarize_geometry",
+            root_orders=orders.copy(), surface_z_cm=surface, length_source="geometric",
+            profile_bin_width_cm=10., profile_normalization="per_architecture_soil_length",
+            node_count=len(nodes), edge_count=len(edges), invalid_child_count=len(invalid),
             invalid_soil_length_cm=float(invalid_metrics["soil_length_cm"]),
             above_surface_length_cm=float(metrics["above_surface_length_cm"]),
             shallow_fraction=float(metrics["shallow_fraction"]),
-            qualification="RECONSTRUCTION_DIAGNOSTIC",
-            biological_validation=False,
+            qualification="RECONSTRUCTION_DIAGNOSTIC", biological_validation=False,
         ),
     )
 
@@ -284,9 +211,7 @@ def evaluate_samples(reference: dict, samples: list, *, objective_mode: str):
     it is a reconstruction diagnostic, not a newly qualified acceptance rule.
     """
     if objective_mode not in OBJECTIVE_MODES:
-        raise ValueError(
-            f"objective_mode must explicitly select one of {OBJECTIVE_MODES}"
-        )
+        raise ValueError(f"objective_mode must explicitly select one of {OBJECTIVE_MODES}")
     if not isinstance(reference, Mapping):
         raise ValueError("An explicit reference mapping is required")
     orders = validate_root_orders(reference.get("root_orders"))
@@ -295,18 +220,12 @@ def evaluate_samples(reference: dict, samples: list, *, objective_mode: str):
     if not isinstance(identity, str) or not identity.strip():
         raise ValueError("reference.population_id must be explicit nonempty text")
     count = _integer(reference.get("n_architectures"), "reference.n_architectures", 1)
-    ref_traits, ref_profiles = _traits(reference.get("trait_means"), orders), _profiles(
-        reference.get("profiles")
-    )
+    ref_traits, ref_profiles = _traits(reference.get("trait_means"), orders), _profiles(reference.get("profiles"))
     comparison = reference.get("comparison")
-    if (
-        not isinstance(comparison, Mapping)
-        or set(comparison) != {"coordinate_frame", "operator", "support"}
-        or any(not isinstance(v, str) or not v.strip() for v in comparison.values())
-    ):
-        raise ValueError(
-            "comparison requires explicit coordinate_frame, operator and support"
-        )
+    if (not isinstance(comparison, Mapping)
+            or set(comparison) != {"coordinate_frame", "operator", "support"}
+            or any(not isinstance(v, str) or not v.strip() for v in comparison.values())):
+        raise ValueError("comparison requires explicit coordinate_frame, operator and support")
     if not isinstance(samples, list) or not samples:
         raise ValueError("A nonempty list of seed samples is required")
     parsed, seen = [], set()
@@ -320,104 +239,54 @@ def evaluate_samples(reference: dict, samples: list, *, objective_mode: str):
         diagnostics = sample.get("diagnostics", {})
         if not isinstance(diagnostics, Mapping):
             raise ValueError("sample.diagnostics must be a mapping")
-        if (
-            "root_orders" in diagnostics
-            and validate_root_orders(diagnostics["root_orders"]) != orders
-        ):
-            raise ValueError(
-                "sample diagnostics root_orders disagree with reference.root_orders"
-            )
+        if "root_orders" in diagnostics and validate_root_orders(diagnostics["root_orders"]) != orders:
+            raise ValueError("sample diagnostics root_orders disagree with reference.root_orders")
         if orders[-1] > 3 and "root_orders" not in diagnostics:
-            raise ValueError(
-                "Higher-order samples require explicit diagnostics.root_orders"
-            )
-        parsed.append(
-            (
-                seed,
-                _traits(sample.get("traits"), orders),
-                _profiles(sample.get("profiles")),
-            )
-        )
+            raise ValueError("Higher-order samples require explicit diagnostics.root_orders")
+        parsed.append((seed, _traits(sample.get("traits"), orders), _profiles(sample.get("profiles"))))
     bins, edges = {}, {}
     for axis in PROFILE_AXES:
         union = set(ref_profiles[axis]).union(*(set(p[axis]) for _, _, p in parsed))
         lo, hi = min(union), max(union)
         if hi - lo + 1 > MAX_PROFILE_BINS:
-            raise ValueError(
-                "Common profile support exceeds dense capacity; no bins were truncated"
-            )
+            raise ValueError("Common profile support exceeds dense capacity; no bins were truncated")
         bins[axis] = range(lo, hi + 1)
         edges[axis] = [float(10 * index) for index in range(lo, hi + 2)]
-    support = ArchitectureComparisonSupport(
-        **dict(comparison), bin_edges_cm=edges, trait_units=units
-    )
+    support = ArchitectureComparisonSupport(**dict(comparison), bin_edges_cm=edges, trait_units=units)
     if orders[-1] == 3:
         contract = Architecture10PercentContract(support)
         evaluate_population = evaluate_population_architecture
     else:
-        contract = HigherOrder10PercentContract(
-            support, orders, HIGHER_CONTRACT_VERSIONS[orders[-1]]
-        )
+        contract = HigherOrder10PercentContract(support, orders, HIGHER_CONTRACT_VERSIONS[orders[-1]])
         evaluate_population = evaluate_higher_order_population
 
     def dense(profiles):
-        return {
-            axis: [profiles[axis].get(index, 0.0) for index in bins[axis]]
-            for axis in PROFILE_AXES
-        }
+        return {axis: [profiles[axis].get(index, 0.) for index in bins[axis]] for axis in PROFILE_AXES}
 
-    observed = PopulationArchitecture(
-        identity, count, ref_traits, dense(ref_profiles), support
-    )
+    observed = PopulationArchitecture(identity, count, ref_traits, dense(ref_profiles), support)
     per_seed = []
     for seed, traits, profiles in parsed:
-        candidate = PopulationArchitecture(
-            f"generated-seed-{seed}", 1, traits, dense(profiles), support
-        )
-        per_seed.append(
-            dict(seed=seed, **evaluate_population(observed, candidate, contract))
-        )
+        candidate = PopulationArchitecture(f"generated-seed-{seed}", 1, traits, dense(profiles), support)
+        per_seed.append(dict(seed=seed, **evaluate_population(observed, candidate, contract)))
     n = len(parsed)
     means = {name: math.fsum(t[name] / n for _, t, _ in parsed) for name in units}
-    mean_profiles = {
-        axis: [
-            math.fsum(p[axis].get(index, 0.0) / n for _, _, p in parsed)
-            for index in bins[axis]
-        ]
-        for axis in PROFILE_AXES
-    }
-    candidate = PopulationArchitecture(
-        "generated-seed-ensemble", n, means, mean_profiles, support
-    )
+    mean_profiles = {axis: [math.fsum(p[axis].get(index, 0.) / n for _, _, p in parsed)
+                            for index in bins[axis]] for axis in PROFILE_AXES}
+    candidate = PopulationArchitecture("generated-seed-ensemble", n, means, mean_profiles, support)
     population = evaluate_population(observed, candidate, contract)
-    loss = (
-        population["J"]
-        if objective_mode == "population_mean"
-        else math.fsum(r["J"] / n for r in per_seed)
-    )
+    loss = population["J"] if objective_mode == "population_mean" else math.fsum(r["J"] / n for r in per_seed)
     return dict(
-        version=HIGHER_ORDER_VERSIONS.get(orders[-1], VERSION),
-        objective_mode=objective_mode,
-        loss=float(loss),
-        population_report=population,
-        per_seed_reports=per_seed,
+        version=HIGHER_ORDER_VERSIONS.get(orders[-1], VERSION), objective_mode=objective_mode, loss=float(loss),
+        population_report=population, per_seed_reports=per_seed,
         per_seed_pass_fraction=sum(r["passed"] for r in per_seed) / n,
-        per_seed_criterion_pass_fractions={
-            key: sum(r["criterion_passes"][key] for r in per_seed) / n
-            for key in population["criterion_passes"]
-        },
-        seeds=[seed for seed, _, _ in parsed],
-        root_orders=orders.copy(),
-        aggregation=AGGREGATION,
-        qualification="RECONSTRUCTION_DIAGNOSTIC",
-        biological_validation=False,
-        mass_constraint_included=False,
+        per_seed_criterion_pass_fractions={key: sum(r["criterion_passes"][key] for r in per_seed) / n
+                                           for key in population["criterion_passes"]},
+        seeds=[seed for seed, _, _ in parsed], root_orders=orders.copy(),
+        aggregation=AGGREGATION, qualification="RECONSTRUCTION_DIAGNOSTIC",
+        biological_validation=False, mass_constraint_included=False,
         reference_scope="caller_declared_reference; no held-out-vine claim",
-        objective_semantics=(
-            "J_of_equal_architecture_means"
-            if objective_mode == "population_mean"
-            else "arithmetic_mean_of_per_seed_J_against_same_reference"
-        ),
+        objective_semantics=("J_of_equal_architecture_means" if objective_mode == "population_mean"
+                             else "arithmetic_mean_of_per_seed_J_against_same_reference"),
     )
 
 
@@ -436,36 +305,24 @@ def validate_simulation_parameters(parameters, *, route: str):
     else:
         raise ValueError("parameters must be a mapping or RootSimulationModel")
     _integer(values.get("random_seed"), "parameters.random_seed")
-    if _number(values.get("soil_surface_z_cm"), "soil_surface_z_cm") != 20.0:
-        raise ValueError(
-            "Controlled search requires an explicit fixed soil surface at 20 cm"
-        )
+    if _number(values.get("soil_surface_z_cm"), "soil_surface_z_cm") != 20.:
+        raise ValueError("Controlled search requires an explicit fixed soil surface at 20 cm")
     maximum = _integer(values.get("max_order"), "parameters.max_order", 3)
     if maximum > 5 or values.get("tropism_mode") != "fichtl2024":
-        raise ValueError(
-            "The positive-trait bridge requires Fichtl mode and max_order 3, 4 or 5"
-        )
+        raise ValueError("The positive-trait bridge requires Fichtl mode and max_order 3, 4 or 5")
     grid = values.get("research_current_length_grid")
     if route == "construction_steps_v1" and grid != "construction_steps_v1":
-        raise ValueError(
-            "Construction-step route requires matching construction_steps_v1 parameters"
-        )
+        raise ValueError("Construction-step route requires matching construction_steps_v1 parameters")
     if route == "graph_segments_v1" and (
-        grid is not None
-        or values.get("research_parent2_branch_zone_cm") is not None
+        grid is not None or values.get("research_parent2_branch_zone_cm") is not None
         or values.get("research_tertiary_length_rank_strength")
         or values.get("research_primary_attachment_distal_fraction")
     ):
-        raise ValueError(
-            "Graph-segment route cannot use construction-step-only parameters"
-        )
+        raise ValueError("Graph-segment route cannot use construction-step-only parameters")
     from ..data_model import RootSimulationModel
-
     unknown = set(values).difference(RootSimulationModel.model_fields)
     if unknown:
-        raise ValueError(
-            f"Unknown simulation parameters would be ignored: {sorted(unknown)}"
-        )
+        raise ValueError(f"Unknown simulation parameters would be ignored: {sorted(unknown)}")
     return RootSimulationModel(**values).model_dump()
 
 
@@ -483,42 +340,34 @@ def simulate_sample(parameters, seed: int, *, route: str):
         values = copy.deepcopy(dict(parameters))
     else:
         raise ValueError("parameters must be a mapping or RootSimulationModel")
-    if (
-        "random_seed" in values
-        and _integer(values["random_seed"], "parameters.random_seed") != seed
-    ):
+    if "random_seed" in values and _integer(values["random_seed"], "parameters.random_seed") != seed:
         raise ValueError("parameters.random_seed must match the requested seed")
     values["random_seed"] = seed
     validated = validate_simulation_parameters(values, route=route)
     from .so4_controlled import construct_skeleton, digest, replay_arm
 
-    initial = construct_skeleton(validated, seed)
     if route == "construction_steps_v1":
-        from .construction_step_replay import replay_construction_steps
-
-        result = replay_construction_steps(
-            initial, "D", validated, "minimum_angle_projection", surface_z=20.0
-        )
+        from ..data_model import RootSimulationConfig
+        from ..model import RootSystemSimulation
+        from .so4_controlled import capture_initial
+        snapshots = []
+        config = RootSimulationConfig(random_seed=seed, simulation_tag=validated['simulation_tag'],
+                                      construction=dict(kind='native', parameters=validated), trajectory='construction_steps_v1')
+        simulation = RootSystemSimulation(random_seed=seed)
+        simulation.run(config, initial_recorder=lambda sim, p: snapshots.append(capture_initial(sim, p)))
+        initial = snapshots[0]
+        nodes, edges = simulation.G.as_df()
+        result = dict(nodes=nodes, edges=edges)
     else:
-        result = replay_arm(
-            initial, "D", validated, "minimum_angle_projection", surface_z=20.0
-        )
-    sample = summarize_sample(
-        result["nodes"],
-        result["edges"],
-        seed=seed,
-        surface_z_cm=20.0,
-        root_orders=list(range(1, validated["max_order"] + 1)),
-    )
-    identity = dict(
-        route=route, seed=seed, parameters=validated, initial_sha256=initial.sha256
-    )
+        # Archived graph-segment experiment; not a supported extended contract.
+        initial = construct_skeleton(validated, seed)
+        result = replay_arm(initial, "D", validated, "minimum_angle_projection", surface_z=20.)
+    sample = summarize_sample(result["nodes"], result["edges"], seed=seed, surface_z_cm=20.,
+                              root_orders=list(range(1, validated["max_order"] + 1)))
+    identity = dict(route=route, seed=seed, parameters=validated, initial_sha256=initial.sha256)
     sample["diagnostics"].update(
-        simulation_route=route,
-        arm="D",
-        boundary_policy="minimum_angle_projection",
-        initial_sha256=initial.sha256,
-        fresh_initial_construction=True,
+        simulation_route=route, arm="D", boundary_policy="minimum_angle_projection",
+        initial_sha256=initial.sha256, fresh_initial_construction=True,
         requested_simulation_tag=validated["simulation_tag"],
         constructor_simulation_tag=initial.payload["parameters"]["simulation_tag"],
         run_identity_sha256=digest(identity),
