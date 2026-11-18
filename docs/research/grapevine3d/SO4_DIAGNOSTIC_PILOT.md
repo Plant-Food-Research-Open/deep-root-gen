@@ -43,7 +43,7 @@ authorized by the follow-up request. No empirical optimization biomass adoption 
 
 ## Parameter transfer
 
-The [complete single-seed simulator input](../../../examples/research/so4_t2_fichtl2024.json)
+The [complete single-seed simulator input](../../../examples/research/so4_t2_fichtl2024_v4.json)
 is ready for the offline CLI; the [ensemble configuration](../../../configs/research/so4_t2_fichtl2024.json)
 freezes the four-scenario diagnostic design.
 

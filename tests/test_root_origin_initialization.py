@@ -9,14 +9,14 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research.so4_controlled import construct_skeleton, replay_arm, validate_geometry
 
 ORIGIN = dict(research_base_origin_x_cm=2., research_base_origin_y_cm=-3., research_base_depth_cm=7.)
 
 
 def values(**updates):
-    spec = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    spec = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     spec.update(max_order=3, min_sec_root_num=1, max_sec_root_num=2,
                 min_sec_root_length=2., max_sec_root_length=3., interbranch_distance=2.,
                 gravitropism=0., tropism_mode="fichtl2024", soil_surface_z_cm=20.,
@@ -116,7 +116,7 @@ def test_native_run_and_initial_replay_api_use_translated_base():
 
 
 def test_absent_and_explicit_none_controls_preserve_default_legacy_graphs():
-    spec = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    spec = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     graphs = []
     for extras in ({}, dict(research_base_origin_x_cm=None, research_base_origin_y_cm=None, research_base_depth_cm=None)):
         settings = RootSimulationModel(**{**spec, **extras})

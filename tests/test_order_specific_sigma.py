@@ -13,9 +13,9 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+from tests.public_checkpoint_reference import comparison_command, materialize_reference, subprocess_environment
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.model import root as root_module
 from deeprootgen.research import construction_step_replay as canonical
 from deeprootgen.research import so4_controlled as controlled
@@ -239,7 +239,7 @@ for label,extra in [('omitted',{}),('explicit_none',{'research_fichtl_sigma_by_o
         if 'research_fichtl_sigma_by_order' in RootSimulationModel.model_fields:
             presence[label][name]='research_fichtl_sigma_by_order' in p.model_fields_set
         if name.startswith('native'):
-            sim=module.RootSystemSimulation(random_seed=p.random_seed);sim.run(p)
+            sim=ComparisonSimulation(random_seed=p.random_seed);sim.run(p)
             nodes,edges=sim.G.as_df()
             records[name]={'nodes_csv':nodes.to_csv(index=False),'edges_csv':edges.to_csv(index=False),'rng':sim.rng.bit_generator.state,'diagnostics':getattr(sim,'tropism_diagnostics',None)}
         else:
@@ -257,7 +257,7 @@ print(json.dumps({'loaded_root':module.__file__,'outputs':outputs,'presence':pre
 def test_none_prechange_subprocess_serialization_diagnostics_geometry_rng_parity(tmp_path):
     current = Path(__file__).parents[1]
     old = materialize_reference(current, tmp_path, 'order_specific_sigma')
-    base = json.loads((current / "examples/synthetic_minimal.json").read_text())
+    base = json.loads((current / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     base.update(max_order=3, min_sec_root_num=1, max_sec_root_num=2,
                 min_sec_root_length=2., max_sec_root_length=3., interbranch_distance=2.,
                 gravitropism=0., soil_surface_z_cm=20.)
@@ -273,7 +273,7 @@ def test_none_prechange_subprocess_serialization_diagnostics_geometry_rng_parity
     results, hashes = {}, {}
     for name, source in (("prechange", old), ("current", current)):
         env = subprocess_environment(source)
-        completed = subprocess.run([sys.executable, "-c", NONE_PARITY_SCRIPT], input=json.dumps(configs),
+        completed = subprocess.run(comparison_command(NONE_PARITY_SCRIPT, current=name == "current"), input=json.dumps(configs),
                                    text=True, capture_output=True, check=True, timeout=60, cwd=source, env=env)
         results[name] = json.loads(completed.stdout)
         assert Path(results[name]["loaded_root"]).resolve() == (source / "deeprootgen/model/root.py").resolve()

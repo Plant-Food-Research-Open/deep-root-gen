@@ -8,11 +8,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.model.cohort_geometry import taper_diameter
 
 ROOT = Path(__file__).resolve().parents[1]
-BASE = json.loads((ROOT / "examples/design/native_feature_options.proposed.json").read_text())
+BASE = json.loads((ROOT / "tests/fixtures/migration_inputs/design/native_feature_options.proposed.json").read_text())
 CURVE_1 = BASE["features"]["curvature"]["settings"]["by_order"]["1"]
 INSERTION = dict(CURVE_1, initial_heading="insertion_angle", insertion_mean_deg=45.0, insertion_sd_deg=10.0)
 DISK = dict(layout="disk", radius_cm=0.5, depth_range_cm=[1.0, 2.0])
@@ -212,10 +212,10 @@ PLANNED = dict(
 )
 
 
-def test_fully_replaced_construction_draws_nothing_natively():
+def test_replaced_dimensions_retain_independent_native_placement():
     sim = run(spec(**PLANNED))
-    assert sim.result.resolved["laws"]["construction"] == "planned"
-    assert sim.rng.bit_generator.state == RootSystemSimulation(random_seed=42).rng.bit_generator.state
+    assert sim.result.resolved["laws"]["construction"] == "native"
+    assert sim.rng.bit_generator.state != RootSystemSimulation(random_seed=42).rng.bit_generator.state
     assert len(sim.G.bases) == 2 and sim.result.metadata["capabilities"]["tree_to_vine_map"]
     assert set(sim.result.node_metadata.cohort) <= {"established", "later"}
     for organ in organs(sim):
@@ -223,7 +223,7 @@ def test_fully_replaced_construction_draws_nothing_natively():
         maturity = organ.plan["maturity"] ** MATURITY["length_power"]
         assert bounds[0] * maturity - 1e-12 <= organ.plan["length"] <= bounds[1] * maturity + 1e-12
     edited = spec(**PLANNED)
-    edited["parameters"].update(min_primary_length=1.0, root_vary=89.0)  # dormant native fallbacks
+    edited["parameters"].update(min_primary_length=1.0, base_diameter=89.0)  # replaced dimension values
     again = run(edited)
     assert tables(again) == tables(sim)
     assert again.result.metadata["effective_model_sha256"] == sim.result.metadata["effective_model_sha256"]
@@ -257,12 +257,12 @@ def test_representative_combinations_run_and_conserve_material(mode, name):
 
 
 def test_fully_replaced_example_file_runs_with_no_native_fallback_values():
-    path = ROOT / "examples/design/native_features_fully_replaced.json"
+    path = ROOT / "tests/fixtures/migration_inputs/design/native_features_fully_replaced.json"
     value = json.loads(path.read_text())
     assert "min_primary_length" not in value["parameters"]
     sim = RootSystemSimulation(random_seed=value["random_seed"], simulation_tag=value["simulation_tag"])
     sim.run(path)
-    assert sim.result.resolved["laws"]["construction"] == "planned"
+    assert sim.result.resolved["laws"]["construction"] == "native"
     assert len(sim.G.bases) == value["parameters"]["outer_root_num"] + value["parameters"]["inner_root_num"]
 
 

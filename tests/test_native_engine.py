@@ -7,7 +7,6 @@ recovery and unchanged sampled biology/material while the curve changes.
 
 import ast
 import copy
-import hashlib
 import json
 from pathlib import Path
 
@@ -15,19 +14,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deeprootgen.cli import main, simulate
-from deeprootgen.data_model import RootSimulationModel, explain_config, resolve_config
+from deeprootgen.archive.export import main, simulate
+from deeprootgen.data_model import RootSimulationModel
+from deeprootgen.archive.resolution import explain_config, resolve_config
 from deeprootgen.data_model.resolution import ENGINE_PHASES
-from deeprootgen.model import RootSystemSimulation, engine as engine_module
+from deeprootgen.model import engine as engine_module
+from deeprootgen.archive.simulation import RootSystemSimulation
+from tests.native_execution_reference import CONTRACTS as FIXTURE, table_hash
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE = ROOT / "examples/design/native_feature_options.proposed.json"
-FIXTURE = json.loads((ROOT / "tests/fixtures/native_execution_contracts.json").read_text())
+EXAMPLE = ROOT / "tests/fixtures/migration_inputs/design/native_feature_options.proposed.json"
 MODES = ["legacy", "fichtl2024"]
-
-
-def table_hash(frame):
-    return hashlib.sha256(frame.to_csv(index=False, float_format="%.17g").encode()).hexdigest()
 
 
 def v3(mode="legacy", curvature=False, sd=0.08, **updates):
@@ -73,13 +70,13 @@ def node_frame(sim):
 @pytest.mark.parametrize("mode", MODES)
 def test_every_input_reaches_the_same_engine_and_lifecycle(mode, monkeypatch):
     calls = []
-    original = engine_module.execute
+    original = engine_module._execute_phases
 
-    def spy(simulation, resolved, **kwargs):
+    def spy(simulation, resolved, phases, **kwargs):
         calls.append((resolved.source_schema, resolved.laws.view))
-        return original(simulation, resolved, **kwargs)
+        return original(simulation, resolved, phases, **kwargs)
 
-    monkeypatch.setattr(engine_module, "execute", spy)
+    monkeypatch.setattr(engine_module, "_execute_phases", spy)
     from deeprootgen.model import cohort, execution
 
     # The separate complete runners are gone, not merely bypassed.
@@ -137,13 +134,15 @@ def test_all_off_matches_flat_baseline_exactly(mode):
     assert off.result.metadata["supplied_input_sha256"] != native.result.metadata["supplied_input_sha256"]
 
 
-@pytest.mark.parametrize("record", [r for r in FIXTURE["records"] if r["contract"] in MODES])
-def test_frozen_native_references_unchanged_through_engine(record):
+@pytest.mark.parametrize("index,record", [(i, r) for i, r in enumerate(FIXTURE["records"]) if r["contract"] in MODES])
+def test_frozen_native_references_unchanged_through_engine(index, record, native_reference_outputs):
     params = RootSimulationModel(**record["parameters"])
     sim = run(params, seed=record["seed"], tag=params.simulation_tag)
     nodes, edges = sim.G.as_df()
-    assert table_hash(nodes) == record["nodes"] and table_hash(edges) == record["edges"]
-    assert sim.rng.bit_generator.state == record["rng"]
+    expected = native_reference_outputs[index]
+    assert table_hash(nodes) == expected["nodes"]
+    assert table_hash(edges) == expected["edges"]
+    assert sim.rng.bit_generator.state == expected["rng"]
 
 
 @pytest.mark.parametrize("mode", MODES)
@@ -458,8 +457,8 @@ def test_replaced_law_keeps_biology_even_when_correction_draws_differ():
     assert "later correction draws can differ" in on.result.resolved["rng"]["native_schedule"]
 
 
-def test_daughter_tangent_matches_published_edge_beside_a_merged_corner():
-    """Review case: a corner 5e-10 cm before an attachment cut merges into it."""
+def test_daughter_tangent_matches_the_incoming_piece_beside_a_retained_corner():
+    """A nearby attachment keeps the corner and uses the tip-side tangent."""
     from types import SimpleNamespace as NS
 
     from deeprootgen.data_model import RootNodeModel
@@ -474,7 +473,8 @@ def test_daughter_tangent_matches_published_edge_beside_a_merged_corner():
         for a in curve.construction_arcs
     ]
     intervals = curved_axis(NS(segments=nodes), curve)
-    edge = np.array(intervals[0].xyz) - points[0]
+    assert len(intervals) == 3
+    edge = np.array(intervals[1].xyz) - np.array(intervals[0].xyz)
     tangent = curve.tangent(arc)
     np.testing.assert_allclose(tangent / np.linalg.norm(tangent), edge / np.linalg.norm(edge), atol=1e-8)
 
@@ -526,7 +526,7 @@ def test_effective_identity_ignores_inactive_mode_parameters_and_noop_controls()
 
 
 def test_flat_runs_require_a_fresh_simulator_and_physical_material():
-    spec = json.loads((ROOT / "examples/synthetic_minimal.json").read_text())
+    spec = json.loads((ROOT / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     sim = RootSystemSimulation(random_seed=42)
     sim.run(RootSimulationModel(**spec))
     with pytest.raises(ValueError, match="fresh simulator"):
@@ -600,7 +600,7 @@ def _cohort_config(**updates):
 def test_initial_recorder_only_views_a_placed_native_scaffold():
     calls = []
     recorder = lambda sim, p: calls.append(all(np.isfinite([n.node_data.z for n in sim.G.nodes])))  # noqa: E731
-    flat = RootSimulationModel(**json.loads((ROOT / "examples/synthetic_minimal.json").read_text()))
+    flat = RootSimulationModel(**json.loads((ROOT / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text()))
     with pytest.raises(ValueError, match="extended construction-step execution"):
         RootSystemSimulation(random_seed=42).run(flat, initial_recorder=recorder)
     cohort, seed = _cohort_config()
@@ -610,11 +610,10 @@ def test_initial_recorder_only_views_a_placed_native_scaffold():
             RootSystemSimulation(random_seed=config_seed).run(config, initial_recorder=recorder)
     from tests.test_native_features import PLANNED, spec as feature_spec
 
-    with pytest.raises(ValueError, match="native construction"):
-        RootSystemSimulation(random_seed=42).run(feature_spec(**PLANNED), initial_recorder=recorder)
+    RootSystemSimulation(random_seed=42).run(feature_spec(**PLANNED), initial_recorder=recorder)
     run_spec = v3("fichtl2024", curvature=True)
     RootSystemSimulation(random_seed=42, simulation_tag="x").run(run_spec, initial_recorder=recorder)
-    assert calls == [True]
+    assert calls == [True, True]
 
 
 @pytest.mark.parametrize(

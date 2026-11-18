@@ -1,4 +1,6 @@
-"""Bounded local SO4 diagnostic ensembles; no fitting, services or uploads."""
+"""Historical SO4 study protocol. For a fresh model use the schema-4 CLI.
+
+Bounded local SO4 diagnostic ensembles; no fitting, services or uploads."""
 
 from __future__ import annotations
 
@@ -21,7 +23,7 @@ import numpy as np
 import pandas as pd
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 
 REPO = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location(

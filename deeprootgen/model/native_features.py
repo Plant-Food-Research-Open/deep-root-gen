@@ -27,9 +27,10 @@ Declared semantics (also recorded in the resolved description):
 
 import numpy as np
 
-from .cohort_geometry import bounded_draw, equivalent_diameter, taper_diameter
+from .cohort_geometry import bounded_draw
 from .laws import disk_origin, first_branch_sites, law_stream, point_taper_dimensions, primary_maturity, radial_inclination
 from .materialize import EmittedInterval, fine_by_equivalent_diameter
+from .point_taper import exponential_profile_integral, profile_cuts
 
 
 def _organ_order(organ):
@@ -44,17 +45,30 @@ class NativeFeatureLaws:
         self.laws = state.laws
         self.parameters = state.parameters
         self.max_order = int(state.parameters.max_order)
+        self.consumers = state.resolved.description["consumers"]
         self.anchors = None
         state.tapers = {}
+        self.birth_contexts = {}
 
     def stream(self, purpose, organ_id):
         return law_stream(self.state.streams, self.laws.streams, purpose, organ_id)
+
+    def dimension_stream(self, purpose, organ_id, *distributions):
+        if getattr(self.parameters, "canonical_generation", False) and all(d["sd"] == 0 for d in distributions):
+            return None
+        return self.stream(purpose, organ_id)
 
     # -- forest setup ------------------------------------------------------
 
     def begin(self, simulation):
         """Distributed origins use the per-primary bases the engine prepared."""
         self.anchors = getattr(self.state, "anchors", None)
+
+    def reserve_construction(self, count, graph):
+        self.state.budget.check_nodes(len(graph.nodes) + count)
+
+    def reserve_organ(self):
+        self.state.budget.reserve("organs", 1)
 
     def primary_parent(self, simulation, index):
         return simulation.G.base_node if self.anchors is None else self.anchors[index]
@@ -71,6 +85,13 @@ class NativeFeatureLaws:
         organ.plan = dict(order=_organ_order(organ), maturity=parent_organ.plan["maturity"],
                           label=parent_organ.plan["label"], tree=parent_organ.plan["tree"])
 
+    def uses_birth_diameter(self, order):
+        # Untapered descendants inherit native cylinders recursively.
+        return order in self.consumers["base_diameter"]["orders"]
+
+    def birth_context(self, node):
+        return self.birth_contexts[id(node)]
+
     # -- dimensions --------------------------------------------------------
 
     def replace_lengths(self, organ, lengths):
@@ -80,19 +101,35 @@ class NativeFeatureLaws:
         if law is None or law["law"] != "bounded_lognormal":
             return None
         expected = int(organ.parent_node.G.organ_id)
-        total = bounded_draw(law, self.stream("length", expected))
+        total = bounded_draw(law, self.dimension_stream("length", expected, law))
         proportions = np.asarray(lengths, float) / float(np.sum(lengths))
         return proportions * total
 
     def scale_lengths(self, organ, lengths):
-        if self.laws.maturity is None:
-            return lengths
-        return np.asarray(lengths, float) * organ.plan["maturity"] ** self.laws.maturity["length_power"]
+        if self.laws.maturity is not None:
+            lengths = np.asarray(lengths, float) * organ.plan["maturity"] ** self.laws.maturity["length_power"]
+        factor = getattr(self.parameters, "allocation_length_scales", {}).get(_organ_order(organ), 1.)
+        if factor != 1.:
+            lengths = lengths * factor
+            if hasattr(organ, "current_length_diagnostics"):
+                organ.current_length_diagnostics["allocated_length_cm"] = float(np.sum(lengths))
+        return lengths
+
+    def scale_diameters(self, organ, diameters):
+        factor = self.diameter_factor(organ)
+        return diameters if factor == 1. else diameters * factor
+
+    def diameter_factor(self, organ):
+        return getattr(self.parameters, "allocation_diameter_scales", {}).get(_organ_order(organ), 1.)
 
     # -- branching ---------------------------------------------------------
 
     def replaces_branching(self, organ):
         return _organ_order(organ) in self.laws.branching
+
+    def filter_branch_sites(self, organ):
+        from .branch_eligibility import filter_branch_sites
+        filter_branch_sites(self.state, organ)
 
     def branch_sites(self, organ, total_length):
         order = _organ_order(organ)
@@ -108,8 +145,20 @@ class NativeFeatureLaws:
     # -- material ----------------------------------------------------------
 
     def after_construction(self, organ):
-        """Point taper replaces the cylinder material; daughters see the new birth material."""
+        """Keep native birth cylinders immutable; taper is a separate profile.
+
+        Native daughter sampling reads these construction cylinders. Active
+        taper is consumed only by explicit parent capping and materialization.
+        """
         order = _organ_order(organ)
+        from .axis_state import AxisState, BirthContext
+
+        contexts = tuple(
+            BirthContext(n.node_data.diameter, n.node_data.length, n.node_data.order, n.node_data.root_tissue_density)
+            for n in organ.segments
+        )
+        self.birth_contexts.update((id(n), c) for n, c in zip(organ.segments, contexts))
+        organ.axis_state = AxisState(organ, int(organ.segments[0].node_data.organ_id), contexts)
         law = self.laws.taper.get(order)
         oid = int(organ.segments[0].node_data.organ_id)
         if law is None:
@@ -119,20 +168,20 @@ class NativeFeatureLaws:
         parent_diameter = None
         parent = getattr(organ.parent_node, "organ", None)
         if parent is not None and self.laws.cap is not None:
-            ptaper = self.state.tapers[int(parent.segments[0].node_data.organ_id)]
-            site = float(np.cumsum(parent.get_lengths())[parent.segments.index(organ.parent_node)])
-            parent_diameter = float(taper_diameter(site, ptaper["length"], ptaper["base"], ptaper["tip"], ptaper["midpoint"]))
+            from .branch_eligibility import attachment_diameters
+            parent_diameter = float(attachment_diameters(parent, [organ.parent_node], self.laws.relocation)[0])
         maturity_law = self.laws.maturity
         base, tip = point_taper_dimensions(
             law, organ.plan["maturity"], None if maturity_law is None else maturity_law["diameter_power"],
-            parent_diameter, self.laws.cap, self.stream("taper", oid), self.state.law_counters,
+            parent_diameter, self.laws.cap, self.dimension_stream("taper", oid, law["base_cm"], law["tip_cm"]),
+            self.state.law_counters,
+            diameter_scale=self.diameter_factor(organ),
         )
         taper = dict(length=total, base=base, tip=tip, midpoint=law["midpoint_diameter_fraction"])
+        if "rate_per_cm" in law and base >= law["thick_min_cm"]:
+            taper.update(rate_per_cm=law["rate_per_cm"], thick_min_cm=law["thick_min_cm"])
         self.state.tapers[oid] = taper
-        arcs = np.r_[0.0, np.cumsum(lengths)]
-        points = taper_diameter(arcs, total, base, tip, taper["midpoint"])
-        for node, diameter in zip(organ.segments, equivalent_diameter(points[:-1], points[1:])):
-            node.node_data.diameter = float(diameter)
+        organ.axis_state.material = taper
         organ.plan.update(base=base, tip=tip, midpoint=taper["midpoint"], length=total)
 
 
@@ -166,16 +215,16 @@ def place_origins(state):
 
 def tapered_axis(organ, curve, taper, state):
     """Point-taper material over native construction intervals (and curve corners)."""
-    from .materialize import interior_material_cuts, merge_cuts
+    from .materialize import check_representable, merge_cuts, taper_interval_diameters
 
     cutoff_mm = float(state.parameters.fine_root_threshold) * 10.0
     arcs = np.cumsum(organ.get_lengths())
     total = float(arcs[-1])
     stations = [] if curve is None else curve.stations[1:-1]
-    material = interior_material_cuts(total, taper["base"], taper["tip"], cutoff_mm / 10.0, taper["midpoint"])
+    material = profile_cuts(total, taper, cutoff_mm / 10.0)
     tolerance = state.laws.materialization["corner_coincidence_cm"]
     cuts = merge_cuts(np.r_[0.0, arcs], [stations, material], tolerance)[1:]
-    if np.any(np.diff(np.r_[0.0, cuts]) <= 1e-12):
+    if np.any(np.diff(np.r_[0.0, cuts]) <= 0):
         raise ValueError("Unrepresentable material cut on a tapered axis")
     if curve is not None:
         positions = curve.position(cuts)
@@ -183,18 +232,33 @@ def tapered_axis(organ, curve, taper, state):
         parent = organ.parent_node.node_data
         polyline = np.vstack([[parent.x, parent.y, parent.z], organ.get_coordinates()])
         positions = np.column_stack([np.interp(cuts, np.r_[0.0, arcs], polyline[:, k]) for k in range(3)])
-    points = taper_diameter(np.r_[0.0, cuts], total, taper["base"], taper["tip"], taper["midpoint"])
-    equivalents = equivalent_diameter(points[:-1], points[1:])
+    check_representable(curve.points[0] if curve is not None else polyline[0],
+                        positions, np.diff(np.r_[0.0, cuts]))
+    boundaries = np.r_[0., cuts]
+    lengths = np.diff(boundaries)
+    if "rate_per_cm" in taper:
+        integrals = exponential_profile_integral(boundaries[:-1], cuts, total, taper)
+        equivalents = np.sqrt(integrals / lengths)
+    else:
+        equivalents = taper_interval_diameters(boundaries, total, taper["base"], taper["tip"], taper["midpoint"])
+    if state.laws.materialization.get("reconcile_length_metadata", False):
+        from .cohort_geometry import reconcile_interval_lengths
+
+        start = curve.points[0] if curve is not None else polyline[0]
+        reconciled, changes = reconcile_interval_lengths(np.vstack([start, positions]), lengths, True)
+        equivalents *= np.sqrt(lengths / reconciled)  # same integrated material
+        lengths = reconciled
+        state.law_counters["length_metadata_reconciliations"].extend(
+            dict(organ_id=int(organ.segments[0].node_data.organ_id), **x) for x in changes
+        )
     intervals = []
-    previous = 0.0
-    for cut, xyz, diameter in zip(cuts, positions, equivalents):
+    for cut, xyz, diameter, length in zip(cuts, positions, equivalents, lengths):
         k = int(np.searchsorted(arcs, cut, side="left"))
         node = organ.segments[k]
         retained = arcs[k] == cut
         data = node.node_data.model_copy()
         data.x, data.y, data.z = (float(v) for v in xyz)
-        data.length, data.diameter = float(cut - previous), float(diameter)
+        data.length, data.diameter = float(length), float(diameter)
         data.root_type = fine_by_equivalent_diameter(diameter, cutoff_mm)
         intervals.append(EmittedInterval(None, node if retained else None, data=data))
-        previous = cut
     return intervals

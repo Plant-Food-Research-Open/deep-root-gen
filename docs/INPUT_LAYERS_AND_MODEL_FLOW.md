@@ -1,5 +1,8 @@
 # How the input layers reach the model
 
+Current fresh-generation input is schema 4. Use the [execution and parameter guide](NATIVE_EXECUTION.md).
+Earlier interface descriptions below document previous versions.
+
 18 November update: every input (flat, schema 2 native, construction steps,
 cohort, schema 3) now runs through one fixed engine lifecycle in
 `deeprootgen/model/engine.py`, parsed and resolved by

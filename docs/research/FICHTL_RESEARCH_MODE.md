@@ -29,7 +29,7 @@ projection rule; the two paths must not be described as identical.
 ## Offline example
 
 ```bash
-python -m deeprootgen simulate --config examples/research/so4_t2_fichtl2024.json --outdir .runtime/so4-research-example
+python -m deeprootgen simulate --config examples/research/so4_t2_fichtl2024_v4.json --outdir .runtime/so4-research-example
 python -m pytest -q tests/test_fichtl_tropism.py
 ```
 

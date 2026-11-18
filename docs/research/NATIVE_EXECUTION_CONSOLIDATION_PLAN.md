@@ -1,5 +1,7 @@
 # Native execution consolidation goal plan
 
+> **Next input-design plan, 18 November 2026:** [one format and parameter simplification](SINGLE_INPUT_AND_PARAMETER_SIMPLIFICATION_PLAN.md). The owner now prefers full conversion of active inputs rather than permanent legacy loading, one scalar maximum order, explicit count scopes and cohort only if it adds a distinct useful mechanism. This is a documentation-only planning update; the implementation history below is preserved.
+
 > Historical 17 November plan. The authoritative next implementation plan is
 > [Native feature composition, revision 2](NATIVE_FEATURE_COMPOSITION_REVIEW_AND_PLAN.md).
 > It requires one fixed engine with independent options and supersedes the

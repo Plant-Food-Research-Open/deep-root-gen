@@ -13,9 +13,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+from tests.public_checkpoint_reference import comparison_command, materialize_reference, subprocess_environment
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.model import root as root_module
 from deeprootgen.utils.branching import MAX_PARENT2_BRANCH_SITES, parent2_zone_sites
 from deeprootgen.research.so4_controlled import construct_skeleton, replay_arm, validate_geometry
@@ -177,7 +177,7 @@ for label,extra in [('omitted',{}),('explicit_none',{'research_parent2_branch_zo
     config={**values,**extra};p=RootSimulationModel(**config)
     if 'research_parent2_branch_zone_cm' in RootSimulationModel.model_fields:
         fields[label]='research_parent2_branch_zone_cm' in p.model_fields_set
-    sim=module.RootSystemSimulation(random_seed=p.random_seed);sim.run(p)
+    sim=ComparisonSimulation(random_seed=p.random_seed);sim.run(p)
     nodes,edges=sim.G.as_df()
     outputs[label]={'nodes':nodes.to_dict('records'),'edges':edges.to_dict('records'),'rng':sim.rng.bit_generator.state}
 print(json.dumps({'loaded_root_module':module.__file__,'outputs':outputs,'explicit_field_presence':fields},sort_keys=True,allow_nan=False))
@@ -189,7 +189,7 @@ def test_native_omitted_and_none_exact_prechange_subprocess_parity(mode, tmp_pat
     """Always compare exact native output against self-contained public source."""
     current = Path(__file__).parents[1]
     old = materialize_reference(current, tmp_path, 'parent2_branch_zone')
-    config = json.loads((current / "examples/synthetic_minimal.json").read_text())
+    config = json.loads((current / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     config.update(max_order=2, min_sec_root_num=1, max_sec_root_num=2,
                   min_sec_root_length=2., max_sec_root_length=3., interbranch_distance=2.,
                   gravitropism=0., tropism_mode=mode, soil_surface_z_cm=20.)
@@ -202,7 +202,7 @@ def test_native_omitted_and_none_exact_prechange_subprocess_parity(mode, tmp_pat
     results, hashes = {}, {}
     for label, source in (("prechange", old), ("current", current)):
         environment = subprocess_environment(source)
-        completed = subprocess.run([sys.executable, "-c", NATIVE_PARITY_SCRIPT], input=json.dumps(config),
+        completed = subprocess.run(comparison_command(NATIVE_PARITY_SCRIPT, current=label == "current"), input=json.dumps(config),
                                    text=True, capture_output=True, check=True, timeout=45, env=environment, cwd=source)
         results[label] = json.loads(completed.stdout)
         assert Path(results[label]["loaded_root_module"]).resolve() == (source / "deeprootgen/model/root.py").resolve()

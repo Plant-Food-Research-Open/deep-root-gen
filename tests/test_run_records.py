@@ -6,10 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from deeprootgen.run_records import read_ledger, repository_state, tracked_run
+from deeprootgen.run_records import read_ledger, repository_state
+from deeprootgen.archive.export import tracked_run
 
 ROOT = Path(__file__).resolve().parents[1]
-EXAMPLE = ROOT / "examples/design/native_feature_options.proposed.json"
+EXAMPLE = ROOT / "tests/fixtures/migration_inputs/design/native_feature_options.proposed.json"
 
 
 def curvature(enabled):

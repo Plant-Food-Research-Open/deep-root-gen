@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research.so4_controlled import (
     construct_skeleton,
     replay_arm,
@@ -398,7 +398,7 @@ def test_inactive_field_retains_preimplementation_initial_identity(tmp_path):
 
     reference = historical_payload(tmp_path, "pre_primary_design", ["initial"])
     try:
-        assert canonical_bytes(omitted.payload) == canonical_bytes(reference)
+        assert canonical_bytes(omitted.payload) == canonical_bytes(reference), "INITIAL payload disagrees with historical reference"
         assert omitted.sha256 == explicit_none.sha256
     except AssertionError:
         from tests.hash_failure_diagnostics import record_failure
