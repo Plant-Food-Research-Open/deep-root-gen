@@ -4,12 +4,14 @@ These text patches reconstruct earlier PUBLIC feature checkpoints inside pytest'
 fresh temporary directories. They contain source only, with no observations,
 fitted inputs, results, credentials or local-runtime packages.
 
-Each reference records its immutable public `reference_commit` and the integrated
-package preimage `57732d5fa5d206b34b91b0076f323210e765e98c` in `manifest.json`. The patches were deliberately
-regenerated for this package revision, including formatting and newly added
-optional controls. Earlier fixture bytes remain in the public source history;
-reference postimages, comparison assertions and numerical tolerances are retained.
-Only the original reference module sets are restored; other package modules and
+Each reference records its immutable public `reference_commit` and its integrated
+package preimage `baseline_commit` in `manifest.json`. The patches were deliberately
+regenerated for that package revision, including formatting and newly added
+optional controls (previous preimage: `57732d5fa5d206b34b91b0076f323210e765e98c`;
+see "Single native engine rebind" below). Earlier fixture bytes remain in the
+public source history; reference postimages, comparison assertions and numerical
+tolerances are retained. Only the original reference module sets, plus
+`deeprootgen/data_model/__init__.py`, are restored; other package modules and
 installed dependencies stay common to both subprocesses. Generate each scoped
 patch with:
 
@@ -75,3 +77,31 @@ fixture generation. Only source-only diffs are included, never private run data,
 parameters or filesystem paths. The manifest binds current preimages, historical
 postimages and patch bytes. Same-runtime exact payload equality replaces the
 nonportable fixed floating digest, not the original historical digest values.
+
+## Single native engine rebind
+
+Merging the single native engine into main changed five restored modules
+(`simulation_data_models.py`, `model/root.py`, `construction_step_replay.py`,
+`research/primary_attachment.py` and `so4_controlled.py`), so every preimage
+hash and patch except `pre_ou_physical` was regenerated against the merged
+package (its module is unchanged and its fixture bytes are retained). Each
+reconstructed postimage was first verified against the unchanged
+`reference_modules_sha256` values; no assertion, tolerance or reference
+postimage of the original module sets changed.
+
+The merged `deeprootgen/data_model/__init__.py` also imports the schema-3
+`execution`, `features` and `resolution` modules, which need symbols that the
+historical `simulation_data_models.py` lacks, so a historical package could no
+longer be imported. Every reference that restores `simulation_data_models.py`
+therefore also restores `data_model/__init__.py` to git blob
+`2a63b47e5721a3cfc63683a3a2e4c25b42a5ba1e` (SHA256
+`42703850780eccbffe3f2ba9ed1af46cc3dbd6dee8a0d7aea9fe926805ad5765`). Those bytes
+are identical at every `reference_commit` and at the previous preimage
+`57732d5`, so the reconstructions run exactly the package initializer they ran
+before the merge.
+
+Commit-based patches use the documented `git diff` command. The two epoch
+patches (`pre_ou_physical`, `pre_primary_design`) are Python
+`difflib.unified_diff(..., n=3)` text with `diff --git a/P b/P` headers and no
+`index` lines, one file per manifest module in manifest order. Before
+regeneration, that generator reproduced both existing epoch patches byte for byte.
