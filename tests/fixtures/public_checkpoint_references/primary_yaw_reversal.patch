@@ -2,7 +2,7 @@ diff --git a/deeprootgen/data_model/__init__.py b/deeprootgen/data_model/__init_
 index 858a703141e917ffc555a7b0c1879977f438da1c..2a63b47e5721a3cfc63683a3a2e4c25b42a5ba1e 100644
 --- a/deeprootgen/data_model/__init__.py
 +++ b/deeprootgen/data_model/__init__.py
-@@ -16,6 +16,3 @@ from .simulation_data_models import (
+@@ -16,6 +16,3 @@
      StatisticsComparisonModel,
      SummaryStatisticsModel,
  )
@@ -13,7 +13,7 @@ diff --git a/deeprootgen/data_model/simulation_data_models.py b/deeprootgen/data
 index a2ffa4a876f9c6a2cb1a18948b879c22df077ee9..3ac70d9286f8edf845ae8390001b26f76f8a0208 100644
 --- a/deeprootgen/data_model/simulation_data_models.py
 +++ b/deeprootgen/data_model/simulation_data_models.py
-@@ -11,66 +11,15 @@ from typing import Dict, List, Literal, Optional
+@@ -11,66 +11,15 @@
  
  from pydantic import BaseModel, Field, field_validator, model_validator
  
@@ -81,7 +81,7 @@ index a2ffa4a876f9c6a2cb1a18948b879c22df077ee9..3ac70d9286f8edf845ae8390001b26f7
  class RootType(Enum):
      STRUCTURAL = "structural"
      FINE = "fine"
-@@ -155,45 +104,6 @@ class Parent2BranchZone(BaseModel):
+@@ -155,45 +104,6 @@ def validate_zone(cls, values):
          return validate_parent2_branch_zone(values)
  
  
@@ -284,7 +284,7 @@ index a2ffa4a876f9c6a2cb1a18948b879c22df077ee9..3ac70d9286f8edf845ae8390001b26f7
      @model_validator(mode="after")
      def require_fichtl_order_sigmas(self):
          if self.research_fichtl_sigma_by_order is not None:
-@@ -404,17 +183,17 @@ class RootSimulationModel(BaseModel):
+@@ -404,17 +183,17 @@ def require_fichtl_order_sigmas(self):
      @field_validator("research_fichtl_sigma_by_order", mode="before")
      @classmethod
      def validate_order_sigma_mapping(cls, value):
@@ -306,7 +306,7 @@ index a2ffa4a876f9c6a2cb1a18948b879c22df077ee9..3ac70d9286f8edf845ae8390001b26f7
          return self
  
      @model_validator(mode="after")
-@@ -437,8 +216,8 @@ class RootSimulationModel(BaseModel):
+@@ -437,8 +216,8 @@ def validate_insertion_row_axial(self):
      def validate_current_length_orders(self):
          cdfs = self.research_current_length_cdfs_cm
          if cdfs is not None:
@@ -317,7 +317,7 @@ index a2ffa4a876f9c6a2cb1a18948b879c22df077ee9..3ac70d9286f8edf845ae8390001b26f7
              if self.random_seed is None or self.segments_per_root <= 0:
                  raise ValueError("Current-length CDFs require an explicit random_seed and positive segments_per_root")
          return self
-@@ -455,27 +234,10 @@ class RootSimulationModel(BaseModel):
+@@ -455,27 +234,10 @@ def require_explicit_root_origin(self):
                  raise ValueError("Research base origin currently requires fichtl2024 mode")
          return self
  
@@ -345,7 +345,7 @@ index a2ffa4a876f9c6a2cb1a18948b879c22df077ee9..3ac70d9286f8edf845ae8390001b26f7
          if self.research_primary_yaw_mean_deg is not None and self.random_seed is None:
              raise ValueError("Research primary yaw requires an explicit random_seed")
          return self
-@@ -489,9 +251,9 @@ class RootSimulationModel(BaseModel):
+@@ -489,9 +251,9 @@ def require_explicit_fichtl_parameters(self):
          if self.tropism_mode == "fichtl2024":
              if self.gravitropism != 0:
                  raise ValueError("Set legacy gravitropism to zero in fichtl2024 mode")
@@ -361,7 +361,7 @@ diff --git a/deeprootgen/model/root.py b/deeprootgen/model/root.py
 index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c416e5a7e 100644
 --- a/deeprootgen/model/root.py
 +++ b/deeprootgen/model/root.py
-@@ -22,31 +22,14 @@ from ..utils.branching import (
+@@ -22,31 +22,14 @@
      PARENT2_DECIMAL_POLICY, parent2_zone_sites, redistribute_capped_sites,
      sample_branch_sites, validate_parent2_branch_zone,
  )
@@ -393,7 +393,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
  
  
  class RootOrgan:
-@@ -59,7 +42,6 @@ class RootOrgan:
+@@ -59,7 +42,6 @@ def __init__(
          root_type: RootTypeModel,
          simulation_tag: str,
          rng: np.random.Generator,
@@ -401,7 +401,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
      ) -> None:
          self.parent_node = parent_node
          self.segments: List[RootNode] = []
-@@ -67,14 +49,6 @@ class RootOrgan:
+@@ -67,14 +49,6 @@ def __init__(
          self.lateral_attachment_nodes: List[RootNode] = []
          self.input_parameters = input_parameters
          self.root_type = root_type
@@ -416,7 +416,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          self.base_diameter = input_parameters.base_diameter
          self.fine_root_threshold = input_parameters.fine_root_threshold
          self.proot_length_interval = np.array(
-@@ -84,6 +58,11 @@ class RootOrgan:
+@@ -84,6 +58,11 @@ def __init__(
              [input_parameters.min_sec_root_length, input_parameters.max_sec_root_length]
          )
          self.length_reduction = input_parameters.length_reduction
@@ -428,7 +428,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
  
      def init_diameters(
          self, segments_per_root: int, apex_diameter: float
-@@ -114,17 +93,10 @@ class RootOrgan:
+@@ -114,17 +93,10 @@ def init_lengths(self, segments_per_root: int) -> np.ndarray:
          legacy_lengths = segment_samples * root_length
          if cdf is None:
              return legacy_lengths
@@ -450,7 +450,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          diagnostics["legacy_compatibility_draw_count"] = 1 + segments_per_root
          self.current_length_diagnostics = diagnostics
          return lengths
-@@ -206,12 +178,6 @@ class RootOrgan:
+@@ -206,12 +178,6 @@ def _draw_lateral_count(self) -> int:
          factor = (1 - growth) ** -(current_order - 1)
          return int(math.ceil(n * factor))
  
@@ -463,7 +463,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
      def _prepare_branch_nodes(
          self,
          diameters: np.ndarray,
-@@ -222,35 +188,13 @@ class RootOrgan:
+@@ -222,35 +188,13 @@ def _prepare_branch_nodes(
  
          New nodes are inserted before edges are created, retaining existing
          RootSystemGraph parent/child rules. Each site is an endpoint of a
@@ -502,7 +502,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
              return diameters, lengths, coordinates, []
          diameters = np.asarray(diameters, dtype=float)
          lengths = np.asarray(lengths, dtype=float)
-@@ -263,7 +207,7 @@ class RootOrgan:
+@@ -263,7 +207,7 @@ def _prepare_branch_nodes(
          cumulative = np.r_[0.0, np.cumsum(original_lengths)]
  
          p = self.input_parameters
@@ -511,7 +511,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
              parent_xyz=polyline,
              interbranch_distance=float(p.interbranch_distance),
              rng=self.rng,
-@@ -271,33 +215,13 @@ class RootOrgan:
+@@ -271,33 +215,13 @@ def _prepare_branch_nodes(
              ceiling_threshold=float(p.ceiling_threshold),
              max_branches=n_requested,
          )
@@ -547,7 +547,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          if zone is not None:
              current = self.current_length_diagnostics["sampled_current_length_cm"]
              if not np.isclose(cumulative[-1], current, rtol=0, atol=1e-8):
-@@ -313,10 +237,6 @@ class RootOrgan:
+@@ -313,10 +237,6 @@ def _prepare_branch_nodes(
              )
          if not sites:
              return diameters, lengths, coordinates, []
@@ -558,7 +558,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          sites = np.asarray(sites, dtype=float)
          if sites.ndim != 1 or not np.all(np.isfinite(sites)):
              raise ValueError("sample_branch_sites must return finite arc lengths")
-@@ -421,12 +341,6 @@ class RootOrgan:
+@@ -421,12 +341,6 @@ def construct_root(
          """Construct primary root, inserting daughter attachment nodes first."""
          diameters = self.init_diameters(segments_per_root, apex_diameter)
          lengths = self.init_lengths(segments_per_root)
@@ -571,7 +571,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          coordinates = self.init_segment_coordinates(segments_per_root, lengths)
          diameters, lengths, coordinates, attachments = self._prepare_branch_nodes(
              diameters, lengths, coordinates
-@@ -465,9 +379,6 @@ class RootOrgan:
+@@ -465,9 +379,6 @@ def construct_root_from_parent(
          self, segments_per_root: int, apex_diameter: float
      ) -> List[RootNode]:
          """Construct higher-order root, with additional attachment nodes if needed."""
@@ -581,7 +581,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          if self._current_length_cdf() is not None:
              self._current_length_expected_organ_id = int(self.parent_node.G.organ_id)
          diameters = self.init_diameters(segments_per_root, apex_diameter)
-@@ -477,14 +388,8 @@ class RootOrgan:
+@@ -477,14 +388,8 @@ def construct_root_from_parent(
              self._construction_step_lengths_cm = lengths.copy()
          parent_order = parent_data.order
          diameters += parent_data.diameter * 0.1**parent_order
@@ -597,7 +597,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          coordinates = self.init_segment_coordinates(segments_per_root, lengths)
  
          root_type_name = (
-@@ -713,9 +618,7 @@ class RootSystemSimulation:
+@@ -713,9 +618,7 @@ def __init__(
          self.organs: Dict[int, List[RootOrgan]] = {}
          self.simulation_tag = simulation_tag
          self.random_seed = random_seed
@@ -608,7 +608,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
  
      def get_yaw(self, number_of_roots: int) -> tuple:
          yaw_base = 360 / number_of_roots
-@@ -883,77 +786,13 @@ class RootSystemSimulation:
+@@ -883,77 +786,13 @@ def init_fig(self, input_parameters: RootSimulationModel) -> go.Figure | None:
          return fig
  
      def init_organs(
@@ -688,7 +688,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          for position_type, n_roots in (
              (RootType.OUTER.value, input_parameters.outer_root_num),
              (RootType.INNER.value, input_parameters.inner_root_num),
-@@ -965,56 +804,34 @@ class RootSystemSimulation:
+@@ -965,56 +804,34 @@ def _init_primary_organs(self, input_parameters, laws, counts, quota_plans, prim
              )
              for _ in range(int(n_roots)):
                  organ = RootOrgan(
@@ -760,7 +760,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          sigma_map = getattr(input_parameters, "research_fichtl_sigma_by_order", None)
          if sigma_map is not None:
              if getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024":
-@@ -1035,7 +852,7 @@ class RootSystemSimulation:
+@@ -1035,7 +852,7 @@ def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> N
                  or not isinstance(constructor_seed, (int, np.integer))
                  or isinstance(parameter_seed, (bool, np.bool_))
                  or not isinstance(parameter_seed, (int, np.integer))
@@ -769,7 +769,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
              raise ValueError("Research keyed initialization requires equal explicit constructor and parameter seeds")
  
      def position_secondary_roots(self, input_parameters: RootSimulationModel) -> None:
-@@ -1057,11 +874,6 @@ class RootSystemSimulation:
+@@ -1057,11 +874,6 @@ def position_secondary_roots(self, input_parameters: RootSimulationModel) -> Non
  
      def position_primary_roots(self, input_parameters: RootSimulationModel) -> None:
          self._validate_primary_yaw_seed(input_parameters)
@@ -781,7 +781,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          position_type = RootType.OUTER.value
          yaw_base, yaw_noise_base, yaw = self.get_yaw(input_parameters.outer_root_num)
          for primary_root in self.organs[1]:
-@@ -1088,66 +900,6 @@ class RootSystemSimulation:
+@@ -1088,66 +900,6 @@ def position_primary_roots(self, input_parameters: RootSimulationModel) -> None:
          if getattr(input_parameters, "research_base_depth_cm", None) is not None:
              self.apply_root_origin_initialization(input_parameters)
  
@@ -848,7 +848,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
      def apply_primary_inclination_initialization(self, input_parameters: RootSimulationModel) -> None:
          """Plan all rigid primary-subtree rotations after yaw, before origin."""
          bias = getattr(input_parameters, "research_primary_inclination_bias", None)
-@@ -1215,17 +967,9 @@ class RootSystemSimulation:
+@@ -1215,17 +967,9 @@ def apply_root_origin_initialization(self, input_parameters: RootSimulationModel
                  or "soil_surface_z_cm" not in getattr(input_parameters, "model_fields_set", set())
                  or getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024"):
              raise ValueError("Root-origin initialization requires explicit finite x/y/positive depth and surface in fichtl2024")
@@ -867,7 +867,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          nodes = self.G.nodes
          coordinates = np.array([[node.node_data.x, node.node_data.y, node.node_data.z] for node in nodes])
          if not np.isfinite(coordinates).all() or not np.isfinite(target).all():
-@@ -1235,11 +979,11 @@ class RootSystemSimulation:
+@@ -1235,11 +979,11 @@ def translate_common_base(self, x_cm, y_cm, depth_cm, surface_z_cm):
              raise ValueError("Root-origin translation produced nonfinite coordinates")
          for node, xyz in zip(nodes, translated):
              node.node_data.x, node.node_data.y, node.node_data.z = xyz
@@ -882,7 +882,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          )
  
      def apply_primary_yaw_initialization(self, input_parameters: RootSimulationModel) -> None:
-@@ -1262,17 +1006,13 @@ class RootSystemSimulation:
+@@ -1262,17 +1006,13 @@ def apply_primary_yaw_initialization(self, input_parameters: RootSimulationModel
                  input_parameters.research_primary_yaw_kappa,
                  input_parameters.random_seed, organ_id,
              )
@@ -902,7 +902,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
              subtree = [primary]
              while subtree:
                  organ = subtree.pop()
-@@ -1287,7 +1027,6 @@ class RootSystemSimulation:
+@@ -1287,7 +1027,6 @@ def apply_primary_yaw_initialization(self, input_parameters: RootSimulationModel
                  base_cm=origin.tolist(), old_yaw_deg=math.degrees(old_yaw),
                  assigned_yaw_deg=math.degrees(assigned), realised_yaw_deg=math.degrees(realised),
                  rotation_deg=math.degrees(delta),
@@ -910,7 +910,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
              ))
  
      def validate(
-@@ -1296,14 +1035,7 @@ class RootSystemSimulation:
+@@ -1296,14 +1035,7 @@ def validate(
          pitch: int = 45,
          orders=None,
          allow_reorient: bool = True,
@@ -925,7 +925,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          mode = getattr(input_parameters, "tropism_mode", "legacy")
          if mode == "fichtl2024" and not hasattr(self, "validation_diagnostics"):
              self.validation_diagnostics = []
-@@ -1315,8 +1047,6 @@ class RootSystemSimulation:
+@@ -1315,8 +1047,6 @@ def validate(
                  if mode == "fichtl2024":
                      extra["enforce_downward_apex"] = False
                      extra["allow_reorient"] = allow_reorient
@@ -934,7 +934,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
                  organ.validate(
                      (input_parameters.no_root_zone if mode == "legacy" else 0.0)
                      + getattr(input_parameters, "soil_surface_z_cm", 0.0),
-@@ -1345,107 +1075,68 @@ class RootSystemSimulation:
+@@ -1345,107 +1075,68 @@ def grow(
      def _check_optional_primary_validation(self, input_parameters: RootSimulationModel) -> None:
          if (getattr(input_parameters, "research_primary_yaw_mean_deg", None) is None
                  and getattr(input_parameters, "research_base_depth_cm", None) is None
@@ -1083,7 +1083,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
              sigma, sigma_receipt = resolve_fichtl_sigma(
                  parameters.fichtl_sigma, order, getattr(parameters, "research_fichtl_sigma_by_order", None),
              )
-@@ -1470,10 +1161,16 @@ class RootSystemSimulation:
+@@ -1470,10 +1161,16 @@ def apply_fichtl_tropism(
                  position = np.array([parent.x, parent.y, parent.z])
                  gp = grandparent.node_data
                  tangent = position - np.array([gp.x, gp.y, gp.z])
@@ -1104,7 +1104,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
                  heading = insertion_heading(tangent, mean, sd, self.rng)
                  row_report = None
                  if row_kappas is not None:
-@@ -1494,9 +1191,13 @@ class RootSystemSimulation:
+@@ -1494,9 +1191,13 @@ def apply_fichtl_tropism(
                      heading, diagnostics = sample_heading(
                          heading,
                          length,
@@ -1120,7 +1120,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
                          self.rng,
                          start_z=position[2],
                          surface_z=parameters.soil_surface_z_cm,
-@@ -1529,12 +1230,7 @@ class RootSystemSimulation:
+@@ -1529,12 +1230,7 @@ def apply_fichtl_tropism(
                          self.tropism_diagnostics[name] += int(diagnostics[name])
                          by_order[name] += int(diagnostics[name])
  
@@ -1134,7 +1134,7 @@ index 376893a475f3abb3c390187bd359c9aa49237f31..5e27ddfffd9179430cb171fc1d68b02c
          if not 0 <= gravitropism <= 1:
              raise ValueError("gravitropism must be between 0 and 1")
          if gravitropism == 0:
-@@ -1555,7 +1251,7 @@ class RootSystemSimulation:
+@@ -1555,7 +1251,7 @@ def apply_gravitropism(self, gravitropism: float, *, fixed=None) -> None:
          for node in self.G.nodes:
              data = node.node_data
              node_id, parent_id = data.node_id, data.parent_id
@@ -1147,7 +1147,7 @@ diff --git a/deeprootgen/research/construction_step_replay.py b/deeprootgen/rese
 index d213046448b18d34ccea59132aed60c365d32064..d24b928c4c1d35f26895f8d6f6528639d480b776 100644
 --- a/deeprootgen/research/construction_step_replay.py
 +++ b/deeprootgen/research/construction_step_replay.py
-@@ -4,8 +4,6 @@ These sampled construction intervals are a numerical operator, not elongation
+@@ -4,8 +4,6 @@
  events or measured biological time steps. Native Fichtl semantics are separate.
  """
  
@@ -1156,7 +1156,7 @@ index d213046448b18d34ccea59132aed60c365d32064..d24b928c4c1d35f26895f8d6f6528639
  import copy
  import hashlib
  import json
-@@ -14,33 +12,34 @@ import numpy as np
+@@ -14,33 +12,34 @@
  import pandas as pd
  
  from ..data_model import RootSimulationModel
@@ -1642,7 +1642,7 @@ diff --git a/deeprootgen/research/so4_controlled.py b/deeprootgen/research/so4_c
 index 52e037156cf062c2be420673035d77d489222542..8be2706ef2000301eb7f681997bcb877161a20b5 100644
 --- a/deeprootgen/research/so4_controlled.py
 +++ b/deeprootgen/research/so4_controlled.py
-@@ -18,22 +18,12 @@ from typing import Any
+@@ -18,22 +18,12 @@
  import numpy as np
  import pandas as pd
  
@@ -1666,7 +1666,7 @@ index 52e037156cf062c2be420673035d77d489222542..8be2706ef2000301eb7f681997bcb877
  ARMS = {
      "A": ("legacy", "legacy"),
      "B": ("fichtl", "legacy"),
-@@ -43,6 +33,14 @@ ARMS = {
+@@ -43,6 +33,14 @@
  XYZ = ["x", "y", "z"]
  
  
@@ -1737,7 +1737,7 @@ index 52e037156cf062c2be420673035d77d489222542..8be2706ef2000301eb7f681997bcb877
          nodes = nodes.sort_values("node_id").reset_index(drop=True).copy()
          edges = edges.sort_values(["parent_id", "child_id"]).reset_index(drop=True)
          by_id = nodes.set_index("node_id")
-@@ -161,33 +187,6 @@ class Skeleton:
+@@ -161,33 +187,6 @@ def load(cls, path):
          return result
  
  
@@ -2301,7 +2301,7 @@ diff --git a/deeprootgen/utils/tropism.py b/deeprootgen/utils/tropism.py
 index cdac5c9b725a2c660427b9390798263b3d648159..e8dfea222948397f3fe571533e1612b3d8285de9 100644
 --- a/deeprootgen/utils/tropism.py
 +++ b/deeprootgen/utils/tropism.py
-@@ -47,38 +47,28 @@ SIGMA_OPERATOR_VERSION = "research-fichtl-sigma-by-order-v1"
+@@ -47,38 +47,28 @@ def insertion_heading(parent_direction, mean_deg, sd_deg, rng):
  
  
  def validate_fichtl_sigma_by_order(mapping, max_order=3):

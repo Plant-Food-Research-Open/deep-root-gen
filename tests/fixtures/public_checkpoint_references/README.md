@@ -100,7 +100,9 @@ are identical at every `reference_commit` and at the previous preimage
 `57732d5`, so the reconstructions run exactly the package initializer they ran
 before the merge.
 
-Commit-based patches use the documented `git diff` command. The two epoch
+Commit-based patches use the documented `git diff` command with the merge
+commit as BASE, run inside this repository: `.gitattributes` selects
+`diff=python`, which sets the hunk-header context text. The two epoch
 patches (`pre_ou_physical`, `pre_primary_design`) are Python
 `difflib.unified_diff(..., n=3)` text with `diff --git a/P b/P` headers and no
 `index` lines, one file per manifest module in manifest order. Before
