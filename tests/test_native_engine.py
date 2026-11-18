@@ -7,7 +7,6 @@ recovery and unchanged sampled biology/material while the curve changes.
 
 import ast
 import copy
-import hashlib
 import json
 from pathlib import Path
 
@@ -21,15 +20,11 @@ from deeprootgen.archive.resolution import explain_config, resolve_config
 from deeprootgen.data_model.resolution import ENGINE_PHASES
 from deeprootgen.model import engine as engine_module
 from deeprootgen.archive.simulation import RootSystemSimulation
+from tests.native_execution_reference import CONTRACTS as FIXTURE, table_hash
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLE = ROOT / "tests/fixtures/migration_inputs/design/native_feature_options.proposed.json"
-FIXTURE = json.loads((ROOT / "tests/fixtures/native_execution_contracts.json").read_text())
 MODES = ["legacy", "fichtl2024"]
-
-
-def table_hash(frame):
-    return hashlib.sha256(frame.to_csv(index=False, float_format="%.17g").encode()).hexdigest()
 
 
 def v3(mode="legacy", curvature=False, sd=0.08, **updates):
@@ -139,13 +134,15 @@ def test_all_off_matches_flat_baseline_exactly(mode):
     assert off.result.metadata["supplied_input_sha256"] != native.result.metadata["supplied_input_sha256"]
 
 
-@pytest.mark.parametrize("record", [r for r in FIXTURE["records"] if r["contract"] in MODES])
-def test_frozen_native_references_unchanged_through_engine(record):
+@pytest.mark.parametrize("index,record", [(i, r) for i, r in enumerate(FIXTURE["records"]) if r["contract"] in MODES])
+def test_frozen_native_references_unchanged_through_engine(index, record, native_reference_outputs):
     params = RootSimulationModel(**record["parameters"])
     sim = run(params, seed=record["seed"], tag=params.simulation_tag)
     nodes, edges = sim.G.as_df()
-    assert table_hash(nodes) == record["nodes"] and table_hash(edges) == record["edges"]
-    assert sim.rng.bit_generator.state == record["rng"]
+    expected = native_reference_outputs[index]
+    assert table_hash(nodes) == expected["nodes"]
+    assert table_hash(edges) == expected["edges"]
+    assert sim.rng.bit_generator.state == expected["rng"]
 
 
 @pytest.mark.parametrize("mode", MODES)

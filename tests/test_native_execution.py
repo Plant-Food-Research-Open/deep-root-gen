@@ -1,8 +1,6 @@
 """Native parity against independent pre-migration source, using invented inputs."""
 
 import copy
-import hashlib
-import json
 from pathlib import Path
 
 import numpy as np
@@ -13,24 +11,7 @@ from deeprootgen.data_model import RootSimulationModel, RootSimulationConfig
 from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research.cohort_root_generator import CohortRootGenerator
 from deeprootgen.research.so4_controlled import capture_initial
-
-FIXTURE = json.loads(
-    (Path(__file__).parent / "fixtures/native_execution_contracts.json").read_text()
-)
-
-
-def table_hash(frame):
-    return hashlib.sha256(
-        frame.to_csv(index=False, float_format="%.17g").encode()
-    ).hexdigest()
-
-
-def json_hash(value):
-    return hashlib.sha256(
-        json.dumps(
-            value, sort_keys=True, separators=(",", ":"), allow_nan=False
-        ).encode()
-    ).hexdigest()
+from tests.native_execution_reference import CONTRACTS as FIXTURE, json_hash, table_hash
 
 
 def configuration(record):
@@ -54,8 +35,9 @@ def configuration(record):
     )
 
 
-@pytest.mark.parametrize("record", FIXTURE["records"])
-def test_frozen_reference_parity_and_native_ownership(record, monkeypatch):
+@pytest.mark.parametrize("index,record", list(enumerate(FIXTURE["records"])))
+def test_frozen_reference_parity_and_native_ownership(index, record, monkeypatch, native_reference_outputs):
+    expected = native_reference_outputs[index]
     config = configuration(record)
     before = config.model_dump()
     sim = RootSystemSimulation(
@@ -108,26 +90,26 @@ def test_frozen_reference_parity_and_native_ownership(record, monkeypatch):
             observation_nodes=projected,
             observation_edges=full_edges.loc[full_edges.parent_id.ne(0)].copy(),
         )
-        assert {k: table_hash(v) for k, v in view.items()} == record["tables"]
-        assert sim.result.diagnostics == record["diagnostics"]
+        assert {k: table_hash(v) for k, v in view.items()} == expected["tables"]
+        assert sim.result.diagnostics == expected["diagnostics"]
         assert nodes.plant_id.nunique() == 1  # Actual vine identity survives.
         assert len(sim.G.bases) == record["older_count"] + record["later_count"]
         assert len(edges) == len(nodes) - len(sim.G.bases)
     else:
-        assert table_hash(nodes) == record["nodes"]
-        assert table_hash(edges) == record["edges"]
+        assert table_hash(nodes) == expected["nodes"]
+        assert table_hash(edges) == expected["edges"]
         if record["contract"] == "construction_steps_v1":
-            assert snapshots[0].sha256 == record["initial_sha256"]
+            assert snapshots[0].sha256 == expected["initial_sha256"]
             assert (
                 json_hash(sim.result.diagnostics["construction_steps"])
-                == record["steps_sha256"]
+                == expected["steps_sha256"]
             )
             assert (
                 json_hash(sim.result.diagnostics["graph_fragments"])
-                == record["fragments_sha256"]
+                == expected["fragments_sha256"]
             )
         else:
-            assert sim.rng.bit_generator.state == record["rng"]
+            assert sim.rng.bit_generator.state == expected["rng"]
 
 
 def test_extended_rejects_conflicting_unused_and_unknown_options_before_execution():
