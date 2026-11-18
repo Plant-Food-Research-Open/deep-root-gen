@@ -1,9 +1,9 @@
 {
-  "default_baseline_commit": "57732d5fa5d206b34b91b0076f323210e765e98c",
+  "default_baseline_commit": "0d5746aad834c0a166ab61f32206e4e884eb9786",
   "format": "deeprootgen-public-checkpoint-reference-v1",
   "references": {
     "order_specific_sigma": {
-      "baseline_commit": "57732d5fa5d206b34b91b0076f323210e765e98c",
+      "baseline_commit": "0d5746aad834c0a166ab61f32206e4e884eb9786",
       "baseline_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "13a43759224c3cf60868e5c3d7b9b13cda35955d85a94a1ceeb924cc3761cb77",
         "deeprootgen/data_model/simulation_data_models.py": "616b307b94225e6a64235d4e3b928cf1249f88fc4e6837c48dee4fe370a32ece",
@@ -16,7 +16,7 @@
         "deeprootgen/utils/tropism.py": "af71399ba7b89e94a28bd53f014e059aaed03bb6716d3c1e65c0912f0db7c111"
       },
       "patch": "order_specific_sigma.patch",
-      "patch_sha256": "50c07a08adc9663aa42738e01ea90d90582febb5a41521f75208ef48860ecfb3",
+      "patch_sha256": "8a96e7fa782e6c7f3545da3541244ac8d5984d685d4077a34b47358d259b226a",
       "reference_commit": "25ae482d5126fe10442bdded2210beaf7304d03c",
       "reference_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "42703850780eccbffe3f2ba9ed1af46cc3dbd6dee8a0d7aea9fe926805ad5765",
@@ -31,7 +31,7 @@
       }
     },
     "parent2_branch_zone": {
-      "baseline_commit": "57732d5fa5d206b34b91b0076f323210e765e98c",
+      "baseline_commit": "0d5746aad834c0a166ab61f32206e4e884eb9786",
       "baseline_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "13a43759224c3cf60868e5c3d7b9b13cda35955d85a94a1ceeb924cc3761cb77",
         "deeprootgen/data_model/simulation_data_models.py": "616b307b94225e6a64235d4e3b928cf1249f88fc4e6837c48dee4fe370a32ece",
@@ -46,7 +46,7 @@
         "deeprootgen/utils/tropism.py": "af71399ba7b89e94a28bd53f014e059aaed03bb6716d3c1e65c0912f0db7c111"
       },
       "patch": "parent2_branch_zone.patch",
-      "patch_sha256": "7ed16adb80e117c7bb88f72ba6c5b478a88976d4311dc5a6b0209811cf1a2fa2",
+      "patch_sha256": "a05d362c00ae57cbd2d4bf1c6cea535f6adbd30894ce519052fd9acf11f8addc",
       "reference_commit": "0b8291c5b30b9e026caed6eb41ce0f3dd9f3c7e4",
       "reference_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "42703850780eccbffe3f2ba9ed1af46cc3dbd6dee8a0d7aea9fe926805ad5765",
@@ -63,7 +63,7 @@
       }
     },
     "pre_research_legacy": {
-      "baseline_commit": "57732d5fa5d206b34b91b0076f323210e765e98c",
+      "baseline_commit": "0d5746aad834c0a166ab61f32206e4e884eb9786",
       "baseline_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "13a43759224c3cf60868e5c3d7b9b13cda35955d85a94a1ceeb924cc3761cb77",
         "deeprootgen/data_model/simulation_data_models.py": "616b307b94225e6a64235d4e3b928cf1249f88fc4e6837c48dee4fe370a32ece",
@@ -83,7 +83,7 @@
         "deeprootgen/utils/tropism.py": "af71399ba7b89e94a28bd53f014e059aaed03bb6716d3c1e65c0912f0db7c111"
       },
       "patch": "pre_research_legacy.patch",
-      "patch_sha256": "012bd04894c87ef86bbe04285c90ea5cf54f975863568343d555958314143afc",
+      "patch_sha256": "6c1612ec7e674ca642524547ea65fee3f3734e518583cfadf4779a32b5bfb55c",
       "reference_commit": "24ee8d9e677770b00d0206cdb93c1487304bf447",
       "reference_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "42703850780eccbffe3f2ba9ed1af46cc3dbd6dee8a0d7aea9fe926805ad5765",
@@ -105,7 +105,7 @@
       }
     },
     "primary_attachment_distal": {
-      "baseline_commit": "57732d5fa5d206b34b91b0076f323210e765e98c",
+      "baseline_commit": "0d5746aad834c0a166ab61f32206e4e884eb9786",
       "baseline_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "13a43759224c3cf60868e5c3d7b9b13cda35955d85a94a1ceeb924cc3761cb77",
         "deeprootgen/data_model/simulation_data_models.py": "616b307b94225e6a64235d4e3b928cf1249f88fc4e6837c48dee4fe370a32ece",
@@ -116,7 +116,7 @@
         "deeprootgen/utils/primary_attachment.py": "e8a09aca7355eed4a8d521b06ed276f9ad7488b9b5a70c18151d879d836a2ec5"
       },
       "patch": "primary_attachment_distal.patch",
-      "patch_sha256": "676880ce28ed5542f7f2b80c56b3c2c0421216185f957000439beb39202a59cc",
+      "patch_sha256": "70b0fb4ea9c0780acd198e80fae9ac1cf07828637a64e7a3cd33dce55c12b1c9",
       "reference_commit": "d36f2ecfd243b944f674539f84dc2d0ea896cd1b",
       "reference_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "42703850780eccbffe3f2ba9ed1af46cc3dbd6dee8a0d7aea9fe926805ad5765",
@@ -129,7 +129,7 @@
       }
     },
     "primary_yaw_reversal": {
-      "baseline_commit": "57732d5fa5d206b34b91b0076f323210e765e98c",
+      "baseline_commit": "0d5746aad834c0a166ab61f32206e4e884eb9786",
       "baseline_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "13a43759224c3cf60868e5c3d7b9b13cda35955d85a94a1ceeb924cc3761cb77",
         "deeprootgen/data_model/simulation_data_models.py": "616b307b94225e6a64235d4e3b928cf1249f88fc4e6837c48dee4fe370a32ece",
@@ -142,7 +142,7 @@
         "deeprootgen/utils/tropism.py": "af71399ba7b89e94a28bd53f014e059aaed03bb6716d3c1e65c0912f0db7c111"
       },
       "patch": "primary_yaw_reversal.patch",
-      "patch_sha256": "1e5d690aeeb0145dbf69e46f3078946412a8254d4ec79d01aeb6f04a7e88e842",
+      "patch_sha256": "df04939a8da4dd9fa92c16b0cf02f6cabf3a2bf02daf6b9b7ba7ab050923ca42",
       "reference_commit": "8c8a1460a5da1fcb449f65c5e8b278b5b4c9b5e8",
       "reference_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "42703850780eccbffe3f2ba9ed1af46cc3dbd6dee8a0d7aea9fe926805ad5765",
@@ -157,7 +157,7 @@
       }
     },
     "tertiary_length_rank": {
-      "baseline_commit": "57732d5fa5d206b34b91b0076f323210e765e98c",
+      "baseline_commit": "0d5746aad834c0a166ab61f32206e4e884eb9786",
       "baseline_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "13a43759224c3cf60868e5c3d7b9b13cda35955d85a94a1ceeb924cc3761cb77",
         "deeprootgen/data_model/simulation_data_models.py": "616b307b94225e6a64235d4e3b928cf1249f88fc4e6837c48dee4fe370a32ece",
@@ -169,7 +169,7 @@
         "deeprootgen/utils/tertiary_length_rank.py": "c6c3c5aed28d0956f9abf70cb0ceb8eeecdd6c59a1054555e79dfc5ab296ce9f"
       },
       "patch": "tertiary_length_rank.patch",
-      "patch_sha256": "1bd7f8e81737ec4dc4537f1774e2c33125b0f7e34c11fa2eca9d7cbabc7adb95",
+      "patch_sha256": "6b936e94e1d2cf123d2580c2b02c1e7c9300c256b9474c51853eb7a0c090028d",
       "reference_commit": "d0242ac11835e2ad6246f4160e7387015af8b68a",
       "reference_modules_sha256": {
         "deeprootgen/data_model/__init__.py": "42703850780eccbffe3f2ba9ed1af46cc3dbd6dee8a0d7aea9fe926805ad5765",
