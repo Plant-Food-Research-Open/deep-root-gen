@@ -1,5 +1,10 @@
 # Development, setup and validation
 
+For current AI coding practice, use the [AI coding guide](AI_CODING_GUIDE.md)
+and [lessons learned](AI_CODING_LESSONS.md). They cover change boundaries,
+source verification and task-appropriate checks; the historical recipes below
+must be rechecked against current code before use.
+
 Current environment/CLI/UI qualification is tracked in [RUNNING.md](../RUNNING.md).
 The evidence below is the historical 28 October reconnaissance snapshot.
 
