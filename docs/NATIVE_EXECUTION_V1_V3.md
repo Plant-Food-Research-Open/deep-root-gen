@@ -1,6 +1,11 @@
 # Historical execution contracts for schema versions 1–3
 
-For current runs see the [canonical execution guide](NATIVE_EXECUTION.md).
+Fresh generation uses the schema-4 API and CLI in the
+[canonical execution guide](NATIVE_EXECUTION.md). This page records the earlier
+formats and study protocols. The [archive entrypoint](../deeprootgen/archive/simulation.py)
+accepts those formats for recorded studies. Use the
+[offline converter](research/SINGLE_INPUT_MIGRATION.md) to prepare an older
+document for fresh generation.
 
 > **18 November 2026 status.** Every input — legacy flat, schema 2 (native,
 > `construction_steps_v1`, `cohort_v5`) and schema 3 — is parsed and resolved by
@@ -201,10 +206,8 @@ python -m deeprootgen simulate --config examples/research/native_cohort_syntheti
   --outdir .runtime/my-new-native-cohort-run
 ```
 
-Old inputs keep their historical parsing, restrictions, random streams, node
-IDs and serialized outputs exactly (frozen references in
-`tests/fixtures/native_execution_contracts.json`). Each is an adapter that
-declares laws for the shared phases:
+The archived adapters preserve the recorded parsing and declare the historical
+laws for the shared phases, including random-stream and node-ID conventions.
 
 | Input | Declared laws in the shared engine |
 |---|---|
@@ -286,19 +289,17 @@ diameters. Native organ-average labels retain their meaning on untapered axes.
 |---|---|
 | Direct API, offline CLI, tracked notebook runs | All inputs above; tested with invented examples |
 | Controlled construction-step notebook/search bridge | Schema-2 adapter with existing comparison and INITIAL identities |
-| Historical cohort API | Schema-2 adapter with exact historical export parity on frozen invented cases |
+| Historical cohort API | Schema-2 archive entrypoint for recorded cohort experiments |
 | Finite-core utility | Explicit root-only projection, with mandatory tree-to-vine aggregation |
 | NetworkX | Root forest, including isolated bases; sidecars remain separate |
 | Dash/Prefect persistence, BentoML, native calibration/legacy statistics | Flat native requests only; Prefect rejects other requests before side effects |
 
-The unchanged historical reference commit is recorded in
-`tests/fixtures/native_execution_contracts.json`. Its original hashes record
-the exports from the reference runtime. The tests verify the SHA-256 of the
-archived Python source and its recorded modules, then replay the original
-synthetic inputs in a separate process using the current test environment.
-They require exact equality across that replay and the current archive
-entrypoint. The comparison covers tables, RNG states and applicable
-construction and cohort diagnostics.
+The [synthetic contract fixture](../tests/fixtures/native_execution_contracts.json)
+records the pre-consolidation source commit and its original output hashes.
+The active tests use the captured inputs to check shared-engine ownership,
+graph integrity, material and the INITIAL callback. To rerun the historical
+implementation, use the recorded revision in a separate checkout with its
+matching dependencies.
 
 `limits.max_organs`, `max_nodes` and `max_stations` fail explicitly before the
 corresponding allocation; successful-run model identity excludes these limits.
