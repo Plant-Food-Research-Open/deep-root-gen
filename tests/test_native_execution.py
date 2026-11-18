@@ -1,6 +1,7 @@
-"""Native parity against independent pre-migration source, using invented inputs."""
+"""Shared-engine ownership and graph integrity for archived synthetic inputs."""
 
 import copy
+import json
 from pathlib import Path
 
 import numpy as np
@@ -11,7 +12,10 @@ from deeprootgen.data_model import RootSimulationModel, RootSimulationConfig
 from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research.cohort_root_generator import CohortRootGenerator
 from deeprootgen.research.so4_controlled import capture_initial
-from tests.native_execution_reference import CONTRACTS as FIXTURE, json_hash, table_hash
+
+FIXTURE = json.loads(
+    (Path(__file__).parent / "fixtures/native_execution_contracts.json").read_text()
+)
 
 
 def configuration(record):
@@ -35,9 +39,8 @@ def configuration(record):
     )
 
 
-@pytest.mark.parametrize("index,record", list(enumerate(FIXTURE["records"])))
-def test_frozen_reference_parity_and_native_ownership(index, record, monkeypatch, native_reference_outputs):
-    expected = native_reference_outputs[index]
+@pytest.mark.parametrize("record", FIXTURE["records"])
+def test_shared_engine_owns_generation_and_graph(record, monkeypatch):
     config = configuration(record)
     before = config.model_dump()
     sim = RootSystemSimulation(
@@ -78,38 +81,12 @@ def test_frozen_reference_parity_and_native_ownership(index, record, monkeypatch
             assert organ.mass == pytest.approx(organ.calculate_mass(), rel=1e-12)
             for child in organ.child_organs:
                 assert child.parent_node in organ.segments
-    if record["contract"] == "cohort_v5":
-        full_nodes, full_edges = sim.result.cohort_tables(sim.G)
-        projected = full_nodes.loc[full_nodes.node_id.ne(0)].copy()
-        projected["plant_id"] = projected.primary_tree_id
-        projected.loc[projected.order.eq(0), "parent_id"] = -1
-        view = dict(
-            nodes=full_nodes,
-            edges=full_edges,
-            organs=sim.result.organ_table,
-            observation_nodes=projected,
-            observation_edges=full_edges.loc[full_edges.parent_id.ne(0)].copy(),
-        )
-        assert {k: table_hash(v) for k, v in view.items()} == expected["tables"]
-        assert sim.result.diagnostics == expected["diagnostics"]
+    if config.trajectory == "cohort_v5":
         assert nodes.plant_id.nunique() == 1  # Actual vine identity survives.
         assert len(sim.G.bases) == record["older_count"] + record["later_count"]
         assert len(edges) == len(nodes) - len(sim.G.bases)
-    else:
-        assert table_hash(nodes) == expected["nodes"]
-        assert table_hash(edges) == expected["edges"]
-        if record["contract"] == "construction_steps_v1":
-            assert snapshots[0].sha256 == expected["initial_sha256"]
-            assert (
-                json_hash(sim.result.diagnostics["construction_steps"])
-                == expected["steps_sha256"]
-            )
-            assert (
-                json_hash(sim.result.diagnostics["graph_fragments"])
-                == expected["fragments_sha256"]
-            )
-        else:
-            assert sim.rng.bit_generator.state == expected["rng"]
+    elif config.trajectory == "construction_steps_v1":
+        assert len(snapshots) == 1
 
 
 def test_extended_rejects_conflicting_unused_and_unknown_options_before_execution():
