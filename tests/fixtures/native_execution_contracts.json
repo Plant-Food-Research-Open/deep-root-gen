@@ -1,0 +1,1442 @@
+{
+  "reference_commit": "ff1a1df17381de3907f9799a56fb8f62008f6b47",
+  "reference_source_sha256": {
+    "deeprootgen/model/hgraph.py": "d0e78dae635783490d8f34d28bf20ab6b102d4c862a03b16e83a8e5101ea93ab",
+    "deeprootgen/model/root.py": "1df0d00a4b26bddf831ac3af6f496560b409e692d3854492e9be7e47f5535206",
+    "deeprootgen/research/construction_step_replay.py": "4e6cfe89083cccb8b4bfa872cf146319907c5438768f64a435882f8d3e18346f",
+    "deeprootgen/research/cohort_root_generator.py": "2972a756b5c87e64f1631ec5819ce662540f762743b2adbc3b9998438376ada0",
+    "deeprootgen/research/primary_attachment.py": "921095a6be26e879ddc17f8db61d64476f77be1b5ac53835454482a395cfcd57",
+    "deeprootgen/research/so4_controlled.py": "267f9fdde380c2b531b62436e73fab32191ea22bf2cc176bd12787d8c9727b0b",
+    "deeprootgen/data_model/simulation_data_models.py": "d5b88553ea938322962f20e5d084b12a9462c20b1f23842206c1ddf379b49941"
+  },
+  "python": "3.10.20",
+  "numpy": "1.26.4",
+  "pandas": "2.2.2",
+  "records": [
+    {
+      "contract": "legacy",
+      "seed": 42,
+      "parameters": {
+        "random_seed": 42,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0.0,
+        "soil_layer_width": 0.0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": null,
+        "research_current_length_grid": null,
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": null,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": null,
+        "research_primary_attachment_distal_fraction": null,
+        "research_primary_inclination_bias": null,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": null,
+        "research_base_origin_y_cm": null,
+        "research_base_depth_cm": null,
+        "tropism_mode": "legacy",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "ef4e9b2f9bad3f372bbf6a044583eb068b8cecbafd2534f83aaa06606c60fa1a",
+      "edges": "0253c3db0bf4ac264273e678251bc91d8d31252c90dcfd9d8472d60354d6ee23",
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 14208465620887895020795788099362245063,
+          "inc": 332724090758049132448979897138935081983
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "contract": "fichtl2024",
+      "seed": 42,
+      "parameters": {
+        "random_seed": 42,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0.0,
+        "soil_layer_width": 0.0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              2.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": null,
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": null,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "eecf2bbb77f23769309eee148ec82eae08388efcc499ff8490bdc10b145328b3",
+      "edges": "031338d8da88dfe5b7941fc8edd7333684aaf80cf669742629fba298e8324735",
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 165998726383122979762740456663518938402,
+          "inc": 332724090758049132448979897138935081983
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "contract": "construction_steps_v1",
+      "seed": 42,
+      "parameters": {
+        "random_seed": 42,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0,
+        "soil_layer_width": 0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              2.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": "construction_steps_v1",
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": null,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "b99ff56fe5085e0bec4c70168b6d7a2c64cb81a4b876414c798437c89dce4097",
+      "edges": "adc5102f184170c8419e81a849d5d09d8ff68f013ead0a75542ce28bd3969c6c",
+      "initial_sha256": "d1c8d40d8ed72ad38932b17f6cf7023d59a2e3c4a414cd7509cfe9440f370e75",
+      "steps_sha256": "262e7ed240325b595b42187b5c5a6a5836716ac3101d3810d7f7ea545719c020",
+      "fragments_sha256": "bd312005c0c45274e2adc0c2271506e74639db87683ba1ef5b985b44f6f60099"
+    },
+    {
+      "contract": "construction_steps_v1",
+      "seed": 42,
+      "parameters": {
+        "random_seed": 42,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0,
+        "soil_layer_width": 0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              2.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": "construction_steps_v1",
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": 0.25,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "31e99c8e35635ee193a16583f2ad9090b3a41ae8fc921b6970a0c0356d35013c",
+      "edges": "b1b13bcfec2f0e44deb56e24fa4e069af7f74a720e4172a520091b8c2940e31b",
+      "initial_sha256": "e7950a720069c9dac5ca4f1b5271d4ecb3c3f3cee22f87a712ab054347936a56",
+      "steps_sha256": "462b3a855ec88112cd0ca12130b452e501eab69ab15f967da6d17e323196aed2",
+      "fragments_sha256": "639e7f85f960f91add1232f08ab4b1406fc95aa15988df1dda4a8da64405246a"
+    },
+    {
+      "contract": "construction_steps_v1",
+      "seed": 42,
+      "parameters": {
+        "random_seed": 42,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 2,
+        "max_sec_root_num": 3,
+        "growth_sec_root": 0.0,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 3,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 1.0,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0,
+        "soil_layer_width": 0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              1.0,
+              2.0,
+              3.0,
+              4.0
+            ],
+            "cumulative_probabilities": [
+              0.15,
+              0.4,
+              0.75,
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": "construction_steps_v1",
+        "research_tertiary_length_rank_strength": 0.35,
+        "research_parent2_branch_zone_cm": {
+          "basal_cm": 1.0,
+          "apical_cm": 1.0,
+          "spacing_cm": 2.0
+        },
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": 0.125,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": {
+          "2": 0.11,
+          "3": 0.21
+        },
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "5615cbc2197f5e09daf97900c8a2946a574dc65b0b11f60f605552c92c8b322f",
+      "edges": "26d9a2b499b1c1d447a92c6ddb9b0ac7998078900606b332c3654080b6014bfd",
+      "initial_sha256": "3ac318f3d051c4cb453d1612a131cd8a2398e54995bd7c0836a8809025ae4882",
+      "steps_sha256": "e865c2202390be0f9e6c354c9f509d1bfecc4ff3feab5f777ca2ff60b73837fe",
+      "fragments_sha256": "fd754dce70aa18d1969e92d3b028e52a181b3811fcafe6f93894f72bf5a511d5"
+    },
+    {
+      "contract": "cohort_v5",
+      "seed": 42,
+      "parameters": {
+        "step_cm": 3.0,
+        "dry_density_g_cm3": 0.3,
+        "fine_cutoff_mm": 2.5,
+        "max_organs": 100,
+        "crown_mass_g": 0.0,
+        "crown_depth_cm": [
+          5.0,
+          8.0
+        ],
+        "crown_radius_cm": 1.0,
+        "later_maturity": [
+          0.3,
+          0.6
+        ],
+        "maturity_length_power": 0.5,
+        "maturity_diameter_power": 0.5,
+        "child_diameter_fraction_max": 0.8,
+        "inclination_mean_deg": 30.0,
+        "inclination_sd_deg": 10.0,
+        "inclination_bounds_deg": [
+          0.0,
+          90.0
+        ],
+        "insertion_mean_deg": 40.0,
+        "insertion_sd_deg": 5.0,
+        "orders": {
+          "1": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.8,
+              "sd": 0,
+              "min": 0.8,
+              "max": 0.8
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "2": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.4,
+              "sd": 0,
+              "min": 0.4,
+              "max": 0.4
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "3": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.26666666666666666,
+              "sd": 0,
+              "min": 0.26666666666666666,
+              "max": 0.26666666666666666
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "4": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.2,
+              "sd": 0,
+              "min": 0.2,
+              "max": 0.2
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "5": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.16,
+              "sd": 0,
+              "min": 0.16,
+              "max": 0.16
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          }
+        }
+      },
+      "older_count": 2,
+      "later_count": 1,
+      "tables": {
+        "nodes": "044b26f8a81f7b637e6da266a44f0087db7ae3c59a3a3a76ae58c094c8d96cc2",
+        "edges": "7aa9fe894fcf5828139c4378c9497c461071f825fdf1e929f67518ec31abbac9",
+        "organs": "5039577a997e61bd80ab5557cf2a93201a2be4427d8dc588c2c5838150ed5eb1",
+        "observation_nodes": "c5edf5db1183639990ef45b2d5499d6efdc169c2204e9af96926209e31ff1c4a",
+        "observation_edges": "a2558b7ea610f9f2692fa4c0ef2958a79e00fd286c51b9862338fd58092b5328"
+      },
+      "diagnostics": {
+        "version": "cohort-root-research-v5",
+        "seed": 42,
+        "surface_reflections": 0,
+        "diameter_constrained": 6,
+        "tip_constrained": 0,
+        "branch_beyond_tip": 0,
+        "length_metadata_reconciliations": [],
+        "crown_mass_g": 0.0,
+        "maturity_is_age_years": false,
+        "root_totals": {
+          "segment_count": 56,
+          "length_cm": 106.04760202205347,
+          "fine_length_cm": 79.55005056232407,
+          "coarse_length_cm": 26.497551459729394,
+          "root_volume_cm3": 5.408413777819116,
+          "fine_root_volume_cm3": 0.8630925236383682,
+          "coarse_root_volume_cm3": 4.545321254180748,
+          "dry_mass_g": 1.6225241333457348,
+          "fine_dry_mass_g": 0.25892775709151045,
+          "coarse_dry_mass_g": 1.3635963762542243
+        },
+        "unrepresented_fine_mass_g": 0.0,
+        "combined_with_crown_mass_g": 1.6225241333457345,
+        "max_depth_cm": 25.386150820476477,
+        "root_below_150cm": false
+      }
+    },
+    {
+      "contract": "legacy",
+      "seed": 43,
+      "parameters": {
+        "random_seed": 43,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0.0,
+        "soil_layer_width": 0.0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": null,
+        "research_current_length_grid": null,
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": null,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": null,
+        "research_primary_attachment_distal_fraction": null,
+        "research_primary_inclination_bias": null,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": null,
+        "research_base_origin_y_cm": null,
+        "research_base_depth_cm": null,
+        "tropism_mode": "legacy",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "9b0dbbb493c2e9479b18b264ee4249c470983d7dfd781716a8d5209235a698df",
+      "edges": "c2d6ab4479ecbaea9a47d047774e135c9ede419f89899a8c779778496617d73a",
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 157701777635399835976966361164359232137,
+          "inc": 25065611243303971628957076795638243391
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "contract": "fichtl2024",
+      "seed": 43,
+      "parameters": {
+        "random_seed": 43,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0.0,
+        "soil_layer_width": 0.0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              2.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": null,
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": null,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "228f1b186ecc90ea7445def4676e02f3f15ae431a111bf0881427c4d71a116d6",
+      "edges": "ab70a41890908b6badd2e0dada73f2fcbe1693919403b82ab5f58392657e0fd4",
+      "rng": {
+        "bit_generator": "PCG64",
+        "state": {
+          "state": 130786608232429628138401935986267799362,
+          "inc": 25065611243303971628957076795638243391
+        },
+        "has_uint32": 0,
+        "uinteger": 0
+      }
+    },
+    {
+      "contract": "construction_steps_v1",
+      "seed": 43,
+      "parameters": {
+        "random_seed": 43,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0,
+        "soil_layer_width": 0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              2.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": "construction_steps_v1",
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": null,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "58054546ba97d0f5fc550ff8ed2288ec12a5ae4dc2c62bcd792db29ba78d9746",
+      "edges": "d492994ca8ea11a0383c8a2e40be1dd3d98e09252be8620cede672854d0c6fc2",
+      "initial_sha256": "ebd02b8abeee4bb1d0ea4561f79ad8fc1d92a4a8ecca6d6e27f97fa2081bbbd3",
+      "steps_sha256": "574a8deac22065f1d1fbe845bf787a4660a4335b38201adb98a0e0196bb9f6f6",
+      "fragments_sha256": "fa243f36b2df5d3fdeb59bb45a3da19fe33e3d0774f6dff6d69672cb1f9334d0"
+    },
+    {
+      "contract": "construction_steps_v1",
+      "seed": 43,
+      "parameters": {
+        "random_seed": 43,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 2,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 0.5,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0,
+        "soil_layer_width": 0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              2.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": "construction_steps_v1",
+        "research_tertiary_length_rank_strength": null,
+        "research_parent2_branch_zone_cm": null,
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": 0.25,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": null,
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "df4dc55bf4cc073fba1454ec2ec21c33217390c02c337f335ce85bbd3e097cac",
+      "edges": "e558a9ee5a5806ad7d9a126801ca4bdcc158ad08fbe0e20a4940c65b753d18c2",
+      "initial_sha256": "7adc4c41517422612b775f27799db6e31a48ae27dbe3e42ee24a3aee2e512dd1",
+      "steps_sha256": "f080aecb4fd989f97b5914fa78d0613a576ced73579d33a8adb74353183b8d26",
+      "fragments_sha256": "7b693427b8658858afb83688b9d4f9c9c9f5a16f82e7bce86838ba57239d01b5"
+    },
+    {
+      "contract": "construction_steps_v1",
+      "seed": 43,
+      "parameters": {
+        "random_seed": 43,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 5.0,
+        "max_primary_length": 6.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 2,
+        "max_sec_root_num": 3,
+        "growth_sec_root": 0.0,
+        "min_sec_root_length": 2.0,
+        "max_sec_root_length": 3.0,
+        "segments_per_root": 3,
+        "length_reduction": 0.5,
+        "root_vary": 2.0,
+        "interbranch_distance": 1.0,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.0,
+        "t": 0,
+        "origin_min": 0.001,
+        "origin_max": 0.01,
+        "enable_soil": false,
+        "soil_layer_height": 0,
+        "soil_layer_width": 0,
+        "soil_n_layers": 0,
+        "soil_n_cols": 0,
+        "max_val_attempts": 50,
+        "simulation_tag": "synthetic-smoke-seed42",
+        "no_root_zone": 0.0001,
+        "floor_threshold": 0.4,
+        "ceiling_threshold": 0.9,
+        "research_branch_placement": "redistribute_capped",
+        "research_current_length_cdfs_cm": {
+          "2": {
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "lengths_cm": [
+              1.0,
+              2.0,
+              3.0,
+              4.0
+            ],
+            "cumulative_probabilities": [
+              0.15,
+              0.4,
+              0.75,
+              1.0
+            ]
+          }
+        },
+        "research_current_length_grid": "construction_steps_v1",
+        "research_tertiary_length_rank_strength": 0.35,
+        "research_parent2_branch_zone_cm": {
+          "basal_cm": 1.0,
+          "apical_cm": 1.0,
+          "spacing_cm": 2.0
+        },
+        "research_insertion_row_axial_kappa": null,
+        "research_primary_yaw_mean_deg": 35.0,
+        "research_primary_yaw_reverse_probability": null,
+        "research_primary_yaw_kappa": 2.0,
+        "research_primary_attachment_distal_fraction": 0.125,
+        "research_primary_inclination_bias": 0.3,
+        "research_primary_design": null,
+        "research_primary_branch_zone_cm": null,
+        "research_primary_branch_fractions": null,
+        "research_base_origin_x_cm": 1.0,
+        "research_base_origin_y_cm": -2.0,
+        "research_base_depth_cm": 8.0,
+        "tropism_mode": "fichtl2024",
+        "soil_surface_z_cm": 20.0,
+        "fichtl_probability_down": 0.5,
+        "fichtl_sigma": 0.1,
+        "research_fichtl_sigma_by_order": {
+          "2": 0.11,
+          "3": 0.21
+        },
+        "research_higher_order_tropism": null,
+        "research_root_counts_by_order": null,
+        "fichtl_trials_type2": 1.0,
+        "fichtl_trials_type3": 1.0,
+        "fichtl_theta2_deg": 50.0,
+        "fichtl_theta2_sd_deg": 10.0,
+        "fichtl_theta3_deg": 50.0,
+        "fichtl_theta3_sd_deg": 10.0
+      },
+      "nodes": "c8c9eebfa16aa3b18837465cc4ba22ee66907e05aff86f5e2d4c44697f615e96",
+      "edges": "9a5ed6da86cb99f52ac981f9a1fe9600d5586e581f342ac7a91915950250408b",
+      "initial_sha256": "1c73a29a528dcfa9d5dab8410ad3efa33eaef565005e1a1ade5537b49771ecf9",
+      "steps_sha256": "5753319312456e68e9fde6c8371b1d4f44cff79e0b7b890bd0e934d915fcc064",
+      "fragments_sha256": "24f4fde21de057c0b44a77f1f075e108d8282d6566969cb90bd563689cde419d"
+    },
+    {
+      "contract": "cohort_v5",
+      "seed": 43,
+      "parameters": {
+        "step_cm": 3.0,
+        "dry_density_g_cm3": 0.3,
+        "fine_cutoff_mm": 2.5,
+        "max_organs": 100,
+        "crown_mass_g": 0.0,
+        "crown_depth_cm": [
+          5.0,
+          8.0
+        ],
+        "crown_radius_cm": 1.0,
+        "later_maturity": [
+          0.3,
+          0.6
+        ],
+        "maturity_length_power": 0.5,
+        "maturity_diameter_power": 0.5,
+        "child_diameter_fraction_max": 0.8,
+        "inclination_mean_deg": 30.0,
+        "inclination_sd_deg": 10.0,
+        "inclination_bounds_deg": [
+          0.0,
+          90.0
+        ],
+        "insertion_mean_deg": 40.0,
+        "insertion_sd_deg": 5.0,
+        "orders": {
+          "1": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.8,
+              "sd": 0,
+              "min": 0.8,
+              "max": 0.8
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "2": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.4,
+              "sd": 0,
+              "min": 0.4,
+              "max": 0.4
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "3": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.26666666666666666,
+              "sd": 0,
+              "min": 0.26666666666666666,
+              "max": 0.26666666666666666
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "4": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.2,
+              "sd": 0,
+              "min": 0.2,
+              "max": 0.2
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          },
+          "5": {
+            "length_cm": {
+              "mean": 10.0,
+              "sd": 0,
+              "min": 10.0,
+              "max": 10.0
+            },
+            "base_diameter_cm": {
+              "mean": 0.16,
+              "sd": 0,
+              "min": 0.16,
+              "max": 0.16
+            },
+            "tip_diameter_cm": {
+              "mean": 0.05,
+              "sd": 0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ],
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_cm": 10.0,
+            "downward_drift_per_cm": 0.0
+          }
+        }
+      },
+      "older_count": 2,
+      "later_count": 1,
+      "tables": {
+        "nodes": "553cda7169f7e98c895efea4770592cfe0e11feeb24af4d03a4a923107eed740",
+        "edges": "0cf305fab305422ec2daa7a46bd23deb85000ee2b3faa1a2ce528fd5e27649eb",
+        "organs": "f09ea81b12c8289bb2d1096a4a0c8211c03a99f98e428f2a29a86d619d630ed7",
+        "observation_nodes": "84a42e83f64c537f860cfb74b25aaeba085bbdfabeda1fd715ff8b8c4e1837e2",
+        "observation_edges": "406ac040bd384b7de95b4f587f3814a28ecb5a0440cbc7f96792d7dc38f36f46"
+      },
+      "diagnostics": {
+        "version": "cohort-root-research-v5",
+        "seed": 43,
+        "surface_reflections": 0,
+        "diameter_constrained": 10,
+        "tip_constrained": 2,
+        "branch_beyond_tip": 0,
+        "length_metadata_reconciliations": [],
+        "crown_mass_g": 0.0,
+        "maturity_is_age_years": false,
+        "root_totals": {
+          "segment_count": 67,
+          "length_cm": 129.44207885120719,
+          "fine_length_cm": 103.11242829779297,
+          "coarse_length_cm": 26.329650553414204,
+          "root_volume_cm3": 5.456891371601107,
+          "fine_root_volume_cm3": 0.9423418468547927,
+          "coarse_root_volume_cm3": 4.514549524746314,
+          "dry_mass_g": 1.637067411480332,
+          "fine_dry_mass_g": 0.2827025540564378,
+          "coarse_dry_mass_g": 1.3543648574238942
+        },
+        "unrepresented_fine_mass_g": 0.0,
+        "combined_with_crown_mass_g": 1.637067411480332,
+        "max_depth_cm": 27.309124708096242,
+        "root_below_150cm": false
+      }
+    }
+  ],
+  "provenance": "Generated in isolated git archive of the unchanged reference commit; candidate modules were not imported. Initial seven snapshots also captured before edits."
+}

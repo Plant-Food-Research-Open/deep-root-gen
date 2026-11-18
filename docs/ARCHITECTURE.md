@@ -1,5 +1,27 @@
 # Architecture and code map
 
+For further AI-assisted changes, start with the [AI coding guide](AI_CODING_GUIDE.md)
+and [lessons learned](AI_CODING_LESSONS.md). They distinguish preserved contracts,
+current implementation and the proposed single-engine architecture.
+
+18 November update: every input (flat, schema 2 native, construction steps,
+cohort, schema 3) now runs through one fixed engine lifecycle in
+`deeprootgen/model/engine.py`, parsed and resolved by
+`deeprootgen/data_model/resolution.py`; the separate construction-step and cohort
+runners were removed. Schema 3 switches curvature, taper, origins, maturity,
+lengths, branching, capping and relocation independently; see
+[native execution](NATIVE_EXECUTION.md). Route diagrams below predate this.
+
+17 November integration update: [native execution and compatibility contracts](NATIVE_EXECUTION.md)
+now describe the supported engine. The route diagrams below retain the
+pre-consolidation source review; cohort generation and fresh SO4 construction-step
+samples now execute through native `RootSystemSimulation.run()`.
+
+For the current native, Fichtl/SO4 and Calvin input paths, see
+[input layers and detailed model flow](INPUT_LAYERS_AND_MODEL_FLOW.md). It
+separates shared construction, controlled replay, the cohort constructor and
+downstream observation inputs, with diagrams and a parameter crosswalk.
+
 Reviewed 2026-10-28 against code revision
 `fc9136263eb7dff1b2e047d1cf3f0de8bdafbedf`. Paths below are relative to this
 repository. This is a source map, not proof that the application runs locally.
@@ -75,7 +97,8 @@ diameters conserve taper volume and differ from point basal or mid-axis diameter
 
 Read the [cohort construction contract](research/COHORT_ROOT_CONSTRUCTION.md),
 [optimization guide](research/OPTIMIZATION_GUIDE.md), and
-[research interfaces](research/README.md) before continuing that
+[research interfaces](research/README.md) and the
+[active Calvin state](research/ACTIVE_CALVIN_RESEARCH.md) before continuing that
 research. Empirical settings and comparisons remain in excluded local folders.
 
 Direct simulation is the smallest prospective offline runtime check, but its

@@ -60,6 +60,20 @@ Root system architecture (RSA) plays an important role in plant growth and devel
 
 DeepRootGen provides a computational framework for generating synthetic three-dimensional root system architectures using a stochastic, parameterised root simulation model. The model represents individual root organs and segments within a hierarchical graph, allowing their geometry, topology and spatial distribution to be analysed.
 
+See [RUNNING.md](RUNNING.md) for current installation and runtime qualification status.
+
+For current model routes, the complete input dictionary, units and a practical
+scientific review workflow, start with the
+[model review guide](docs/MODEL_REVIEW_GUIDE.md). Check
+[PR integration status](docs/PR_INTEGRATION_STATUS.md) for the distinction
+between local research source and merged GitHub code. Calvin settings and
+result folders are local research artifacts excluded from Git and deployment
+contexts.
+
+Use this repository as an independent Codex project. Start with the
+[development and setup guide](docs/DEVELOPMENT.md),
+[architecture/code map](docs/ARCHITECTURE.md),
+[review notes](docs/REVIEW_NOTES.md), and [agent instructions](AGENTS.md).
 The framework is intended to support the digital reconstruction of root systems using observational data collected from the field. By combining mechanistic assumptions about root development with statistical calibration and inference methods, DeepRootGen provides a means of investigating plausible root architectures consistent with available measurements.
 
 DeepRootGen has been developed with an emphasis on woody perennial root systems, including horticultural applications involving apple and grapevine rootstocks. The underlying simulator is parameterised to support different root system configurations and can be recalibrated for specific applications.
@@ -366,6 +380,8 @@ The following documents provide additional development information:
 - [Development and setup guide](docs/DEVELOPMENT.md)
 - [Architecture and code map](docs/ARCHITECTURE.md)
 - [Review notes](docs/REVIEW_NOTES.md)
+- [Research optimization guide](docs/research/OPTIMIZATION_GUIDE.md)
+- [Optional mature-root cohort constructor](docs/research/COHORT_ROOT_CONSTRUCTION.md)
 - [Agent instructions](AGENTS.md)
 
 ## Running tests

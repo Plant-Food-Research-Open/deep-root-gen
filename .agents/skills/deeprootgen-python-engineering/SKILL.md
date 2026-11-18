@@ -40,5 +40,25 @@ for ordinary Python maintenance.
   automatically the graph-node schema. Do not inspect raw observations, fit,
   upload or adopt calibration outside an explicit later local-data task.
 
+## Optional SO4 research mode (14 November 2026)
+
+For the current population-reconstruction continuation, read
+[ACTIVE_SO4_RESEARCH.md](../../../docs/research/ACTIVE_SO4_RESEARCH.md) first.
+The qualified v2 soil frame supersedes the historical root-base interpretation;
+use versioned comparison identities and preserve original observations.
+
+The user-authorized [SO4 diagnostic task](../../../docs/research/grapevine3d/SO4_DIAGNOSTIC_PILOT.md)
+adds an opt-in `tropism_mode="fichtl2024"`; the default remains `legacy`.
+Read its explicit angle/probability/unit and soil-frame assumptions before use.
+It is static research code, not exact CPlantBox replay or biological qualification.
+Use a fresh simulator per seed, preserve the published coefficients separately
+from engineering proxies, and retain direction/validation diagnostics. Offset
+soil surfaces require the offline aligned observation route; the existing
+calibration/UI/statistic routes are not thereby qualified for this mode.
+
 Provenance: repository source and documentation reviewed at fc91362 on
 2026-10-28. Current source takes precedence over historical review notes.
+
+## Optional mature-root cohort research
+
+For the owner-authorized mature-root task, use [ACTIVE_CALVIN_RESEARCH.md](../../../docs/research/ACTIVE_CALVIN_RESEARCH.md) and the linked construction contract. CohortRootGenerator is a separate static research API reusing existing geometry/observation utilities, not a RootSimulationModel or notebook-native route. Preserve its source epochs, failure ledger and local-only evidence. Qualify root material on the root-only projection; crown connectors carry no root mass. Root order, diameter class, cohort maturity and chronological age are distinct. Do not report sampled-core agreement or an assumed whole-root mass as unseen-vine validation.

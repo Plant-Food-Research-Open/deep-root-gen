@@ -9,6 +9,7 @@ from prefect import flow, task
 from prefect.task_runners import ConcurrentTaskRunner
 
 from deeprootgen.data_model import RootSimulationModel
+from deeprootgen.data_model.execution import require_native_service_request
 from deeprootgen.io import save_graph_to_db
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.pipeline import (
@@ -41,6 +42,7 @@ def execute_simulation(input_parameters: RootSimulationModel) -> RootSystemSimul
         RootSystemSimulation:
             The root simulation.
     """
+    require_native_service_request(input_parameters)
     simulation = RootSystemSimulation(
         simulation_tag=input_parameters.simulation_tag,  # type: ignore
         random_seed=input_parameters.random_seed,  # type: ignore
@@ -59,6 +61,7 @@ def run_simulation(input_parameters: RootSimulationModel, simulation_uuid: str) 
         simulation_uuid (str):
             The simulation uuid.
     """
+    require_native_service_request(input_parameters)
     begin_experiment(TASK, simulation_uuid, input_parameters.simulation_tag)
     log_experiment_details(simulation_uuid)
     simulation = execute_simulation(input_parameters)
@@ -86,4 +89,5 @@ def run_simulation_flow(
         simulation_uuid (str):
             The simulation uuid.
     """
+    require_native_service_request(input_parameters)
     run_simulation.submit(input_parameters, simulation_uuid).result()
