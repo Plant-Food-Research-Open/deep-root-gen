@@ -2,7 +2,9 @@
 
 Updated 16 November 2026 from current source and retained local run reports.
 This guide records reusable methods; field summaries, fitted configurations,
-photographs and comparison outputs remain local. Read the [research interface index](README.md) and retain the applicable
+photographs and comparison outputs remain local. Read the [research interface index](README.md) and
+[active Calvin research](ACTIVE_CALVIN_RESEARCH.md) or
+[active SO4 research](ACTIVE_SO4_RESEARCH.md) for the applicable experiment, and retain its
 empirical experiment records locally.
 
 ## Choose the construction and observation contracts first

@@ -118,7 +118,21 @@ def test_init_figure_without_soil_is_plotly(sim):
     assert isinstance(result, go.Figure)
 
 
-def test_run_calls_stages_in_the_expected_order(sim, monkeypatch):
+def test_run_calls_stages_in_the_expected_order(monkeypatch):
+    """The fixed engine lifecycle calls native kernels in historical order.
+
+    Kernels are spied with call-through on a real run, so the published graph
+    is produced by the engine's single writer rather than a stubbed graph.
+    """
+    import json
+    from pathlib import Path
+
+    from deeprootgen.data_model import RootSimulationModel
+    from deeprootgen.data_model.resolution import ENGINE_PHASES
+
+    spec = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    params = RootSimulationModel(**spec)
+    sim = RootSystemSimulation(random_seed=spec["random_seed"], simulation_tag=spec["simulation_tag"])
     calls = []
     for name in [
         "init_organs",
@@ -127,10 +141,15 @@ def test_run_calls_stages_in_the_expected_order(sim, monkeypatch):
         "apply_gravitropism",
         "validate",
     ]:
+        original = getattr(sim, name)
         monkeypatch.setattr(
-            sim, name, lambda *args, _name=name, **kwargs: calls.append(_name)
+            sim,
+            name,
+            lambda *args, _name=name, _original=original, **kwargs: (
+                calls.append(_name),
+                _original(*args, **kwargs),
+            )[1],
         )
-    params = SimpleNamespace(gravitropism=0.1)
     sim.run(params)
     assert calls == [
         "init_organs",
@@ -139,3 +158,4 @@ def test_run_calls_stages_in_the_expected_order(sim, monkeypatch):
         "apply_gravitropism",
         "validate",
     ]
+    assert sim.result.engine["lifecycle"] == list(ENGINE_PHASES)

@@ -75,3 +75,19 @@ for source-specific Python work. When available, shared
 `fruitcropxl-python-data-workflows` supplements it; use `fruitcropxl-data-curator`
 only for scoped data work and `fruitcropxl-ci-containers` for scoped infrastructure
 work. Do not install workers or register supervisor roles as a side effect.
+
+## Active SO4/T2 reconstruction state
+
+For the current population-reconstruction task, read
+[the active research state](docs/research/ACTIVE_SO4_RESEARCH.md) before historical
+plans. The authoritative observation convention is `grapevine3d-soil-frame-v2`,
+verified locally against raw hierarchical IDs. Earlier point-1/root-base grids
+and shallow-allocation recommendations are historical; do not optimize to them.
+The accepted target is thirteen population traits within20% relative error and
+three profile TV differences <=.20. The owner has superseded the former attempt
+caps and permits further recorded trials as needed. Keep one construction change
+at a time, retain legacy defaults, and keep observations/comparisons local.
+
+## Active Calvin cohort research
+
+For the mature-vine population task, read [ACTIVE_CALVIN_RESEARCH.md](docs/research/ACTIVE_CALVIN_RESEARCH.md). Use the separately configured research constructor; retain native Fichtl defaults and sealed results. The full crown support graph is not a root-only graph. Its observation projection uses primary-tree IDs, not independent vine IDs. Keep the supplied summary, photographs, empirical configurations and comparison outputs local. Consult current run receipts and review dispositions before repeating or interpreting trials; do not infer biological qualification from algorithm tests or a biomass match.

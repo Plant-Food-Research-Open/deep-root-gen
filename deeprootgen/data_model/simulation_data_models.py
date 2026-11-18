@@ -11,34 +11,64 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from ..utils.order_controls import (
-    validate_higher_order_tropism,
-    validate_count_mapping,
-    validate_order_scope,
-)
+from ..utils.order_controls import validate_higher_order_tropism, validate_count_mapping, validate_order_scope
 from ..utils.current_length import validate_current_length_cdf
 from ..utils.primary_attachment import validate_distal_fraction, validate_distal_scope
 from ..utils.tertiary_length_rank import validate_rank_scope, validate_rank_strength
 from ..utils.branching import validate_parent2_branch_zone
 from ..utils.primary_design import validate_primary_design_scope
-from ..utils.primary_branch_zone import (
-    validate_primary_branch_zone,
-    validate_primary_branch_zone_scope,
-)
-from ..utils.primary_branch_fractions import (
-    validate_primary_branch_fractions,
-    validate_primary_branch_fractions_scope,
-)
+from ..utils.primary_branch_zone import validate_primary_branch_zone, validate_primary_branch_zone_scope
+from ..utils.primary_branch_fractions import validate_primary_branch_fractions, validate_primary_branch_fractions_scope
 from ..utils.tropism import (
-    row_axial_controls_active,
-    validate_fichtl_sigma_by_order,
-    validate_row_axial_kappas,
+    row_axial_controls_active, validate_fichtl_sigma_by_order, validate_row_axial_kappas,
     validate_primary_yaw_reverse_probability,
 )
 
 
 class Config:
     arbitrary_types_allowed = True
+
+
+# Top-level keys of versioned (schema 2/3) inputs and schema-3 feature names.
+# Flat parsing rejects them, and close misspellings of them, rather than
+# silently discarding a requested option block.
+VERSIONED_INPUT_KEYS = ("schema_version", "construction", "trajectory", "parameters", "features", "limits")
+FEATURE_NAMES = (
+    "curvature",
+    "taper",
+    "primary_origins",
+    "cohort_maturity",
+    "lengths",
+    "branching",
+    "parent_diameter_cap",
+    "attachment_relocation",
+)
+RESERVED_INPUT_KEYS = VERSIONED_INPUT_KEYS + FEATURE_NAMES
+
+
+def _reserved_variants():
+    variants = set()
+    for name in RESERVED_INPUT_KEYS:
+        stem = name[:-1] if name.endswith("s") else name
+        variants.update({name, stem, stem + "s"})
+    return variants
+
+
+def reserved_key_conflicts(keys, fields=()):
+    """Unknown keys naming a reserved block: case, separators and plural ignored.
+
+    Deterministic variants only (no fuzzy matching), so unrelated historical
+    keys keep their behaviour while ``Features``/``feature``/``limit`` fail.
+    """
+    variants = _reserved_variants()
+    conflicts = []
+    for key in keys:
+        if key in fields or not isinstance(key, str):
+            continue
+        normalized = key.strip().lower().replace("-", "_").replace(" ", "_")
+        if normalized in variants:
+            conflicts.append(key)
+    return sorted(conflicts)
 
 
 class RootType(Enum):
@@ -150,14 +180,7 @@ class ResearchPrimaryDesignEntry(BaseModel):
             raise ValueError("Explicit primary labels must be nonempty strings")
         return value
 
-    @field_validator(
-        "length_cm",
-        "diameter_base_cm",
-        "diameter_apex_cm",
-        "inclination_deg",
-        "azimuth_deg",
-        mode="before",
-    )
+    @field_validator("length_cm", "diameter_base_cm", "diameter_apex_cm", "inclination_deg", "azimuth_deg", mode="before")
     @classmethod
     def require_numeric_dimensions(cls, value):
         if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -167,9 +190,7 @@ class ResearchPrimaryDesignEntry(BaseModel):
     @model_validator(mode="after")
     def require_taper(self):
         if self.diameter_base_cm < self.diameter_apex_cm:
-            raise ValueError(
-                "Explicit primary diameter_base_cm must be >= diameter_apex_cm"
-            )
+            raise ValueError("Explicit primary diameter_base_cm must be >= diameter_apex_cm")
         return self
 
 
@@ -218,37 +239,23 @@ class RootSimulationModel(BaseModel):
     no_root_zone: Optional[float] = 1e-4
     floor_threshold: Optional[float] = 0.4
     ceiling_threshold: Optional[float] = 0.9
-    research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = (
-        "legacy_spacing"
-    )
+    research_branch_placement: Literal["legacy_spacing", "redistribute_capped"] = "legacy_spacing"
     research_current_length_cdfs_cm: Optional[Dict[int, CurrentLengthCDF]] = None
     research_current_length_grid: Optional[Literal["construction_steps_v1"]] = None
     research_tertiary_length_rank_strength: Optional[float] = None
     research_parent2_branch_zone_cm: Optional[Parent2BranchZone] = None
     research_insertion_row_axial_kappa: Optional[Dict[int, float]] = None
-    research_primary_yaw_mean_deg: Optional[float] = Field(
-        default=None, ge=-180, le=180, allow_inf_nan=False
-    )
+    research_primary_yaw_mean_deg: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     research_primary_yaw_reverse_probability: Optional[float] = None
-    research_primary_yaw_kappa: Optional[float] = Field(
-        default=None, ge=0, le=100, allow_inf_nan=False
-    )
+    research_primary_yaw_kappa: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False)
     research_primary_attachment_distal_fraction: Optional[float] = None
-    research_primary_inclination_bias: Optional[float] = Field(
-        default=None, ge=0, le=1, allow_inf_nan=False
-    )
+    research_primary_inclination_bias: Optional[float] = Field(default=None, ge=0, le=1, allow_inf_nan=False)
     research_primary_design: Optional[List[ResearchPrimaryDesignEntry]] = None
     research_primary_branch_zone_cm: Optional[dict] = None
     research_primary_branch_fractions: Optional[List[float]] = None
-    research_base_origin_x_cm: Optional[float] = Field(
-        default=None, allow_inf_nan=False
-    )
-    research_base_origin_y_cm: Optional[float] = Field(
-        default=None, allow_inf_nan=False
-    )
-    research_base_depth_cm: Optional[float] = Field(
-        default=None, gt=0, allow_inf_nan=False
-    )
+    research_base_origin_x_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+    research_base_origin_y_cm: Optional[float] = Field(default=None, allow_inf_nan=False)
+    research_base_depth_cm: Optional[float] = Field(default=None, gt=0, allow_inf_nan=False)
     tropism_mode: Literal["legacy", "fichtl2024"] = "legacy"
     soil_surface_z_cm: float = Field(default=0.0, ge=0, allow_inf_nan=False)
     fichtl_probability_down: Optional[float] = Field(default=None, ge=0, le=1)
@@ -265,22 +272,30 @@ class RootSimulationModel(BaseModel):
 
     @model_validator(mode="before")
     @classmethod
+    def reject_versioned_input_keys(cls, values):
+        """Flat parsing ignores unknown keys, so it must never see versioned ones.
+
+        Otherwise a requested option block (for example ``features``) would be
+        accepted and silently discarded. Other unknown keys keep their
+        historical behaviour.
+        """
+        if isinstance(values, dict):
+            reserved = reserved_key_conflicts(values, cls.model_fields)
+            if reserved:
+                raise ValueError(
+                    f"Flat simulation parameters cannot contain {reserved}; versioned inputs "
+                    "and feature blocks require parse_config with an explicit schema_version"
+                )
+        return values
+
+    @model_validator(mode="before")
+    @classmethod
     def require_uncoerced_primary_design_inputs(cls, values):
-        if (
-            isinstance(values, dict)
-            and values.get("research_primary_design") is not None
-        ):
-            for key in (
-                "random_seed",
-                "outer_root_num",
-                "inner_root_num",
-                "segments_per_root",
-            ):
+        if isinstance(values, dict) and values.get("research_primary_design") is not None:
+            for key in ("random_seed", "outer_root_num", "inner_root_num", "segments_per_root"):
                 value = values.get(key)
                 if isinstance(value, bool) or not isinstance(value, int):
-                    raise ValueError(
-                        "Explicit primary design requires integer seed/count/segment inputs"
-                    )
+                    raise ValueError("Explicit primary design requires integer seed/count/segment inputs")
         return values
 
     @model_validator(mode="after")
@@ -314,21 +329,15 @@ class RootSimulationModel(BaseModel):
         if value is None:
             return value
         from ..utils.order_controls import _order_map
-
         return _order_map(value, range(2, 6), "Current-length CDFs")
 
     @model_validator(mode="before")
     @classmethod
     def require_uncoerced_count_seed(cls, values):
-        if (
-            isinstance(values, dict)
-            and values.get("research_root_counts_by_order") is not None
-        ):
+        if isinstance(values, dict) and values.get("research_root_counts_by_order") is not None:
             seed = values.get("random_seed")
             if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
-                raise ValueError(
-                    "Count conditioning requires an explicit nonnegative integer seed"
-                )
+                raise ValueError("Count conditioning requires an explicit nonnegative integer seed")
         return values
 
     @field_validator("research_higher_order_tropism", mode="before")
@@ -354,14 +363,10 @@ class RootSimulationModel(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def require_explicit_primary_distal_seed(cls, values):
-        if isinstance(values, dict) and validate_distal_fraction(
-            values.get("research_primary_attachment_distal_fraction")
-        ):
+        if isinstance(values, dict) and validate_distal_fraction(values.get("research_primary_attachment_distal_fraction")):
             seed = values.get("random_seed")
             if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
-                raise ValueError(
-                    "Primary attachment placement requires explicit nonnegative integer seed"
-                )
+                raise ValueError("Primary attachment placement requires explicit nonnegative integer seed")
         return values
 
     @model_validator(mode="after")
@@ -377,14 +382,10 @@ class RootSimulationModel(BaseModel):
     @model_validator(mode="before")
     @classmethod
     def require_explicit_tertiary_rank_seed(cls, values):
-        if isinstance(values, dict) and validate_rank_strength(
-            values.get("research_tertiary_length_rank_strength")
-        ):
+        if isinstance(values, dict) and validate_rank_strength(values.get("research_tertiary_length_rank_strength")):
             seed = values.get("random_seed")
             if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
-                raise ValueError(
-                    "Tertiary length rank requires explicit nonnegative integer seed"
-                )
+                raise ValueError("Tertiary length rank requires explicit nonnegative integer seed")
         return values
 
     @model_validator(mode="after")
@@ -397,9 +398,7 @@ class RootSimulationModel(BaseModel):
         if self.research_fichtl_sigma_by_order is not None:
             if self.tropism_mode != "fichtl2024":
                 raise ValueError("Order sigma overrides require fichtl2024 mode")
-            validate_fichtl_sigma_by_order(
-                self.research_fichtl_sigma_by_order, self.max_order
-            )
+            validate_fichtl_sigma_by_order(self.research_fichtl_sigma_by_order, self.max_order)
         return self
 
     @field_validator("research_fichtl_sigma_by_order", mode="before")
@@ -409,100 +408,61 @@ class RootSimulationModel(BaseModel):
 
     @model_validator(mode="after")
     def validate_construction_step_scope(self):
-        if (
-            self.research_parent2_branch_zone_cm is not None
-            and self.research_current_length_grid != "construction_steps_v1"
-        ):
+        if self.research_parent2_branch_zone_cm is not None and self.research_current_length_grid != "construction_steps_v1":
             raise ValueError("Parent2 branch zone requires construction_steps_v1")
         if self.research_current_length_grid is not None:
-            if (
-                self.tropism_mode != "fichtl2024"
-                or self.max_order not in (3, 4, 5)
-                or self.random_seed is None
-                or self.research_current_length_cdfs_cm is None
-                or set(self.research_current_length_cdfs_cm)
-                != set(range(2, self.max_order + 1))
-            ):
-                raise ValueError(
-                    "Construction-step grid requires Fichtl/max_order3..5/explicit seed/exact CDFs2..max"
-                )
+            if (self.tropism_mode != "fichtl2024" or self.max_order not in (3, 4, 5) or self.random_seed is None
+                    or self.research_current_length_cdfs_cm is None
+                    or set(self.research_current_length_cdfs_cm) != set(range(2, self.max_order + 1))):
+                raise ValueError("Construction-step grid requires Fichtl/max_order3..5/explicit seed/exact CDFs2..max")
         return self
 
     @model_validator(mode="after")
     def require_seeded_primary_inclination(self):
         if self.research_primary_inclination_bias and self.random_seed is None:
-            raise ValueError(
-                "Positive research primary inclination requires an explicit random_seed"
-            )
+            raise ValueError("Positive research primary inclination requires an explicit random_seed")
         return self
 
     @model_validator(mode="after")
     def validate_insertion_row_axial(self):
         self.research_insertion_row_axial_kappa = validate_row_axial_kappas(
-            self.research_insertion_row_axial_kappa,
-            self.max_order,
+            self.research_insertion_row_axial_kappa, self.max_order,
         )
         if row_axial_controls_active(self.research_insertion_row_axial_kappa):
             if self.tropism_mode != "fichtl2024" or self.random_seed is None:
-                raise ValueError(
-                    "Active row-axial insertion requires Fichtl mode and explicit random_seed"
-                )
+                raise ValueError("Active row-axial insertion requires Fichtl mode and explicit random_seed")
         return self
 
     @model_validator(mode="after")
     def validate_current_length_orders(self):
         cdfs = self.research_current_length_cdfs_cm
         if cdfs is not None:
-            if (
-                self.max_order > 5
-                or not cdfs
-                or any(
-                    order not in (2, 3, 4, 5) or order > self.max_order
-                    for order in cdfs
-                )
-            ):
-                raise ValueError(
-                    "Current-length CDFs require a nonempty selection of supported orders 2..5"
-                )
+            if self.max_order > 5 or not cdfs or any(order not in (2, 3, 4, 5) or order > self.max_order for order in cdfs):
+                raise ValueError("Current-length CDFs require a nonempty selection of supported orders 2..5")
             if self.random_seed is None or self.segments_per_root <= 0:
-                raise ValueError(
-                    "Current-length CDFs require an explicit random_seed and positive segments_per_root"
-                )
+                raise ValueError("Current-length CDFs require an explicit random_seed and positive segments_per_root")
         return self
 
     @model_validator(mode="after")
     def require_explicit_root_origin(self):
-        values = (
-            self.research_base_origin_x_cm,
-            self.research_base_origin_y_cm,
-            self.research_base_depth_cm,
-        )
+        values = (self.research_base_origin_x_cm, self.research_base_origin_y_cm, self.research_base_depth_cm)
         if any(value is not None for value in values):
             if any(value is None for value in values):
-                raise ValueError(
-                    "Research base origin x/y/depth must be supplied together"
-                )
+                raise ValueError("Research base origin x/y/depth must be supplied together")
             if "soil_surface_z_cm" not in self.model_fields_set:
-                raise ValueError(
-                    "Research base origin requires an explicit soil_surface_z_cm"
-                )
+                raise ValueError("Research base origin requires an explicit soil_surface_z_cm")
             if self.tropism_mode != "fichtl2024":
-                raise ValueError(
-                    "Research base origin currently requires fichtl2024 mode"
-                )
+                raise ValueError("Research base origin currently requires fichtl2024 mode")
         return self
 
     @model_validator(mode="before")
     @classmethod
     def require_explicit_reversal_seed(cls, values):
         if isinstance(values, dict) and validate_primary_yaw_reverse_probability(
-            values.get("research_primary_yaw_reverse_probability")
-        ):
+                values.get("research_primary_yaw_reverse_probability")):
             seed = values.get("random_seed")
             if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
-                raise ValueError(
-                    "Active primary yaw reversal requires explicit nonnegative integer seed"
-                )
+                raise ValueError("Active primary yaw reversal requires explicit nonnegative integer seed")
         return values
 
     @field_validator("research_primary_yaw_reverse_probability", mode="before")
@@ -512,19 +472,10 @@ class RootSimulationModel(BaseModel):
 
     @model_validator(mode="after")
     def require_paired_primary_yaw_parameters(self):
-        if (self.research_primary_yaw_mean_deg is None) != (
-            self.research_primary_yaw_kappa is None
-        ):
-            raise ValueError(
-                "Research primary yaw mean and kappa must be supplied together"
-            )
-        if (
-            self.research_primary_yaw_reverse_probability
-            and self.research_primary_yaw_mean_deg is None
-        ):
-            raise ValueError(
-                "Active primary yaw reversal requires explicit yaw mean/kappa"
-            )
+        if (self.research_primary_yaw_mean_deg is None) != (self.research_primary_yaw_kappa is None):
+            raise ValueError("Research primary yaw mean and kappa must be supplied together")
+        if self.research_primary_yaw_reverse_probability and self.research_primary_yaw_mean_deg is None:
+            raise ValueError("Active primary yaw reversal requires explicit yaw mean/kappa")
         if self.research_primary_yaw_mean_deg is not None and self.random_seed is None:
             raise ValueError("Research primary yaw requires an explicit random_seed")
         return self

@@ -135,3 +135,7 @@ unrepresented origins. Subject structural measurements do not measure each
 neighbour's root architecture.
 
 Empirical workbooks, fitted settings and comparison artifacts must stay local.
+Current local Calvin Site 1 processing and feasibility work is under
+`.runtime/research/calvin-site1-pilot-20261115-v1/`. Its workbooks, parameter
+arrays, core predictions, fitted settings and figures remain local. Other
+agents receive public code and invented fixtures only.

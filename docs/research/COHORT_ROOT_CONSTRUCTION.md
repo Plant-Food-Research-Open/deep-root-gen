@@ -65,6 +65,20 @@ Compare three count/cohort scenarios using the same rules. Report population
 summaries and individual variability, sampled-core and larger-window results,
 plus unresolved observation conventions. Biomass failures remain visible.
 
+The owner-supplied primary-length central scenario is approximately 70 cm;
+first branching around 30 cm is a different parameter. Larger bounds permit
+long-branch-distance extremes. Earlier suggestions of SO4-sized primary stubs
+are superseded for this task. SO4 mechanics may transfer; fitted dimensions,
+counts and coefficients do not become mature-vine measurements.
+
+## Owner clarifications
+
+The owner confirmed rooting angles are measured from horizontal, positive
+downward, and the initial biomass target includes the underground crown/rootstock.
+Keep the crown contribution explicit: a transferred literature crown mass is
+an assumption, not a measured Site1 value. Root/shoot ratios based only on trunk
+and cordon are structural-compartment ratios, not ratios to complete shoot mass.
+
 ## Separate proximal-taper sensitivity
 
 Version 2 permits `midpoint_fraction` in (0,1), default .5. With basal diameter
@@ -164,4 +178,5 @@ anatomical and spatial checks. Root order and diameter class require separate
 accounting, with crown inclusion explicit in the mass denominator.
 
 See [optimization guidance](OPTIMIZATION_GUIDE.md) for the next-work sequence
-and the [interface index](README.md). Keep empirical run records local.
+and the [interface index](README.md); see [active research state](ACTIVE_CALVIN_RESEARCH.md)
+for local run records, which stay local.

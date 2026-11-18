@@ -5,6 +5,21 @@ Native defaults remain available. Empirical calibration files and validation
 receipts are caller-owned local inputs; these interfaces do not establish
 biological qualification. See [research interfaces](research/README.md).
 
+17 November integration update: [native execution and compatibility contracts](NATIVE_EXECUTION.md)
+now describe the supported engine. The route diagrams below retain the
+pre-consolidation source review; cohort generation and fresh SO4 construction-step
+samples now execute through native `RootSystemSimulation.run()`.
+
+For diagrams of how these interfaces connect and which functions they share,
+start with [input layers and detailed model flow](INPUT_LAYERS_AND_MODEL_FLOW.md).
+Its parameter crosswalk compares the same architectural controls across routes.
+
+Source review: 16 November 2026, local revision
+`3672959b6460bd9b06170bee0c8fdbd48b1e5d31`. Since 18 November
+2026 that local work, including the single native engine, is merged into main;
+see [native execution](NATIVE_EXECUTION.md). No model parameters or scientific defaults were
+changed by this documentation update.
+
 ## Choose the interface first
 
 | Route | Configuration and entrypoint | Intended review |
@@ -177,8 +192,10 @@ crown and any unrepresented term.
 
 ## How to review the model
 
-1. **Start with saved evidence.** Read the [interface contracts](research/README.md), then your local
-   source-bound experiment report. Inspect the retained graphs and figures before generating replacements.
+1. **Start with saved evidence.** Read the [interface contracts](research/README.md) and the
+   [active Calvin state](research/ACTIVE_CALVIN_RESEARCH.md) or
+   [active SO4 state](research/ACTIVE_SO4_RESEARCH.md), then your local source-bound
+   experiment report. Inspect the retained graphs and figures before generating replacements.
 2. **Freeze identity and support.** Record source hashes, lock, interpreter,
    input bytes, seed list, constructor route, coordinate axes, soil surface,
    diameter units/class cutoff and mass denominator. For SO4 use the qualified
@@ -201,6 +218,12 @@ crown and any unrepresented term.
    mass conditions, spatial agreement and biological validation are distinct.
 
 Keep empirical settings, saved-view links and comparison reports in ignored local directories.
+For the current local Calvin settings, open
+`Calvin_Current_Best_Review_2026-11-16/REVIEW_USAGE.md` for saved-view links and
+the full configuration tables, then
+`REVIEW_REPORT.md`, `SIMULATION_SETTINGS.json` and `ORDER_SETTINGS.csv` in the
+same folder. Exact empirical JSON inputs and comparison outputs stay ignored
+and local. The current configurations remain experimental and unadopted.
 
 ### Small offline technical review
 
@@ -227,7 +250,8 @@ current offline tests and documents clean-environment setup.
 
 For a tiny invented cohort check without empirical data, use the complete
 fixture in `tests/test_cohort_root_generator.py`; targeted test commands and
-the [research guide](research/README.md) describes the numerical checks. The
+the [research guide](research/README.md) describes the numerical checks; fresh
+results are in [integration status](PR_INTEGRATION_STATUS.md). The
 ordinary CLI accepts native model JSON, not cohort dictionaries. Cohort
 regeneration requires its separate API and a source/configuration identity
 check; use saved outputs for routine scientific review.

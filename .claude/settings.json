@@ -1,0 +1,46 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git ls-files *)",
+      "Bash(git blame *)",
+      "Bash(git rev-parse *)",
+      "Bash(git branch --show-current)",
+      "Bash(rg *)",
+      "Bash(bash -n *)",
+      "Bash(python -m json.tool *)",
+      "Bash(python3 -m json.tool *)"
+    ],
+    "ask": [
+      "Edit(/.codex/**)",
+      "Edit(/.claude/settings.json)",
+      "WebFetch",
+      "WebSearch",
+      "Bash(git push *)",
+      "Bash(git reset *)",
+      "Bash(git clean *)",
+      "Bash(git restore *)",
+      "Bash(git stash *)",
+      "Bash(git rm *)",
+      "Bash(git mv *)"
+    ],
+    "deny": [
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Edit(/.claude/skills/**)",
+      "Edit(/.claude/commands/**)"
+    ]
+  },
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true,
+    "network": {
+      "allowedDomains": []
+    }
+  }
+}
