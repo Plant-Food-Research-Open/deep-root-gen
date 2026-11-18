@@ -1,6 +1,5 @@
 {
   "reference_commit": "ff1a1df17381de3907f9799a56fb8f62008f6b47",
-  "reference_archive_sha256": "f0456d5aa2286a53f31a1bdcc90f97a5f499a67e3438b63f7c41b60a39768294",
   "reference_source_sha256": {
     "deeprootgen/model/hgraph.py": "d0e78dae635783490d8f34d28bf20ab6b102d4c862a03b16e83a8e5101ea93ab",
     "deeprootgen/model/root.py": "1df0d00a4b26bddf831ac3af6f496560b409e692d3854492e9be7e47f5535206",
