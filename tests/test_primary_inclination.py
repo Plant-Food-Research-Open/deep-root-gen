@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research.so4_controlled import construct_skeleton, replay_arm, validate_geometry
 from deeprootgen.utils.primary_orientation import inclination_rotation, proper_rotation
 from tests.test_root_origin_initialization import parameters as origin_parameters

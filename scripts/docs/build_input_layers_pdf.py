@@ -117,11 +117,11 @@ def footer(canvas, doc):
     canvas.saveState()
     canvas.setStrokeColor(RULE)
     canvas.setLineWidth(0.45)
-    canvas.line(16*mm, 14*mm, w-16*mm, 14*mm)
+    canvas.line(16 * mm, 14 * mm, w - 16 * mm, 14 * mm)
     canvas.setFont("Body", 7)
     canvas.setFillColor(MUTED)
-    canvas.drawString(16*mm, 10*mm, "DeepRootGen | Input layers and model flow | 17 November 2026")
-    canvas.drawRightString(w-16*mm, 10*mm, str(doc.page))
+    canvas.drawString(16 * mm, 10 * mm, "DeepRootGen | Input layers and model flow | 17 November 2026")
+    canvas.drawRightString(w - 16 * mm, 10 * mm, str(doc.page))
     canvas.restoreState()
 
 
@@ -133,13 +133,13 @@ def make_table(raw, width, st):
         2: [0.30, 0.70],
         3: [0.19, 0.36, 0.45],
         4: [0.18, 0.27, 0.27, 0.28],
-    }.get(n, [1/n]*n)
+    }.get(n, [1 / n] * n)
     if rows[0][0] in {"Input validator", "Component"}:
         weights = [0.19, 0.27, 0.27, 0.27]
     cells = [[Paragraph(inline(cell, 7.8), st["head" if i == 0 else "cell"])
               for cell in row] for i, row in enumerate(rows)]
     vertical_padding = 5 if rows[0][0] == "Comparison route" else 6
-    table = Table(cells, colWidths=[width*x for x in weights], repeatRows=1,
+    table = Table(cells, colWidths=[width * x for x in weights], repeatRows=1,
                   hAlign="LEFT", splitByRow=1, spaceAfter=12)
     table.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "TOP"),
@@ -164,15 +164,15 @@ def build(output, diagram_dir):
     text = SOURCE.read_text()
     lines = text.splitlines()
     width, height = A4
-    usable = width-32*mm
-    doc = PrintGuide(str(output), pagesize=A4, leftMargin=16*mm, rightMargin=16*mm,
-                     topMargin=17*mm, bottomMargin=19*mm,
+    usable = width - 32 * mm
+    doc = PrintGuide(str(output), pagesize=A4, leftMargin=16 * mm, rightMargin=16 * mm,
+                     topMargin=17 * mm, bottomMargin=19 * mm,
                      title="DeepRootGen: Input layers and model flow",
                      author="DeepRootGen project documentation", subject="Current model architecture and parameter crosswalk")
     doc.addPageTemplates([
-        PageTemplate(id="portrait", frames=[Frame(16*mm, 19*mm, usable, height-36*mm,
+        PageTemplate(id="portrait", frames=[Frame(16 * mm, 19 * mm, usable, height - 36 * mm,
                      leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)], onPage=footer, pagesize=A4),
-        PageTemplate(id="landscape", frames=[Frame(16*mm, 19*mm, height-32*mm, width-36*mm,
+        PageTemplate(id="landscape", frames=[Frame(16 * mm, 19 * mm, height - 32 * mm, width - 36 * mm,
                      leftPadding=0, rightPadding=0, topPadding=0, bottomPadding=0)], onPage=footer, pagesize=landscape(A4)),
     ])
     story = [Paragraph("DeepRootGen", st["title"]),
@@ -187,23 +187,23 @@ def build(output, diagram_dir):
             i += 1
             continue
         if line.startswith("```mermaid"):
-            j = i+1
+            j = i + 1
             while j < len(lines) and lines[j] != "```":
                 j += 1
             story.append(Paragraph(
                 f'<link href="#figure{chart+1}" color="#27626B"><b>See Figure {chart+1}: '
                 f'{html.escape(diagrams[chart]["title"])}</b></link> in the diagram section.', st["caption"]))
             chart += 1
-            i = j+1
+            i = j + 1
             continue
         if line.startswith("```"):
-            j = i+1
+            j = i + 1
             code = []
             while j < len(lines) and lines[j] != "```":
                 code.append(html.escape(lines[j]))
                 j += 1
             story.append(Paragraph("<br/>".join(code), st["code"]))
-            i = j+1
+            i = j + 1
             continue
         if line.startswith("|"):
             j = i
@@ -220,7 +220,7 @@ def build(output, diagram_dir):
             story.append(Paragraph(inline(line[4:]), st["h3"]))
             i += 1
             continue
-        j = i+1
+        j = i + 1
         while j < len(lines) and lines[j].strip() and not lines[j].startswith(("#", "|", "```")):
             j += 1
         paragraph = " ".join(lines[i:j])
@@ -235,12 +235,13 @@ def build(output, diagram_dir):
             image_path = diagram_dir / image_path
         orientation = item.get("orientation", "portrait")
         ps = landscape(A4) if orientation == "landscape" else A4
-        available_w, available_h = ps[0]-32*mm, ps[1]-36*mm-48
+        available_w, available_h = ps[0] - 32 * mm, ps[1] - 36 * mm - 48
         picture = Image(str(image_path))
-        factor = min(available_w/picture.imageWidth, available_h/picture.imageHeight)
-        picture.drawWidth = picture.imageWidth*factor
-        picture.drawHeight = picture.imageHeight*factor
-        story.extend([NextPageTemplate(orientation), PageBreak(),
+        factor = min(available_w / picture.imageWidth, available_h / picture.imageHeight)
+        picture.drawWidth = picture.imageWidth * factor
+        picture.drawHeight = picture.imageHeight * factor
+        story.extend([
+            NextPageTemplate(orientation), PageBreak(),
             Paragraph(f'<a name="figure{number}"/>Figure {number}. {item["title"]}', st["h2"]), picture,
             Spacer(1, 7), Paragraph("Arrows show the implemented sequence; observation inputs and targets remain separate.", st["caption"])])
     doc.build(story)
@@ -249,7 +250,7 @@ def build(output, diagram_dir):
                "diagram_manifest": str(manifest_path), "diagram_count": chart,
                "code_revision_reviewed": "ff1a1df17381de3907f9799a56fb8f62008f6b47",
                "model_executed": False}
-    output.with_suffix(".provenance.json").write_text(json.dumps(receipt, indent=2)+"\n")
+    output.with_suffix(".provenance.json").write_text(json.dumps(receipt, indent=2) + "\n")
     print(json.dumps(receipt, indent=2))
 
 

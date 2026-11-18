@@ -159,6 +159,9 @@ class RootSystemGraph:
             RootNode:
                 The new RootNode.
         """
+        budget = getattr(self, "allocation_budget", None)
+        if budget is not None:
+            budget.check_nodes(len(self.nodes) + 1)
         node_data.node_id = self.increment_node_id()
         node = RootNode(self, node_data)
 

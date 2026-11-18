@@ -1,0 +1,205 @@
+{
+  "schema_version": 2,
+  "random_seed": 42,
+  "simulation_tag": "invented-native-integration",
+  "construction": {
+    "kind": "cohort",
+    "parameters": {
+      "step_cm": 3.0,
+      "dry_density_g_cm3": 0.3,
+      "fine_cutoff_mm": 2.5,
+      "max_organs": 100,
+      "crown_mass_g": 0.0,
+      "crown_depth_cm": [
+        5.0,
+        8.0
+      ],
+      "crown_radius_cm": 1.0,
+      "later_maturity": [
+        0.3,
+        0.6
+      ],
+      "maturity_length_power": 0.5,
+      "maturity_diameter_power": 0.5,
+      "child_diameter_fraction_max": 0.8,
+      "inclination_mean_deg": 30.0,
+      "inclination_sd_deg": 10.0,
+      "inclination_bounds_deg": [
+        0.0,
+        90.0
+      ],
+      "insertion_mean_deg": 40.0,
+      "insertion_sd_deg": 5.0,
+      "orders": {
+        "1": {
+          "length_cm": {
+            "mean": 10.0,
+            "sd": 0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "base_diameter_cm": {
+            "mean": 0.8,
+            "sd": 0,
+            "min": 0.8,
+            "max": 0.8
+          },
+          "tip_diameter_cm": {
+            "mean": 0.05,
+            "sd": 0,
+            "min": 0.05,
+            "max": 0.05
+          },
+          "first_branch_cm": {
+            "mean": 4.0,
+            "sd": 0,
+            "min": 4.0,
+            "max": 4.0
+          },
+          "branch_probability": 1.0,
+          "daughter_probabilities": [
+            1.0
+          ],
+          "curvature_sd_rad_cm": 0.005,
+          "correlation_cm": 10.0,
+          "downward_drift_per_cm": 0.0
+        },
+        "2": {
+          "length_cm": {
+            "mean": 10.0,
+            "sd": 0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "base_diameter_cm": {
+            "mean": 0.4,
+            "sd": 0,
+            "min": 0.4,
+            "max": 0.4
+          },
+          "tip_diameter_cm": {
+            "mean": 0.05,
+            "sd": 0,
+            "min": 0.05,
+            "max": 0.05
+          },
+          "first_branch_cm": {
+            "mean": 4.0,
+            "sd": 0,
+            "min": 4.0,
+            "max": 4.0
+          },
+          "branch_probability": 1.0,
+          "daughter_probabilities": [
+            1.0
+          ],
+          "curvature_sd_rad_cm": 0.005,
+          "correlation_cm": 10.0,
+          "downward_drift_per_cm": 0.0
+        },
+        "3": {
+          "length_cm": {
+            "mean": 10.0,
+            "sd": 0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "base_diameter_cm": {
+            "mean": 0.26666666666666666,
+            "sd": 0,
+            "min": 0.26666666666666666,
+            "max": 0.26666666666666666
+          },
+          "tip_diameter_cm": {
+            "mean": 0.05,
+            "sd": 0,
+            "min": 0.05,
+            "max": 0.05
+          },
+          "first_branch_cm": {
+            "mean": 4.0,
+            "sd": 0,
+            "min": 4.0,
+            "max": 4.0
+          },
+          "branch_probability": 1.0,
+          "daughter_probabilities": [
+            1.0
+          ],
+          "curvature_sd_rad_cm": 0.005,
+          "correlation_cm": 10.0,
+          "downward_drift_per_cm": 0.0
+        },
+        "4": {
+          "length_cm": {
+            "mean": 10.0,
+            "sd": 0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "base_diameter_cm": {
+            "mean": 0.2,
+            "sd": 0,
+            "min": 0.2,
+            "max": 0.2
+          },
+          "tip_diameter_cm": {
+            "mean": 0.05,
+            "sd": 0,
+            "min": 0.05,
+            "max": 0.05
+          },
+          "first_branch_cm": {
+            "mean": 4.0,
+            "sd": 0,
+            "min": 4.0,
+            "max": 4.0
+          },
+          "branch_probability": 1.0,
+          "daughter_probabilities": [
+            1.0
+          ],
+          "curvature_sd_rad_cm": 0.005,
+          "correlation_cm": 10.0,
+          "downward_drift_per_cm": 0.0
+        },
+        "5": {
+          "length_cm": {
+            "mean": 10.0,
+            "sd": 0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "base_diameter_cm": {
+            "mean": 0.16,
+            "sd": 0,
+            "min": 0.16,
+            "max": 0.16
+          },
+          "tip_diameter_cm": {
+            "mean": 0.05,
+            "sd": 0,
+            "min": 0.05,
+            "max": 0.05
+          },
+          "first_branch_cm": {
+            "mean": 4.0,
+            "sd": 0,
+            "min": 4.0,
+            "max": 4.0
+          },
+          "branch_probability": 1.0,
+          "daughter_probabilities": [
+            1.0
+          ],
+          "curvature_sd_rad_cm": 0.005,
+          "correlation_cm": 10.0,
+          "downward_drift_per_cm": 0.0
+        }
+      }
+    },
+    "older_count": 2,
+    "later_count": 1
+  },
+  "trajectory": "cohort_v5"
+}

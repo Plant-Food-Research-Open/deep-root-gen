@@ -1,26 +1,28 @@
 # Architecture and code map
 
+Fresh generation uses one [schema-4 input](NATIVE_EXECUTION.md).
+[`RootConfig`](../deeprootgen/data_model/canonical.py) validates the document.
+The [resolver](../deeprootgen/data_model/resolution.py) identifies the active
+calculations and their parameter consumers. The
+[engine](../deeprootgen/model/engine.py) constructs and materializes the same
+axis state across native and feature-selected calculations. Branching,
+direction, crown placement, length and material settings each have their
+own rules. The CLI, Simulation page and notebook helpers share this
+generation contract.
+
+Use the [migration guide](research/SINGLE_INPUT_MIGRATION.md) for older
+generation inputs and the [historical contracts](NATIVE_EXECUTION_V1_V3.md)
+for exact replay. The [repair report](research/NATIVE_ENGINE_REPAIR_REPORT.md)
+records the observer, geometry and material changes. Observation and
+calibration take place downstream of the generated root system. The
+[workflow guide](source/usage/native_workflow.rst) describes what to run.
+
 For further AI-assisted changes, start with the [AI coding guide](AI_CODING_GUIDE.md)
 and [lessons learned](AI_CODING_LESSONS.md). They distinguish preserved contracts,
 current implementation and the proposed single-engine architecture.
 
-18 November update: every input (flat, schema 2 native, construction steps,
-cohort, schema 3) now runs through one fixed engine lifecycle in
-`deeprootgen/model/engine.py`, parsed and resolved by
-`deeprootgen/data_model/resolution.py`; the separate construction-step and cohort
-runners were removed. Schema 3 switches curvature, taper, origins, maturity,
-lengths, branching, capping and relocation independently; see
-[native execution](NATIVE_EXECUTION.md). Route diagrams below predate this.
-
-17 November integration update: [native execution and compatibility contracts](NATIVE_EXECUTION.md)
-now describe the supported engine. The route diagrams below retain the
-pre-consolidation source review; cohort generation and fresh SO4 construction-step
-samples now execute through native `RootSystemSimulation.run()`.
-
-For the current native, Fichtl/SO4 and Calvin input paths, see
-[input layers and detailed model flow](INPUT_LAYERS_AND_MODEL_FLOW.md). It
-separates shared construction, controlled replay, the cohort constructor and
-downstream observation inputs, with diagrams and a parameter crosswalk.
+The [input-layer diagrams](INPUT_LAYERS_AND_MODEL_FLOW.md) and source map
+below retain the historical interfaces alongside the current generation guide.
 
 Reviewed 2026-10-28 against code revision
 `fc9136263eb7dff1b2e047d1cf3f0de8bdafbedf`. Paths below are relative to this

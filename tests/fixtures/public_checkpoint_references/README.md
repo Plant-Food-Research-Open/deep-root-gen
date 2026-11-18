@@ -30,7 +30,8 @@ References precede the feature whose missing/None/zero behavior is tested:
 
 The manifest binds each patch SHA256 plus the exact preimage/postimage hashes
 (or required absence) of every affected module. Tests check those hashes, copy
-the current package, apply the patch using local `git apply --check`/`git apply`
+the current package, restore authenticated preimages from the checked-in
+`baseline_modules.json.gz` archive, apply the patch using local `git apply --check`/`git apply`
 outside any checkout/index, then verify the reconstructed modules. No network,
 Git object database, external temporary snapshot, canonical checkout or named
 dependency overlay is needed at test runtime. Git must be installed; missing or
@@ -107,3 +108,18 @@ patches (`pre_ou_physical`, `pre_primary_design`) are Python
 `difflib.unified_diff(..., n=3)` text with `diff --git a/P b/P` headers and no
 `index` lines, one file per manifest module in manifest order. Before
 regeneration, that generator reproduced both existing epoch patches byte for byte.
+
+## Stable preimages after numerical repairs (18 November 2026)
+
+The manifest authenticates the compressed baseline archive as well as each
+individual preimage and postimage. Its public module bytes were extracted from
+the existing recorded baseline commits and verified against their existing
+hashes. No reference postimage or numerical tolerance changed. Tests therefore
+remain portable as current source evolves, without repeatedly rebinding patches.
+Run the standalone preflight with:
+
+```bash
+python -m pytest --run-integration tests/test_native_consumers.py::test_frozen_reference_preflight
+```
+
+All eight references must reconstruct; missing/tampered fixtures fail explicitly.

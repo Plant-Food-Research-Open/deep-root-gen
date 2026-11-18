@@ -10,12 +10,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from deeprootgen.cli import simulate
+from deeprootgen.archive.export import simulate
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 
 ROOT = Path(__file__).resolve().parents[1]
-CONFIG = ROOT / "examples/synthetic_minimal.json"
+CONFIG = ROOT / "tests/fixtures/migration_inputs/synthetic_minimal.json"
 
 
 def test_seeded_api_cli_parity_without_services(tmp_path, monkeypatch):
@@ -62,7 +62,7 @@ def test_cli_from_unrelated_directory(tmp_path):
     assert help_result.returncode == 0
     result = subprocess.run(
         command
-        + ["simulate", "--config", str(CONFIG), "--outdir", str(tmp_path / "cli")],
+        + ["simulate", "--config", str(ROOT / "examples/synthetic_minimal.json"), "--outdir", str(tmp_path / "cli")],
         cwd=tmp_path,
         capture_output=True,
         timeout=120,

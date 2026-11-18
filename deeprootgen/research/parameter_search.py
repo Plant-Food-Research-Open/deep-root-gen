@@ -121,6 +121,13 @@ def _number(value, name):
     return result
 
 
+def _candidate(base, suggestions):
+    candidate = copy.deepcopy(base)
+    settings = candidate["parameters"] if candidate.get("schema_version") == 4 else candidate
+    settings.update(suggestions)
+    return candidate
+
+
 def _space(search_space):
     if not isinstance(search_space, dict) or not search_space:
         raise ValueError("search_space must be a nonempty dictionary")
@@ -213,10 +220,7 @@ def _recover(study, outdir, design, identity_sha256):
     for trial in trials:
         record = _read_receipt(outdir, trial.number, identity_sha256)
         if record is not None:
-            if record.get("seeds") != design["seeds"] or record.get("parameters") != {
-                **design["base_parameters"],
-                **trial.params,
-            }:
+            if record.get("seeds") != design["seeds"] or record.get("parameters") != _candidate(design["base_parameters"], trial.params):
                 raise ValueError(
                     "Trial receipt candidate or seeds disagree with the frozen design"
                 )
@@ -224,7 +228,7 @@ def _recover(study, outdir, design, identity_sha256):
             record = record or dict(
                 trial_number=trial.number,
                 identity_sha256=identity_sha256,
-                parameters={**design["base_parameters"], **trial.params},
+                parameters=_candidate(design["base_parameters"], trial.params),
                 suggested_parameters=trial.params,
                 seeds=design["seeds"],
                 sampler_seed=_trial_seed(design["sampler_seed"], trial.number),
@@ -467,7 +471,7 @@ def read_verified_search_result(outdir: Path, expected_design: dict) -> dict:
                     ).fetchall()
                 }
                 record = _read_receipt(outdir, number, expected["identity_sha256"])
-                best_parameters = {**validated["base_parameters"], **suggestions}
+                best_parameters = _candidate(validated["base_parameters"], suggestions)
                 if (
                     record is None
                     or record.get("state") != "COMPLETE"
@@ -554,10 +558,11 @@ def _evaluate_trial(study, trial, design, record, outdir, execution_seeds, evalu
     """Persist one reserved trial; return an explicit stop without retrying it."""
     path = _receipt_path(outdir, trial.number)
     try:
-        candidate = copy.deepcopy(design["base_parameters"])
+        suggestions = {}
         for name, spec in design["search_space"].items():
             options = {key: value for key, value in spec.items() if key != "kind"}
-            candidate[name] = getattr(trial, "suggest_" + spec["kind"])(name, **options)
+            suggestions[name] = getattr(trial, "suggest_" + spec["kind"])(name, **options)
+        candidate = _candidate(design["base_parameters"], suggestions)
         record.update(
             parameters=_json(candidate), suggested_parameters=_json(trial.params)
         )
@@ -575,7 +580,7 @@ def _evaluate_trial(study, trial, design, record, outdir, execution_seeds, evalu
             stop_diagnostics=error.diagnostics,
             suggested_parameters=_json(trial.params),
         )
-        record.setdefault("parameters", {**design["base_parameters"], **trial.params})
+        record.setdefault("parameters", _candidate(design["base_parameters"], trial.params))
         _atomic_json(path, record)
         study.tell(trial, state=TrialState.FAIL)
         return error
@@ -585,7 +590,7 @@ def _evaluate_trial(study, trial, design, record, outdir, execution_seeds, evalu
             error=dict(type=type(error).__name__, message=str(error)),
             suggested_parameters=_json(trial.params),
         )
-        record.setdefault("parameters", {**design["base_parameters"], **trial.params})
+        record.setdefault("parameters", _candidate(design["base_parameters"], trial.params))
         _atomic_json(path, record)
         study.tell(trial, state=TrialState.FAIL)
     else:

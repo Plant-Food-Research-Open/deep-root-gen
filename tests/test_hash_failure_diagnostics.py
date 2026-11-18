@@ -93,7 +93,7 @@ def test_real_initial_assertion_emits_both_variants(tmp_path, monkeypatch):
         )
 
     monkeypatch.setattr(case, "construct_skeleton", corrupted_identity)
-    with pytest.raises(AssertionError):
+    with pytest.raises(AssertionError, match="INITIAL payload disagrees with historical reference"):
         case.test_inactive_field_retains_preimplementation_initial_identity(
             tmp_path / "reference"
         )

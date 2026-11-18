@@ -86,7 +86,7 @@ dependencies and repository revision.
 
 
 Model Overview
--------------
+--------------
 
 DeepRootGen uses a stochastic root growth simulator to construct
 root system architectures from a configurable set of parameters.

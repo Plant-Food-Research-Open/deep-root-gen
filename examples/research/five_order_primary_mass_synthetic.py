@@ -5,7 +5,7 @@ runtime dependencies available on PYTHONPATH::
 
     python examples/research/five_order_primary_mass_synthetic.py
 
-Prints a JSON verification summary to stdout; reads no data/config files and
+Prints a JSON verification summary to stdout; reads the adjacent configuration and
 writes no artifacts. All dimensions, density, directions, counts and mass shares
 below are deliberately invented scenario assumptions. This exercises opt-in
 mechanisms together; it does not change defaults or qualify biological accuracy.
@@ -18,7 +18,9 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 
-from deeprootgen.data_model import RootSimulationModel
+from pathlib import Path
+
+from deeprootgen.data_model.canonical import RootConfig
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.research.order_mass_allocation import (
     allocate_order_mass,
@@ -37,80 +39,7 @@ MASS_GROUPS = [
 
 def invented_parameters():
     """Small explicit construction; the physical branch window affects order1."""
-    return RootSimulationModel(
-        random_seed=SEED,
-        max_order=5,
-        root_ratio=0.5,
-        fine_root_threshold=0.06,
-        outer_root_num=1,
-        inner_root_num=1,
-        min_primary_length=10.0,
-        max_primary_length=15.0,
-        base_diameter=0.25,
-        diameter_reduction=0.2,
-        apex_diameter=0.04,
-        min_sec_root_num=1,
-        max_sec_root_num=2,
-        growth_sec_root=0.0,
-        min_sec_root_length=2.0,
-        max_sec_root_length=5.0,
-        segments_per_root=3,
-        length_reduction=0.5,
-        root_vary=2.0,
-        interbranch_distance=0.5,
-        mechanical_constraints=0.5,
-        root_tissue_density=DRY_DENSITY_G_CM3,
-        gravitropism=0.0,
-        t=0,
-        enable_soil=False,
-        simulation_tag="invented-five-order-primary-mass-example",
-        tropism_mode="fichtl2024",
-        soil_surface_z_cm=0.0,
-        research_base_origin_x_cm=0.0,
-        research_base_origin_y_cm=0.0,
-        research_base_depth_cm=50.0,
-        fichtl_probability_down=1.0,
-        fichtl_sigma=0.05,
-        fichtl_trials_type2=0.5,
-        fichtl_trials_type3=0.5,
-        fichtl_theta2_deg=35.0,
-        fichtl_theta2_sd_deg=0.0,
-        fichtl_theta3_deg=25.0,
-        fichtl_theta3_sd_deg=0.0,
-        research_higher_order_tropism={
-            4: dict(theta_deg=25.0, theta_sd_deg=0.0, probability_down=1.0, trials=0.5),
-            5: dict(theta_deg=15.0, theta_sd_deg=0.0, probability_down=1.0, trials=0.5),
-        },
-        research_root_counts_by_order=COUNTS,
-        research_current_length_cdfs_cm={
-            order: dict(
-                lengths_cm=[float(6 - order), float(7 - order)],
-                cumulative_probabilities=[0.5, 1.0],
-            )
-            for order in range(2, 6)
-        },
-        research_primary_design=[
-            dict(
-                primary_id="invented-A",
-                category="invented",
-                length_cm=12.0,
-                diameter_base_cm=0.25,
-                diameter_apex_cm=0.10,
-                inclination_deg=20.0,
-                azimuth_deg=0.0,
-            ),
-            dict(
-                primary_id="invented-B",
-                category="invented",
-                length_cm=14.0,
-                diameter_base_cm=0.22,
-                diameter_apex_cm=0.08,
-                inclination_deg=45.0,
-                azimuth_deg=100.0,
-            ),
-        ],
-        research_primary_branch_zone_cm=dict(start_cm=1.0, end_cm=5.0),
-    )
+    return RootConfig.model_validate_json(Path(__file__).with_suffix(".json").read_text())
 
 
 def check_graph(nodes, edges):
@@ -248,7 +177,7 @@ def main():
         native_graph=native_graph,
         curved_graph=curved_graph,
         allocated_graph=allocated_graph,
-        primary_branch_window_cm=parameters.research_primary_branch_zone_cm,
+        primary_branch_window_cm=parameters.features.branch_sites.settings.primary_zone_cm,
         primary_branch_sites_cm=[
             organ.primary_branch_zone_diagnostics["sites_cm"]
             for organ in simulation.organs[1]

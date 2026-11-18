@@ -15,17 +15,23 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     Existing directories are never overwritten. Input is parsed and resolved
     by the shared resolver before any directory or simulation state exists.
     """
-    import numpy as np
-
     from .data_model.resolution import canonical_input, resolve_config
     from .model import RootSystemSimulation
 
+    return _export(spec, outdir, resolve_config, canonical_input, RootSystemSimulation)
+
+
+def _export(spec, outdir, resolve_config, canonical_input, simulation_class):
+    import copy
+    import numpy as np
+
+    spec = copy.deepcopy(spec)
     resolved = resolve_config(spec)
     parameters = resolved.config
     target = Path(outdir).expanduser().resolve()
     if target.exists():
         raise FileExistsError(f"Output directory already exists: {target}")
-    simulation = RootSystemSimulation(
+    simulation = simulation_class(
         random_seed=parameters.random_seed,
         simulation_tag=parameters.simulation_tag,
     )
@@ -69,6 +75,10 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
         figure.update_layout(scene=dict(aspectmode="data"))
         figure.write_html(target / "roots.html")
         result = simulation.result
+        if "root_summary" in result.metadata:
+            (target / "root_summary.json").write_text(
+                json.dumps(result.metadata["root_summary"], indent=2, allow_nan=False) + "\n"
+            )
         result.organ_table.to_csv(target / "organs.csv", index=False)
         if not result.node_metadata.empty:
             result.node_metadata.to_csv(target / "node_metadata.csv", index=False)
@@ -114,7 +124,9 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     from .data_model.resolution import source_identity
     from .run_records import repository_state
 
-    manifest["source_sha256"] = source_identity()
+    provenance = simulation.result.engine.get("provenance", {}) if simulation.result is not None else {}
+    manifest["execution_provenance"] = provenance
+    manifest["source_sha256"] = provenance.get("source_sha256", source_identity())
     manifest["repository"] = repository_state()
     (target / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
@@ -122,6 +134,10 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
 
 def main(argv=None) -> int:
     """Parse the small command contract; help does not import model dependencies."""
+    return _main(argv, simulate)
+
+
+def _main(argv, run_config, explain=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("simulate", help="run and export an offline simulation")
@@ -140,9 +156,9 @@ def main(argv=None) -> int:
 
         spec = load_json_config(args.config)
         if args.explain_config:
-            result = explain_config(spec)
+            result = (explain or explain_config)(spec)
         else:
-            result = simulate(spec, args.outdir)
+            result = run_config(spec, args.outdir)
     except (OSError, ValueError, TypeError) as exc:
         if args.explain_config:
             # Dependency and validation errors are part of the explanation.

@@ -34,12 +34,10 @@ class AxisCurve:
     def tangent(self, arc, coincidence_cm=CORNER_COINCIDENCE_CM):
         """Direction of the incoming (base-side) linear piece ending at ``arc``.
 
-        Evaluated ``coincidence_cm`` before the arc, so a corner merged into the
-        construction cut (see ``curved_axis``) is approached from the same side
-        as the published incoming edge.
+        Exact corners use the incoming piece. A nearby attachment on the tip
+        side uses that side's piece; proximity does not identify physical events.
         """
-        probe = max(float(arc) - coincidence_cm, 0.0)
-        j = int(np.searchsorted(self.stations, probe, side="left")) - 1
+        j = int(np.searchsorted(self.stations, float(arc), side="left")) - 1
         j = min(max(j, 0), len(self.stations) - 2)
         return self.points[j + 1] - self.points[j]
 
@@ -72,12 +70,12 @@ def curved_axis(organ, curve):
     arcs = np.asarray(curve.construction_arcs, dtype=float)
     total = float(arcs[-1])
     interior = curve.stations[(curve.stations > 0) & (curve.stations < total)]
-    corners = [s for s in interior if np.min(np.abs(arcs - s)) > CORNER_COINCIDENCE_CM]
-    cuts = np.unique(np.r_[arcs, corners])
+    cuts = np.unique(np.r_[arcs, interior])
     lengths = np.diff(np.r_[0.0, cuts])
-    if not np.isfinite(cuts).all() or np.any(lengths <= 1e-12):
+    if not np.isfinite(cuts).all() or np.any(lengths <= 0):
         raise ValueError("Unrepresentable material cut on a realized axis")
     positions = curve.position(cuts)
+    check_representable(curve.points[0], positions, lengths)
     intervals = []
     for cut, xyz, length in zip(cuts, positions, lengths):
         k = int(np.searchsorted(arcs, cut, side="left"))
@@ -87,6 +85,7 @@ def curved_axis(organ, curve):
             current = np.array([node.node_data.x, node.node_data.y, node.node_data.z], dtype=float)
             if not np.allclose(current, xyz, rtol=0, atol=1e-12):
                 raise ValueError("A realized axis moved after direction realization")
+            xyz = current
         intervals.append(
             EmittedInterval(
                 node.node_data,
@@ -140,30 +139,55 @@ def check_curve_postconditions(organ, curve, surface_z, *, rtol=1e-9):
         raise ValueError(f"Realized axis {curve.organ_id} does not conserve contour length")
     published_arcs = np.cumsum(lengths)
     for station in curve.stations[1:]:
-        if np.min(np.abs(published_arcs - station)) > CORNER_COINCIDENCE_CM + 1e-12 * total:
+        if np.min(np.abs(published_arcs - station)) > 64 * np.finfo(float).eps * max(total, abs(station)):
             raise ValueError(f"Realized axis {curve.organ_id} lost a direction corner")
 
 
 def merge_cuts(identity, candidate_groups, tolerance):
-    """Identity cuts kept exactly; each later group adds only cuts farther than
-    ``tolerance`` from every kept cut (direction corners before material cuts).
+    """Retain every geometric/identity event and every resolvable material cut.
 
-    A material breakpoint merged into a corner moves by at most ``tolerance``.
+    Only a material event within binary64 roundoff of an existing cut can be
+    omitted from output. Its exact breakpoint still participates in the
+    piecewise volume integral. ``tolerance`` remains an adapter argument, not
+    permission to discard a real corner or use an absolute physical tolerance.
     """
-    kept = np.unique(np.asarray(identity, dtype=float))
-    for group in candidate_groups:
+    groups = list(candidate_groups)
+    kept = np.unique(np.r_[identity, groups[0] if groups else []])
+    for group in groups[1:]:
         for cut in np.asarray(group, dtype=float):
             k = int(np.searchsorted(kept, cut))
-            if all(abs(cut - kept[i]) > tolerance for i in (k - 1, k) if 0 <= i < len(kept)):
+            if all(abs(cut - kept[i]) > 64 * np.finfo(float).eps * max(abs(cut), abs(kept[i]))
+                   for i in (k - 1, k) if 0 <= i < len(kept)):
                 kept = np.insert(kept, k, cut)
     return kept
+
+
+def check_representable(start, points, lengths):
+    """Reject intervals that cannot be represented at their coordinate scale."""
+    previous = np.vstack([start, points[:-1]])
+    floor = 64 * np.finfo(float).eps * (np.linalg.norm(previous, axis=1) + np.linalg.norm(points, axis=1))
+    if np.any(lengths <= floor) or np.any(np.linalg.norm(points - previous, axis=1) <= floor):
+        raise ValueError("Interval below coordinate-scale resolution floor")
+
+
+def taper_interval_diameters(cuts, total, base, tip, midpoint):
+    """Exact piecewise-taper volume, including breakpoints omitted as roundoff."""
+    from .cohort_geometry import taper_diameter
+
+    result = []
+    for a, b in zip(cuts[:-1], cuts[1:]):
+        events = np.array([a, total / 2, b] if a < total / 2 < b else [a, b])
+        diameters = taper_diameter(events, total, base, tip, midpoint)
+        squares = (diameters[:-1]**2 + diameters[:-1] * diameters[1:] + diameters[1:]**2) / 3
+        result.append(np.sqrt(np.dot(np.diff(events), squares) / (b - a)))
+    return np.asarray(result)
 
 
 def interior_material_cuts(length, base, tip, cutoff_cm, midpoint):
     """Point-taper breakpoints: midpoint (fraction != 0.5) and fine-cutoff crossings."""
     from .cohort_geometry import material_cuts
 
-    return material_cuts(length, [], [], base, tip, cutoff_cm, midpoint)[1:-1]
+    return material_cuts(length, [], [], base, tip, cutoff_cm, midpoint, minimum_interval_cm=0.)[1:-1]
 
 
 def fine_by_equivalent_diameter(diameter_cm, cutoff_mm):

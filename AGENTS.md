@@ -23,7 +23,7 @@ is an independent Codex project; no supervisor integration is enabled.
 
 - Record revision/status and preserve intervening work before edits.
 - Read [architecture](docs/ARCHITECTURE.md) and inspect the relevant source.
-  Simulation entrypoint: `RootSystemSimulation.run(RootSimulationModel(...))`.
+  Simulation entrypoint: `RootSystemSimulation.run(RootConfig(...))`.
   UI: `app/app.py`, `app/pages/`, Hydra `app/conf/`. Flows: `app/flows/`.
 - Inspect pyproject.toml, poetry.lock, CI/container recipes and pytest settings
   before selecting commands. Current Python constraint is `>=3.10,<3.11`;
@@ -90,4 +90,4 @@ at a time, retain legacy defaults, and keep observations/comparisons local.
 
 ## Active Calvin cohort research
 
-For the mature-vine population task, read [ACTIVE_CALVIN_RESEARCH.md](docs/research/ACTIVE_CALVIN_RESEARCH.md). Use the separately configured research constructor; retain native Fichtl defaults and sealed results. The full crown support graph is not a root-only graph. Its observation projection uses primary-tree IDs, not independent vine IDs. Keep the supplied summary, photographs, empirical configurations and comparison outputs local. Consult current run receipts and review dispositions before repeating or interpreting trials; do not infer biological qualification from algorithm tests or a biomass match.
+For mature-vine population work, read [ACTIVE_CALVIN_RESEARCH.md](docs/research/ACTIVE_CALVIN_RESEARCH.md). Fresh simulations use a separate Calvin schema-4 configuration through the shared generator. The archived research constructor reproduces the earlier study protocol. Preserve historical Fichtl defaults and sealed results. The full crown graph includes support connectors. Its historical observation projection identifies primary trees within a vine. Keep the supplied summary, photographs, empirical configurations and comparison outputs local. Consult the run receipts and review dispositions before repeating or interpreting trials. Population qualification requires evidence on the relevant observation support.
