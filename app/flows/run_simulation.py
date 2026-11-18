@@ -8,8 +8,9 @@ import mlflow
 from prefect import flow, task
 from prefect.task_runners import ConcurrentTaskRunner
 
-from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.data_model.execution import require_native_service_request
+from deeprootgen.data_model.canonical import RootConfig
+from deeprootgen.data_model.simulation_form import SoilDisplay
+from deeprootgen.data_model.resolution import resolve_config
 from deeprootgen.io import save_graph_to_db
 from deeprootgen.model import RootSystemSimulation
 from deeprootgen.pipeline import (
@@ -31,18 +32,18 @@ TASK = "simulation"
 
 
 @task
-def execute_simulation(input_parameters: RootSimulationModel) -> RootSystemSimulation:
+def execute_simulation(input_parameters: RootConfig) -> RootSystemSimulation:
     """Execute the root simulation.
 
     Args:
-        input_parameters (RootSimulationModel):
+        input_parameters (RootConfig):
             The root simulation data model.
 
     Returns:
         RootSystemSimulation:
             The root simulation.
     """
-    require_native_service_request(input_parameters)
+    resolve_config(input_parameters)
     simulation = RootSystemSimulation(
         simulation_tag=input_parameters.simulation_tag,  # type: ignore
         random_seed=input_parameters.random_seed,  # type: ignore
@@ -52,23 +53,23 @@ def execute_simulation(input_parameters: RootSimulationModel) -> RootSystemSimul
 
 
 @task
-def run_simulation(input_parameters: RootSimulationModel, simulation_uuid: str) -> None:
+def run_simulation(input_parameters: RootConfig, simulation_uuid: str, soil_display: SoilDisplay | None = None) -> None:
     """Running a single root simulation.
 
     Args:
-        input_parameters (RootSimulationModel):
+        input_parameters (RootConfig):
             The root simulation data model.
         simulation_uuid (str):
             The simulation uuid.
     """
-    require_native_service_request(input_parameters)
+    resolve_config(input_parameters)
     begin_experiment(TASK, simulation_uuid, input_parameters.simulation_tag)
     log_experiment_details(simulation_uuid)
     simulation = execute_simulation(input_parameters)
-    config = input_parameters.dict()
+    config = input_parameters.model_dump(mode="json", exclude_unset=True)
 
     log_config(config, TASK)
-    log_simulation(input_parameters, simulation, TASK)
+    log_simulation(input_parameters, simulation, TASK, soil_display)
     save_graph_to_db(simulation, TASK, simulation_uuid)
     mlflow.end_run()
 
@@ -79,15 +80,15 @@ def run_simulation(input_parameters: RootSimulationModel, simulation_uuid: str) 
     task_runner=ConcurrentTaskRunner(),
 )
 def run_simulation_flow(
-    input_parameters: RootSimulationModel, simulation_uuid: str
+    input_parameters: RootConfig, simulation_uuid: str, soil_display: SoilDisplay | None = None
 ) -> None:
     """Flow for running a single root simulation.
 
     Args:
-        input_parameters (RootSimulationModel):
+        input_parameters (RootConfig):
             The root simulation data model.
         simulation_uuid (str):
             The simulation uuid.
     """
-    require_native_service_request(input_parameters)
-    run_simulation.submit(input_parameters, simulation_uuid).result()
+    resolve_config(input_parameters)
+    run_simulation.submit(input_parameters, simulation_uuid, soil_display).result()

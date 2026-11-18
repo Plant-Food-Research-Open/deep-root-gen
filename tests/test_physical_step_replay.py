@@ -17,7 +17,7 @@ from deeprootgen.utils.current_length import sample_current_lengths
 
 def invented_initial(max_order=3, seed=42):
     values = json.loads(
-        (Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text()
+        (Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text()
     )
     values.update(
         random_seed=seed,

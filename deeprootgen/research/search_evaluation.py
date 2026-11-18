@@ -8,7 +8,6 @@ loaded here and no services, files, retries, or seed selection are performed.
 
 from __future__ import annotations
 
-import copy
 import importlib.util
 import math
 import re
@@ -291,85 +290,39 @@ def evaluate_samples(reference: dict, samples: list, *, objective_mode: str):
 
 
 def validate_simulation_parameters(parameters, *, route: str):
-    """Validate the same route/model scope as execution without constructing.
+    """Validate a canonical configuration against the chosen sampling protocol."""
+    from ..data_model.resolution import parse_config, resolve_config
 
-    Returns detached JSON-compatible model parameters. This is a schema/route
-    preflight, not a claim that construction or the declared positive traits pass.
-    """
+    config = parse_config(parameters)
+    resolve_config(config)
     if route not in ROUTES:
-        raise ValueError(f"route must explicitly select one of {ROUTES}")
-    if hasattr(parameters, "model_dump"):
-        values = parameters.model_dump()
-    elif isinstance(parameters, Mapping):
-        values = copy.deepcopy(dict(parameters))
-    else:
-        raise ValueError("parameters must be a mapping or RootSimulationModel")
-    _integer(values.get("random_seed"), "parameters.random_seed")
-    if _number(values.get("soil_surface_z_cm"), "soil_surface_z_cm") != 20.:
-        raise ValueError("Controlled search requires an explicit fixed soil surface at 20 cm")
-    maximum = _integer(values.get("max_order"), "parameters.max_order", 3)
-    if maximum > 5 or values.get("tropism_mode") != "fichtl2024":
-        raise ValueError("The positive-trait bridge requires Fichtl mode and max_order 3, 4 or 5")
-    grid = values.get("research_current_length_grid")
-    if route == "construction_steps_v1" and grid != "construction_steps_v1":
-        raise ValueError("Construction-step route requires matching construction_steps_v1 parameters")
-    if route == "graph_segments_v1" and (
-        grid is not None or values.get("research_parent2_branch_zone_cm") is not None
-        or values.get("research_tertiary_length_rank_strength")
-        or values.get("research_primary_attachment_distal_fraction")
-    ):
-        raise ValueError("Graph-segment route cannot use construction-step-only parameters")
-    from ..data_model import RootSimulationModel
-    unknown = set(values).difference(RootSimulationModel.model_fields)
-    if unknown:
-        raise ValueError(f"Unknown simulation parameters would be ignored: {sorted(unknown)}")
-    return RootSimulationModel(**values).model_dump()
+        raise ValueError(f"Unsupported route {route}")
+    p = config.parameters
+    if p.tropism_mode != "fichtl2024" or not 3 <= p.max_order <= 5 or p.soil_surface_z_cm != 20:
+        raise ValueError("Population summaries require Fichtl geometry, orders 3 to 5 and soil surface 20 cm")
+    direction = config.features.direction
+    steps = direction.enabled and direction.settings.stationing == "construction_steps_v1"
+    if steps != (route == "construction_steps_v1"):
+        raise ValueError("Search protocol and configured construction stationing disagree")
+    return config
 
 
 def simulate_sample(parameters, seed: int, *, route: str):
-    """Construct a fresh INITIAL and explicitly replay existing controlled arm D.
+    """Generate one canonical architecture and measure its population traits."""
+    from ..model import RootSystemSimulation
+    from .so4_controlled import capture_initial
 
-    Caller-supplied seeds must match. No skeleton is reused when parameters
-    change. The existing constructor's internal simulation tag is preserved;
-    the requested tag and a separate run identity are reported in diagnostics.
-    """
-    seed = _integer(seed, "seed")
-    if hasattr(parameters, "model_dump"):
-        values = parameters.model_dump()
-    elif isinstance(parameters, Mapping):
-        values = copy.deepcopy(dict(parameters))
-    else:
-        raise ValueError("parameters must be a mapping or RootSimulationModel")
-    if "random_seed" in values and _integer(values["random_seed"], "parameters.random_seed") != seed:
+    config = validate_simulation_parameters(parameters, route=route)
+    if config.random_seed != _integer(seed, "seed"):
         raise ValueError("parameters.random_seed must match the requested seed")
-    values["random_seed"] = seed
-    validated = validate_simulation_parameters(values, route=route)
-    from .so4_controlled import construct_skeleton, digest, replay_arm
-
-    if route == "construction_steps_v1":
-        from ..data_model import RootSimulationConfig
-        from ..model import RootSystemSimulation
-        from .so4_controlled import capture_initial
-        snapshots = []
-        config = RootSimulationConfig(random_seed=seed, simulation_tag=validated['simulation_tag'],
-                                      construction=dict(kind='native', parameters=validated), trajectory='construction_steps_v1')
-        simulation = RootSystemSimulation(random_seed=seed)
-        simulation.run(config, initial_recorder=lambda sim, p: snapshots.append(capture_initial(sim, p)))
-        initial = snapshots[0]
-        nodes, edges = simulation.G.as_df()
-        result = dict(nodes=nodes, edges=edges)
-    else:
-        # Archived graph-segment experiment; not a supported extended contract.
-        initial = construct_skeleton(validated, seed)
-        result = replay_arm(initial, "D", validated, "minimum_angle_projection", surface_z=20.)
-    sample = summarize_sample(result["nodes"], result["edges"], seed=seed, surface_z_cm=20.,
-                              root_orders=list(range(1, validated["max_order"] + 1)))
-    identity = dict(route=route, seed=seed, parameters=validated, initial_sha256=initial.sha256)
-    sample["diagnostics"].update(
-        simulation_route=route, arm="D", boundary_policy="minimum_angle_projection",
-        initial_sha256=initial.sha256, fresh_initial_construction=True,
-        requested_simulation_tag=validated["simulation_tag"],
-        constructor_simulation_tag=initial.payload["parameters"]["simulation_tag"],
-        run_identity_sha256=digest(identity),
-    )
+    snapshots = []
+    simulation = RootSystemSimulation(random_seed=seed)
+    simulation.run(config, initial_recorder=lambda sim, p: snapshots.append(capture_initial(sim, p)))
+    nodes, edges = simulation.G.as_df()
+    sample = summarize_sample(nodes, edges, seed=seed, surface_z_cm=config.parameters.soil_surface_z_cm,
+                              root_orders=list(range(1, config.parameters.max_order + 1)))
+    sample["diagnostics"].update(simulation_route=route, initial_sha256=snapshots[0].sha256,
+                                 fresh_initial_construction=True, requested_simulation_tag=config.simulation_tag,
+                                 constructor_simulation_tag=snapshots[0].payload["parameters"]["simulation_tag"],
+                                 run_identity_sha256=simulation.result.metadata["run_identity_sha256"])
     return sample

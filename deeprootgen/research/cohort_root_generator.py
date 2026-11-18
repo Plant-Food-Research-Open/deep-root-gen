@@ -1,4 +1,4 @@
-"""Historical cohort API; fresh generation is owned by native run()."""
+"""Historical cohort study replay. Use the schema-4 CLI for fresh models."""
 
 from dataclasses import dataclass
 import pandas as pd
@@ -24,14 +24,14 @@ class CohortArchitecture:
 
 
 class CohortRootGenerator:
-    """Compatibility configuration/export adapter to RootSystemSimulation.run."""
+    """Replay sealed cohort construction and export conventions."""
 
     def __init__(self, config):
         self.config = validate_cohort_config(config)
 
     def generate(self, seed, older_count, later_count):
         from ..data_model.execution import RootSimulationConfig
-        from ..model import RootSystemSimulation
+        from deeprootgen.archive.simulation import RootSystemSimulation
 
         config = RootSimulationConfig(
             random_seed=seed,

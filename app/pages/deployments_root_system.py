@@ -27,6 +27,7 @@ from dash import (
 )
 
 from deeprootgen.calibration import get_simulation_parameters
+from deeprootgen.data_model.surrogate_inputs import surrogate_form_row
 from deeprootgen.form import get_common_layout
 from deeprootgen.io import load_data_from_file
 from deeprootgen.pipeline import get_datetime_now, get_outdir
@@ -314,6 +315,7 @@ def endpoint_predict(task: str, endpoint: str, json: dict) -> str:
             The response dataframe file path.
     """
     res = requests.post(url=f"{endpoint}/predict", json=json)
+    res.raise_for_status()
     json_data = res.json()
     df = pd.DataFrame(json_data)
     outdir = get_outdir()
@@ -495,15 +497,15 @@ def call_snpe(n_clicks: int | list[int], statistics_inputs: list[float]) -> Call
     prevent_initial_call=True,
 )
 def call_surrogate(
-    n_clicks: int | list[int], statistics_inputs: list[float]
+    n_clicks: int | list[int], feature_inputs: list
 ) -> Callable:
     """Call the surrogate model endpoint.
 
     Args:
         n_clicks (int | list[int]):
             The number of form clicks.
-        statistics_inputs (list[float]):
-            The list of summary statistic values.
+        feature_inputs (list):
+            The numeric feature values and optional explicit JSON row.
 
     Returns:
         Callable:
@@ -520,17 +522,15 @@ def call_surrogate(
     )
 
     app = get_app()
-    statistics_form = app.settings[FORM_NAME]
-    summary_statistics = {}
-    for i, child in enumerate(statistics_form.components["parameters"]["children"]):
-        statistic_name = child["param"]
-        statistic_value = statistics_inputs[i]
-        summary_statistics[statistic_name] = statistic_value
-
-    json = {"data": [summary_statistics]}
-    task = "surrogate"
-    outfile = endpoint_predict(task, endpoint, json)
-    return dcc.send_file(outfile), True, f"Calling {task} calibrator"
+    children = app.settings[FORM_NAME].components["parameters"]["children"]
+    try:
+        row = surrogate_form_row(children, feature_inputs)
+        outfile = endpoint_predict("surrogate", endpoint, {"data": [row]})
+    except ValueError as exc:
+        return no_update, True, str(exc)
+    except requests.HTTPError as exc:
+        return no_update, True, f"Surrogate rejected these inputs: {exc.response.text}"
+    return dcc.send_file(outfile), True, "Surrogate predictions downloaded"
 
 
 ######################################

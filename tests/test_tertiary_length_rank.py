@@ -12,9 +12,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+from tests.public_checkpoint_reference import comparison_command, materialize_reference, subprocess_environment
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research import construction_step_replay as canonical
 from deeprootgen.research import so4_controlled as controlled
 from deeprootgen.utils.current_length import sample_current_lengths
@@ -271,7 +271,7 @@ def test_none_zero_prechange_native_graph_canonical_active_sigma_q_parity(tmp_pa
         config.pop(FIELD, None)
     results, hashes = {}, {}
     for name, source in [('old', old), ('current', current)]:
-        run = subprocess.run([sys.executable, '-c', script], input=json.dumps(configs), capture_output=True,
+        run = subprocess.run(comparison_command(script, current=name == "current"), input=json.dumps(configs), capture_output=True,
                              text=True, check=True, timeout=90, cwd=source,
                              env=subprocess_environment(source))
         result = json.loads(run.stdout)

@@ -1,35 +1,17 @@
-"""Fixed execution lifecycle shared by every input.
+"""One lifecycle for canonical static root configurations.
 
-prepare forest -> place scaffold -> optional read-only INITIAL view ->
-pre-direction corrections -> attachment mapping -> direction realization ->
-post-direction corrections -> materialize -> emit (sole writer) -> pure checks
--> publish. Phases always run in this order; an unused operation is a no-op.
-The executor owns traversal and phase transitions. The resolved law table
-(``ResolvedConfig.laws``) selects leaf laws per stage and order; it never
-selects a phase list or a complete runner, and route labels select nothing.
-
-Construction state is the workspace: provisional construction points plus the
-``RootOrgan`` axis records (biological identity, construction intervals,
-scaffold coordinates, sampled plans). Record-based interval laws operate on a
-records view of the same workspace from attachment mapping onward. The
-published graph is written once, after geometry is stable.
-
-Native sequential draws keep their historical order. A replaced direction law
-draws only from its keyed stream, and native corrections visiting a replaced
-axis consume their usual draw but only check. Every biology and placement draw
-is therefore unchanged by a replaced direction law; later correction draws can
-differ when validity outcomes differ. A replaced construction law draws
-nothing natively.
+Each axis uses the selected dimension, attachment, material and direction laws.
+The graph writer consumes the final axes once after geometry and material stabilize.
+Archived simulations share numerical kernels and the ordered lifecycle executor.
 """
 
-from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import numpy as np
 
 from ..data_model.resolution import ENGINE_LIFECYCLE_VERSION, ENGINE_PHASES, sha256_json
-from .materialize import check_curve_postconditions, materialize_forest, planned_axis
+from .materialize import check_curve_postconditions, materialize_forest
 from .streams import streams_for
 
 
@@ -47,27 +29,24 @@ class ForestState:
     initial_recorder: Optional[Any] = None
     trace: list = field(default_factory=list)
     scaffold: dict = field(default_factory=dict)
+    direction_nodes: dict = field(default_factory=dict)
     curves: dict = field(default_factory=dict)
     axes: dict = field(default_factory=dict)
     diagnostics: dict = field(default_factory=dict)
     material_laws: dict = field(default_factory=dict)
     law_counters: dict = field(default_factory=_counters)
-    planned_records: dict = field(default_factory=dict)
     records: Optional[dict] = None
     organ_records: Optional[list] = None
     interval_steps: list = field(default_factory=list)
     interval_fragments: list = field(default_factory=list)
     interval_receipts: list = field(default_factory=list)
-    deferred_failure: Optional[dict] = None
+    budget: Any = None
+    provenance: dict = field(default_factory=dict)
     lifecycle_version: str = ENGINE_LIFECYCLE_VERSION
 
     @property
     def laws(self):
         return self.resolved.laws
-
-    @property
-    def planned(self):
-        return self.laws.construction == "planned"
 
     def organs_in_birth_order(self):
         organs = [o for group in self.simulation.organs.values() for o in group]
@@ -79,7 +58,7 @@ class ForestState:
         overrides = self.laws.direction
         return [
             o for order in sorted(overrides)
-            if overrides[order]["law"] == "correlated_curvature"
+            if overrides[order]["law"] in ("correlated_curvature", "construction_step_intervals")
             for o in self.simulation.organs.get(order, [])
         ]
 
@@ -88,8 +67,55 @@ def organ_id(organ):
     return int(organ.segments[0].node_data.organ_id)
 
 
-def execute(simulation, resolved, *, initial_recorder=None):
-    """Run every phase in the fixed order; no successful result after failure."""
+def execute_canonical(simulation, resolved, *, initial_recorder=None):
+    """Evaluate target controls on private forests, then execute the chosen scales."""
+    import copy
+    from dataclasses import replace
+
+    from .allocation import allocate, allocation_diameter_supports
+    from .provenance import run_start
+    from .root import RootSystemSimulation
+
+    params = resolved.config.parameters
+    if params.allocation_controls is None:
+        return execute(simulation, resolved, initial_recorder=initial_recorder)
+
+    provenance = run_start(simulation)
+    initial_state = copy.deepcopy(simulation.rng.bit_generator.state)
+
+    def scaled(length, diameter):
+        parameters = resolved.parameters.model_copy(update={
+            "allocation_length_scales": length, "allocation_diameter_scales": diameter,
+        })
+        return replace(resolved, parameters=parameters)
+
+    def evaluate(length, diameter):
+        trial = RootSystemSimulation(simulation_tag=simulation.simulation_tag, random_seed=resolved.seed)
+        trial.rng.bit_generator.state = copy.deepcopy(initial_state)
+        settings = scaled(length, diameter)
+        execute(trial, settings, provenance=provenance)
+        return trial.result.metadata["root_summary"], (length, diameter)
+
+    scales, receipt = allocate(params.root_ratio_biomass, params.root_ratio_length,
+                               params.allocation_controls.model_dump(), evaluate,
+                               diameter_supports=allocation_diameter_supports(resolved))
+    state = execute(simulation, scaled(*scales), initial_recorder=initial_recorder)
+    summary = simulation.result.metadata["root_summary"]
+    for name, target in receipt["targets"].items():
+        actual = summary[f"achieved_{name}"]
+        if actual is None or abs(actual - target) > receipt["tolerance"]:
+            simulation.result = None
+            raise ValueError("Accepted root ratio targets could not be reproduced")
+    simulation.result.metadata["allocation"] = receipt
+    return state
+
+
+def execute(simulation, resolved, *, initial_recorder=None, provenance=None):
+    return _execute_phases(simulation, resolved, PHASES, initial_recorder=initial_recorder, provenance=provenance)
+
+
+def _execute_phases(simulation, resolved, phases, *, initial_recorder=None, provenance=None):
+    """Run each phase in lifecycle order and publish only a complete result."""
     parameters = resolved.parameters
     if resolved.laws.construction == "native":
         # Input checks first: they draw nothing and mutate nothing.
@@ -97,10 +123,18 @@ def execute(simulation, resolved, *, initial_recorder=None):
     if len(simulation.G.nodes) != 1 or simulation.organs:
         raise ValueError("Use a fresh simulator for each run")
     state = ForestState(simulation, resolved, parameters, streams_for(simulation), initial_recorder)
+    from .provenance import run_start
+
+    from .budget import AllocationBudget
+
+    state.provenance = provenance if provenance is not None else run_start(simulation)
+    state.budget = AllocationBudget(resolved.limits)
+    if resolved.source_schema in ("3", "4"):
+        simulation.G.allocation_budget = state.budget
     simulation.result = None
     try:
         for name in ENGINE_PHASES:
-            PHASES[name](state)
+            phases[name](state)
             state.trace.append(name)
     except Exception:
         simulation.result = None
@@ -115,18 +149,40 @@ def execute(simulation, resolved, *, initial_recorder=None):
 
 def prepare_forest(state):
     """Sample the biological forest, construction intervals and birth sites."""
-    if state.planned:
-        _prepare_planned(state)
+    primary_count = int(state.parameters.outer_root_num) + int(state.parameters.inner_root_num)
+    organ_limit = state.resolved.limits.get("max_organs")
+    if state.resolved.source_schema in ("3", "4") and organ_limit is not None:
+        counts = getattr(state.parameters, "research_root_counts_by_order", None)
+        minimum_count = primary_count if counts is None else sum(counts.values())
+        if minimum_count > organ_limit:
+            raise ValueError("Organ limit exceeded before forest allocation; organs are never truncated")
+    sim, p = state.simulation, state.parameters
+    sim._validate_primary_yaw_seed(p)
+    replacements = _native_replacements(state)
+    if replacements is None:
+        sim.init_organs(p)
     else:
-        sim, p = state.simulation, state.parameters
-        sim._validate_primary_yaw_seed(p)
-        replacements = _native_replacements(state)
-        if replacements is None:
-            sim.init_organs(p)
-        else:
-            if state.laws.origins is not None and state.laws.origins["layout"] == "disk":
-                _per_primary_workspace(state)
-            sim.init_organs(p, laws=replacements)
+        if state.laws.origins is not None and state.laws.origins["layout"] == "disk":
+            _per_primary_workspace(state)
+        sim.init_organs(p, laws=replacements)
+    bind_axis_states(state)
+
+
+def bind_axis_states(state):
+    from .axis_state import AxisState, BirthContext
+
+    # Every input shares the same axis facade, including compatibility
+    # schedules. Immutable sampled values are captured once; mutable geometry
+    # and final attachments remain owned by the workspace/curve.
+    for organ in state.organs_in_birth_order():
+        if not hasattr(organ, "axis_state"):
+            contexts = tuple(
+                BirthContext(n.node_data.diameter, n.node_data.length, n.node_data.order, n.node_data.root_tissue_density)
+                for n in organ.segments
+            )
+            organ.axis_state = AxisState(organ, organ_id(organ), contexts)
+        organ.axis_state.birth_parent_biological_id = int(organ.parent_node.node_data.organ_id)
+        organ.axis_state.sampled_lengths_cm = tuple(float(v) for v in organ.get_lengths())
     limit = state.resolved.limits.get("max_organs")
     count = sum(len(group) for group in state.simulation.organs.values())
     if limit is not None and count > limit:
@@ -136,7 +192,7 @@ def prepare_forest(state):
 def _native_replacements(state):
     """Leaf replacements inside native construction, or None when all native."""
     laws = state.laws
-    if not (laws.taper or laws.lengths or laws.branching or laws.maturity or laws.cap or laws.origins):
+    if state.resolved.source_schema not in ("3", "4") and not (laws.taper or laws.lengths or laws.branching or laws.maturity or laws.cap or laws.origins):
         return None
     from .native_features import NativeFeatureLaws
 
@@ -151,6 +207,7 @@ def _per_primary_workspace(state):
     sim, p = state.simulation, state.parameters
     graph = RootSystemGraph(create_base=False)
     graph.organ_id = 1  # organ 0 is reserved for bases
+    graph.allocation_budget = state.budget
     for index in range(int(p.outer_root_num) + int(p.inner_root_num)):
         graph.bases.append(graph.add_node(RootNodeModel(
             parent_id=-1, plant_id=1, organ_id=0, order=0, segment_rank=index + 1, x=0.0, y=0.0, z=0.0,
@@ -162,102 +219,6 @@ def _per_primary_workspace(state):
     state.anchors = list(graph.bases)
 
 
-def _prepare_planned(state):
-    """Every construction law replaced: breadth-first planned organs, no native draws."""
-    from ..data_model import RootNodeModel, RootTypeModel
-    from .hgraph import RootSystemGraph
-    from .laws import law_stream, primary_maturity, sample_planned_organ, site_diameter
-    from .root import RootOrgan
-
-    sim, p, laws = state.simulation, state.parameters, state.laws
-    max_order = int(p.max_order)
-    outer = int(p.outer_root_num)
-    primaries = outer + int(p.inner_root_num)
-    limits = state.resolved.limits
-    limit = limits.get("max_organs")
-    message = limits.get("organ_limit_message", "Organ limit exceeded; organs are never truncated")
-    if limit is not None and primaries > limit:
-        raise ValueError("Initial primary organ budget exhausted")
-    graph = RootSystemGraph(create_base=False)
-    graph.organ_id = 1  # organ 0 is reserved for bases
-    sim.G = graph
-    sim.organs = {order: [] for order in range(1, max_order + 1)}
-    tag, density = state.resolved.simulation_tag, p.root_tissue_density
-    historical_labels = laws.materialization.get("position_type") == "base"
-    queue = deque()
-    for index in range(primaries):
-        anchor = graph.add_node(RootNodeModel(
-            parent_id=-1, plant_id=1, organ_id=0, order=0, segment_rank=index + 1, x=np.nan, y=np.nan, z=np.nan,
-            diameter=0.0, length=0.0, root_tissue_density=density, invalid_root=False, simulation_tag=tag,
-            root_type="base", order_type="base",
-        ))
-        graph.bases.append(anchor)
-        oid = graph.increment_organ_id()
-        maturity, label = 1.0, None
-        if laws.maturity is not None:
-            maturity, label = primary_maturity(
-                laws.maturity, index, law_stream(state.streams, laws.streams, "maturity", oid)
-            )
-        queue.append(dict(oid=oid, order=1, parent=anchor, parent_organ=None, maturity=maturity, label=label,
-                          tree=oid, attachment_cm=0.0, parent_diameter=None, index=index,
-                          position_type="outer" if index < outer else "inner"))
-    graph.base_node = graph.bases[0] if graph.bases else None
-    counters = state.law_counters
-    while queue:
-        task = queue.popleft()
-        oid, order = task["oid"], task["order"]
-        rngs = {
-            purpose: law_stream(state.streams, laws.streams, purpose, oid)
-            for purpose in ("length", "taper", "branching")
-        }
-        sample = sample_planned_organ(order, max_order, task["maturity"], task["parent_diameter"], laws, rngs, counters)
-        organ = RootOrgan(
-            task["parent"], input_parameters=p,
-            root_type=RootTypeModel(root_type="structural", order_type="primary" if order == 1 else "secondary",
-                                    position_type="cohort" if historical_labels else task["position_type"]),
-            simulation_tag=tag, rng=sim.rng, planned=True,
-        )
-        arcs = [*sample["sites"], sample["length"]]
-        previous, segments, start = task["parent"], [], 0.0
-        for rank, arc in enumerate(arcs, 1):
-            node = graph.add_node(RootNodeModel(
-                parent_id=previous.node_data.node_id, plant_id=1, organ_id=oid, order=order, segment_rank=rank,
-                x=np.nan, y=np.nan, z=np.nan, length=arc - start, root_tissue_density=density, simulation_tag=tag,
-            ))
-            node.organ = organ
-            segments.append(node)
-            previous, start = node, arc
-        organ.segments, organ.base_node = segments, segments[0]
-        organ.lateral_attachment_nodes = segments[:-1]
-        organ.plan = dict(
-            sample, order=order, maturity=task["maturity"], label=task["label"], tree=task["tree"],
-            attachment_cm=task["attachment_cm"],
-            parent_organ_id=0 if task["parent_organ"] is None else organ_id(task["parent_organ"]),
-            position_type=task["position_type"], index=task.get("index"),
-        )
-        organ.cohort, organ.maturity = task["label"], task["maturity"]
-        if task["parent_organ"] is not None:
-            task["parent_organ"].child_organs.append(organ)
-        sim.organs[order].append(organ)
-        allocated = []
-        for k, site in enumerate(sample["sites"]):
-            child = graph.increment_organ_id()
-            if limit is not None and child > limit:
-                # Historical precedence: the budget fails while this organ's
-                # daughters are allocated, after its own curve and material.
-                # Later organs are never sampled; the failure is raised in
-                # materialize once this organ has been realized.
-                state.deferred_failure = dict(message=message, organ_id=oid, allocated=allocated)
-                break
-            allocated.append((child, site))
-            queue.append(dict(oid=child, order=order + 1, parent=segments[k], parent_organ=organ,
-                              maturity=task["maturity"], label=task["label"], tree=task["tree"], attachment_cm=site,
-                              parent_diameter=site_diameter(organ.plan, site), position_type=task["position_type"]))
-        organ.lateral_attachment_nodes = []  # birth sites are consumed by their daughters
-        if state.deferred_failure is not None:
-            break
-
-
 # ---------------------------------------------------------------------------
 # Place scaffold, INITIAL view, corrections and attachments
 # ---------------------------------------------------------------------------
@@ -266,18 +227,6 @@ def _prepare_planned(state):
 def place_scaffold(state):
     """Native placement arithmetic and order, or origin/heading laws."""
     sim, p, laws = state.simulation, state.parameters, state.laws
-    if state.planned:
-        from .laws import disk_origin, law_stream, radial_inclination
-
-        for index, primary in enumerate(sim.organs.get(1, [])):
-            oid = organ_id(primary)
-            start, phi = disk_origin(laws.origins, law_stream(state.streams, laws.streams, "origin", oid))
-            anchor = sim.G.bases[index].node_data
-            anchor.x, anchor.y, anchor.z = (float(v) for v in start)
-            primary.plan["initial_heading"] = radial_inclination(
-                laws.origins["heading"], phi, law_stream(state.streams, laws.streams, "heading", oid)
-            )
-        return
     sim.position_secondary_roots(p)
     sim.position_primary_roots(p)
     if laws.origins is not None:
@@ -289,7 +238,9 @@ def place_scaffold(state):
 def record_initial(state):
     """Optional read-only INITIAL view; it never mutates the workspace."""
     if state.initial_recorder is not None:
-        state.initial_recorder(state.simulation, state.parameters)
+        from .initial_view import initial_view
+
+        state.initial_recorder(*initial_view(state.simulation, state.parameters))
 
 
 def pre_direction(state):
@@ -308,14 +259,7 @@ def pre_direction(state):
 
 def attachments(state):
     """Final attachment arcs; birth context and sampled dimensions are retained."""
-    sim, laws = state.simulation, state.laws
-    if laws.writer.get("records"):
-        from .execution import _organ_records, _records, _relocate
-
-        state.records, state.organ_records = _records(sim), _organ_records(sim)
-        if laws.relocation is not None:
-            _relocate(state.records, state.organ_records, laws.relocation["distal_fraction"])
-    elif laws.relocation is not None:
+    if state.laws.relocation is not None:
         _relocate_in_workspace(state)
 
 
@@ -372,49 +316,19 @@ def _relocate_in_workspace(state):
 
 def realize_directions(state):
     """Parent-first direction laws; every axis starts from its realized parent."""
+    begin_directions(state)
+    _realize_native(state)
+
+
+def begin_directions(state):
+    state.budget.minimum_curve_nodes = len(state.simulation.G.bases) + sum(
+        len(o.segments) for order, group in state.simulation.organs.items() if order not in state.laws.direction
+        for o in group
+    )
     # Fingerprint of every biology/placement draw: invariant under replaced laws.
     state.diagnostics["native_rng_before_directions_sha256"] = sha256_json(
         state.streams.native.bit_generator.state
     )
-    if state.planned:
-        _realize_planned(state)
-    elif state.laws.writer.get("records"):
-        _realize_intervals(state)
-    else:
-        _realize_native(state)
-
-
-def _realize_planned(state):
-    from ..utils.tropism import insertion_heading
-    from .axis_laws import realize_correlated_curvature
-    from .laws import law_stream
-
-    laws = state.laws
-    coincidence = laws.materialization["corner_coincidence_cm"]
-    receipts = []
-    for organ in state.organs_in_birth_order():
-        plan, oid = organ.plan, organ_id(organ)
-        law = laws.direction[plan["order"]]
-        if plan["order"] == 1:
-            anchor = organ.parent_node.node_data
-            start, heading = np.array([anchor.x, anchor.y, anchor.z]), plan["initial_heading"]
-        else:
-            parent = state.curves[organ_id(organ.parent_node.organ)]
-            site = plan["attachment_cm"]
-            start = parent.position([site])[0]
-            tangent = parent.tangent(site, coincidence_cm=coincidence)
-            heading = insertion_heading(tangent, law["insertion_mean_deg"], law["insertion_sd_deg"],
-                                        law_stream(state.streams, laws.streams, "insertion", oid))
-        curve = realize_correlated_curvature(
-            organ, law, state.streams, start=start, heading=heading, length=plan["length"],
-            arcs=np.asarray([*plan["sites"], plan["length"]], dtype=float),
-            rng=law_stream(state.streams, laws.streams, "curvature", oid),
-        )
-        state.law_counters["surface_reflections"] += curve.receipt["surface_reflections"]
-        _place_construction_points(organ, curve)
-        state.curves[oid] = curve
-        receipts.append(curve.receipt)
-    state.diagnostics["curvature"] = receipts
 
 
 def _place_construction_points(organ, curve):
@@ -422,44 +336,26 @@ def _place_construction_points(organ, curve):
         node.node_data.x, node.node_data.y, node.node_data.z = (float(v) for v in xyz)
 
 
-def _realize_intervals(state):
-    """Record-based construction-step interval law for every daughter order."""
-    from ..utils.tropism import validate_row_axial_kappas
-    from .execution import _partition
-    from .interval_geometry import realize_intervals
-
-    sim, p, laws = state.simulation, state.parameters, state.laws
-    rows, organs = state.records, state.organ_records
-    objects = {organ_id(o): o for group in sim.organs.values() for o in group}
-    kappas = validate_row_axial_kappas(p.research_insertion_row_axial_kappa, p.max_order)
-    partitions = {o["organ_id"]: _partition(o, rows, objects[o["organ_id"]]) for o in organs if o["order"] > 1}
-    settings, incoming = p.model_dump(), {}
-    for organ in sorted((o for o in organs if o["order"] > 1), key=lambda o: (o["order"], o["organ_id"])):
-        law = laws.direction[organ["order"]]
-        records, mapping, receipt = realize_intervals(
-            organ, partitions[organ["organ_id"]], rows, settings, state.resolved.seed, law["boundary"],
-            law["surface_z_cm"], kappas, incoming.get(organ["parent_id"]),
-        )
-        for item in mapping:
-            incoming[item["node_id"]] = records[item["step_index"]]["accepted_heading"]
-        state.interval_steps.extend(records)
-        state.interval_fragments.extend(mapping)
-        state.interval_receipts.append(receipt)
-
-
 def _realize_native(state):
     sim, p, laws = state.simulation, state.parameters, state.laws
     replaced = state.replaced_organs()
     fichtl = laws.native_direction == "fichtl_search_v1"
+    # Archived output includes diagnostics for configured but empty orders.
+    lateral_orders = None if state.resolved.source_schema != "4" else [
+        order for order, organs in sim.organs.items() if order >= 2 and organs
+    ]
     if not replaced:
-        if fichtl:
+        if fichtl and lateral_orders is None:
             sim.apply_fichtl_tropism(p)
+        elif fichtl and lateral_orders:
+            sim.apply_fichtl_tropism(p, orders=lateral_orders)
         elif laws.native_direction == "legacy_gravitropism_blend_v1":
             sim.apply_gravitropism(p.gravitropism)
         return
     state.scaffold = {
         n.node_data.node_id: np.array([n.node_data.x, n.node_data.y, n.node_data.z]) for n in sim.G.nodes
     }
+    state.direction_nodes = {node.node_data.node_id: node for node in sim.G.nodes}
     receipts, skipped = [], []
     state.diagnostics["curvature"] = receipts
 
@@ -475,11 +371,18 @@ def _realize_native(state):
                     # stays native and invalid, exactly as the native laws treat it.
                     skipped.append(organ_id(organ))
                     continue
-                curve = _realize_native_curve(state, organ, laws.direction[order], tangent_at)
-                _place_construction_points(organ, curve)
+                law = laws.direction[order]
+                if law["law"] == "construction_step_intervals":
+                    curve = _realize_construction_curve(state, organ, law)
+                else:
+                    curve = _realize_native_curve(state, organ, law, tangent_at)
+                if law["law"] != "construction_step_intervals":
+                    _place_construction_points(organ, curve)
                 state.curves[organ_id(organ)] = curve
+                if hasattr(organ, "axis_state"):
+                    organ.axis_state.curve = curve
                 receipts.append(curve.receipt)
-        elif fichtl and order >= 2:
+        elif fichtl and order >= 2 and (lateral_orders is None or order in lateral_orders):
             sim.apply_fichtl_tropism(p, scaffold=state.scaffold, tangent_at=tangent_at, orders=[order],
                                      reset_diagnostics=first_native_lateral)
             first_native_lateral = False
@@ -487,32 +390,83 @@ def _realize_native(state):
         state.diagnostics["curvature_not_realized_invalid_scaffolds"] = skipped
     if not fichtl:
         _translate_native_daughters(state)
-        if laws.native_direction == "legacy_gravitropism_blend_v1":
+        fallback_orders = set(sim.organs) - set(laws.direction)
+        if laws.native_direction == "legacy_gravitropism_blend_v1" and any(sim.organs[k] for k in fallback_orders):
             fixed = {n.node_data.node_id for o in replaced for n in o.segments}
             sim.apply_gravitropism(p.gravitropism, fixed=fixed)
 
 
+def _realize_construction_curve(state, organ, law):
+    """The existing interval kernel as a per-axis calculation, with no writer.
+
+    Rows are a detached leaf input. The authoritative workspace is updated by
+    the common direction phase and the common materializer emits all cuts.
+    """
+    from ..utils.tropism import validate_row_axial_kappas
+    from .execution import _organ_records, _partition, _records
+    from .interval_geometry import realize_intervals
+    from .materialize import AxisCurve
+
+    state.budget.reserve("stations", len(organ._construction_step_lengths_cm) + 1)
+    rows = _records(state.simulation)
+    record = next(r for r in _organ_records(state.simulation) if r["organ_id"] == organ_id(organ))
+    partition = _partition(record, rows, organ)
+    parent = organ.parent_node
+    row = rows[parent.node_data.node_id]
+    chord = np.array([row[k] - rows[row["parent_id"]][k] for k in ("x", "y", "z")])
+    tangent = _tangent(state, parent, chord)
+    p = state.parameters
+    records, mapping, receipt = realize_intervals(
+        record, partition, rows, p.model_dump(), state.resolved.seed, law["boundary"], law["surface_z_cm"],
+        validate_row_axial_kappas(p.research_insertion_row_axial_kappa, p.max_order), tangent,
+    )
+    boundaries = organ.construction_step_boundary_node_ids
+    stations = np.r_[0., np.cumsum(organ._construction_step_lengths_cm)]
+    points = np.array([[rows[n][k] for k in ("x", "y", "z")]
+                       for n in [parent.node_data.node_id, *boundaries]])
+    state.interval_steps.extend(records)
+    state.interval_fragments.extend(mapping)
+    state.interval_receipts.append(receipt)
+    for node in organ.segments:
+        node.node_data.x, node.node_data.y, node.node_data.z = (float(rows[node.node_data.node_id][k]) for k in ("x", "y", "z"))
+    arcs = np.cumsum(organ.get_lengths())
+    # The captured boundary ID proves these are the same construction events;
+    # canonical arclength labels come from their actual fragment partition.
+    indices = {n.node_data.node_id: i for i, n in enumerate(organ.segments)}
+    stations = np.r_[0., [arcs[indices[nid]] for nid in boundaries]]
+    return AxisCurve(organ_id(organ), stations, points, arcs, dict(law), receipt)
+
+
 def _realize_native_curve(state, organ, law, tangent_at):
     """Curvature on a natively constructed axis, from its realized attachment."""
-    from ..utils.tropism import insertion_heading
+    from ..utils.tropism import insertion_heading, row_axial_insertion_heading
     from .axis_laws import realize_correlated_curvature
     from .laws import law_stream
 
     if law["initial_heading"] == "insertion_angle":
         parent = organ.parent_node
-        grandparent = state.simulation.G.nodes[0]
-        for node in state.simulation.G.nodes:
-            if node.node_data.node_id == parent.node_data.parent_id:
-                grandparent = node
-                break
+        grandparent = state.direction_nodes.get(parent.node_data.parent_id, state.simulation.G.nodes[0])
         position = np.array([parent.node_data.x, parent.node_data.y, parent.node_data.z])
         chord = position - np.array([grandparent.node_data.x, grandparent.node_data.y, grandparent.node_data.z])
-        heading = insertion_heading(tangent_at(parent, chord), law["insertion_mean_deg"], law["insertion_sd_deg"],
-                                    law_stream(state.streams, state.laws.streams, "insertion", organ_id(organ)))
-        return realize_correlated_curvature(organ, law, state.streams, start=position, heading=heading)
+        tangent = tangent_at(parent, chord)
+        oid = organ_id(organ)
+        heading = insertion_heading(tangent, law["insertion_mean_deg"], law["insertion_sd_deg"],
+                                    law_stream(state.streams, state.laws.streams, "insertion", oid))
+        axial_receipt = None
+        if "row_axial_kappa" in law:
+            order = int(parent.node_data.order) + 1
+            heading, axial_receipt = row_axial_insertion_heading(
+                tangent, heading, law["row_axial_kappa"], state.resolved.seed, oid, order,
+            )
+        curve = realize_correlated_curvature(organ, law, state.streams, start=position, heading=heading,
+                                             reserve_stations=state.budget.reserve)
+        if axial_receipt is not None:
+            curve.receipt["row_axial_insertion"] = axial_receipt
+        return curve
     if law["initial_heading"] == "origin_heading":
-        return realize_correlated_curvature(organ, law, state.streams, heading=organ.plan["initial_heading"])
-    return realize_correlated_curvature(organ, law, state.streams)
+        return realize_correlated_curvature(organ, law, state.streams, heading=organ.plan["initial_heading"],
+                                            reserve_stations=state.budget.reserve)
+    return realize_correlated_curvature(organ, law, state.streams, reserve_stations=state.budget.reserve)
 
 
 def _tangent(state, node, chord):
@@ -561,59 +515,19 @@ def post_direction(state):
         else:
             sim.validate(p, pitch=60)
         sim._check_optional_primary_validation(p)
-    elif law == "interval_pure_checks_v1":
-        _check_interval_rows(state)
+    elif law == "workspace_pure_checks_v1":
+        if any(n.node_data.z > state.laws.surface_z_cm for n in sim.G.nodes):
+            raise ValueError("Realized forest exceeds the declared soil surface")
     elif law is not None:
         raise ValueError(f"Unknown post-direction law {law!r}")
 
 
-def _check_interval_rows(state):
-    """Pure final checks; never invoke native reorientation or consume shared RNG."""
-    rows, surface = state.records, state.laws.surface_z_cm
-    for row in rows.values():
-        if row["order"] == 0:
-            continue
-        parent = rows[row["parent_id"]]
-        actual = np.linalg.norm(
-            np.array([row[k] for k in ("x", "y", "z")]) - np.array([parent[k] for k in ("x", "y", "z")])
-        )
-        if row["z"] > surface or not np.isclose(actual, row["length"], rtol=1e-5, atol=1e-6):
-            raise ValueError("Native construction-step geometry failed integrity checks")
-
-
 def materialize(state):
-    laws = state.laws
-    if laws.writer.get("records"):
-        return  # Record-based intervals are final construction cuts.
-    if state.planned:
-        p = state.parameters
-        for organ in state.organs_in_birth_order():
-            oid = organ_id(organ)
-            intervals, record = planned_axis(organ, state.curves[oid], laws.materialization,
-                                             state.resolved.simulation_tag, p.root_tissue_density, state.law_counters)
-            state.axes[oid] = intervals
-            state.planned_records[oid] = record
-            state.material_laws[oid] = "point_taper"
-        if state.deferred_failure is not None:
-            _raise_deferred_budget_failure(state)
-        return
+    if state.resolved.source_schema == "4" and (state.parameters.min_branching_diameter_cm or state.laws.cap):
+        from .branch_eligibility import validate_branching_diameters
+
+        validate_branching_diameters(state)
     state.axes = materialize_forest(state.organs_in_birth_order(), state.curves, state)
-
-
-def _raise_deferred_budget_failure(state):
-    """Insertion headings of daughters allocated before exhaustion, then the error."""
-    from ..utils.tropism import insertion_heading
-    from .laws import law_stream
-
-    failure, laws = state.deferred_failure, state.laws
-    parent = next(o for o in state.organs_in_birth_order() if organ_id(o) == failure["organ_id"])
-    curve, order = state.curves[failure["organ_id"]], parent.plan["order"] + 1
-    for child, site in failure["allocated"]:
-        law = laws.direction[order]
-        insertion_heading(curve.tangent(site, coincidence_cm=laws.materialization["corner_coincidence_cm"]),
-                          law["insertion_mean_deg"], law["insertion_sd_deg"],
-                          law_stream(state.streams, laws.streams, "insertion", child))
-    raise ValueError(failure["message"])
 
 
 def emit(state):
@@ -622,9 +536,7 @@ def emit(state):
 
     sim, laws = state.simulation, state.laws
     organs = state.organs_in_birth_order()
-    if laws.writer.get("records"):
-        sim.G = publish_graph(sim.G, organs, records=state.records, organ_records=state.organ_records)
-        return
+    state.budget.check_nodes(len(sim.G.bases) + sum(len(v) for v in state.axes.values()))
     sim.G = publish_graph(sim.G, organs, axes=state.axes, first_node_id=laws.writer.get("first_node_id", 0))
     for organ in organs:
         if organ_id(organ) in state.curves or organ_id(organ) in state.material_laws:
@@ -633,6 +545,14 @@ def emit(state):
 
 def check(state):
     """Pure integrity and law postconditions; draw nothing, repair nothing."""
+    check_graph(state)
+    for organ in state.organs_in_birth_order():
+        curve = state.curves.get(organ_id(organ))
+        if curve is not None:
+            check_curve_postconditions(organ, curve, curve.law["surface_z_cm"])
+
+
+def check_graph(state):
     from .integrity import validate_result
 
     sim = state.simulation
@@ -640,18 +560,18 @@ def check(state):
     limit = state.resolved.limits.get("max_nodes")
     if limit is not None and len(sim.G.nodes) > limit:
         raise ValueError(f"Node limit exceeded ({len(sim.G.nodes)} > {limit})")
-    if state.planned:
-        return  # The planned materializer enforces its own strict interval checks.
-    for organ in state.organs_in_birth_order():
-        curve = state.curves.get(organ_id(organ))
-        if curve is not None:
-            check_curve_postconditions(organ, curve, curve.law["surface_z_cm"])
 
 
 def publish(state):
-    from .views import VIEWS
+    from .views import native_view
+    from .material_summary import summarize_root_material
 
-    state.simulation.result = VIEWS[state.laws.view](state)
+    result = native_view(state)
+    result.metadata["root_summary"] = summarize_root_material(
+        state.simulation, state.parameters.max_order, state.parameters.fine_root_threshold,
+        getattr(state, "tapers", None),
+    )
+    state.simulation.result = result
 
 
 PHASES = dict(

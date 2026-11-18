@@ -42,6 +42,12 @@ FEATURE_NAMES = (
     "branching",
     "parent_diameter_cap",
     "attachment_relocation",
+    "primary_placement",
+    "branch_sites",
+    "sibling_lengths",
+    "insertion",
+    "direction",
+    "materialization",
 )
 RESERVED_INPUT_KEYS = VERSIONED_INPUT_KEYS + FEATURE_NAMES
 
@@ -579,28 +585,24 @@ class RootCalibrationIntervals(BaseModel):
     """
 
     max_order: ParameterIntervalModel
-    root_ratio: ParameterIntervalModel
-    fine_root_threshold: ParameterIntervalModel
-    outer_root_num: ParameterIntervalModel
-    inner_root_num: ParameterIntervalModel
+    threshold_root_diameter_cm: ParameterIntervalModel
+    primary_root_count: ParameterIntervalModel
+    outer_primary_fraction: ParameterIntervalModel
     min_primary_length: ParameterIntervalModel
     max_primary_length: ParameterIntervalModel
     base_diameter: ParameterIntervalModel
     diameter_reduction: ParameterIntervalModel
     apex_diameter: ParameterIntervalModel
-    min_sec_root_num: ParameterIntervalModel
-    max_sec_root_num: ParameterIntervalModel
-    growth_sec_root: ParameterIntervalModel
-    min_sec_root_length: ParameterIntervalModel
-    max_sec_root_length: ParameterIntervalModel
+    daughters_per_parent: ParameterIntervalModel
+    daughter_count_order_gain: ParameterIntervalModel
+    min_lateral_length: ParameterIntervalModel
+    max_lateral_length: ParameterIntervalModel
     segments_per_root: ParameterIntervalModel
     length_reduction: ParameterIntervalModel
     root_vary: ParameterIntervalModel
     interbranch_distance: ParameterIntervalModel
-    mechanical_constraints: ParameterIntervalModel
     root_tissue_density: ParameterIntervalModel
     gravitropism: ParameterIntervalModel
-    t: ParameterIntervalModel
 
 
 class RootCalibrationModel(BaseModel):

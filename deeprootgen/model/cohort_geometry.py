@@ -8,8 +8,24 @@ from .curvature import ou_joint_step, spherical_exp_heading
 
 
 def bounded_draw(spec, rng):
-    """Rejection-bounded lognormal; moments refer to pre-truncation law."""
+    """Bounded positive dimension; moments refer to the untruncated distribution."""
     mean, sd, lo, hi = (float(spec[k]) for k in ("mean", "sd", "min", "max"))
+    if spec.get("law") == "truncated_normal":
+        if not all(np.isfinite((mean, sd, lo, hi))) or not (0 < lo <= hi and sd >= 0):
+            raise ValueError("Invalid truncated normal diameter support")
+        if sd == 0:
+            if lo <= mean <= hi:
+                return mean
+            raise ValueError("Fixed normal diameter is outside its support")
+        z = sd * math.sqrt(2.)
+        acceptance = .5 * (math.erf((hi - mean) / z) - math.erf((lo - mean) / z))
+        if acceptance < .01:
+            raise ValueError("Truncated normal diameter accepts less than one percent")
+        for _ in range(10000):
+            value = float(rng.normal(mean, sd))
+            if lo <= value <= hi:
+                return value
+        raise ValueError("Truncated normal diameter exhausted its rejection budget")
     if not all(np.isfinite([mean, sd, lo, hi])) or not (
         0 < lo <= mean <= hi and sd >= 0
     ):
@@ -39,7 +55,7 @@ def taper_diameter(s, length, base, tip, midpoint_fraction=0.5):
 
 
 def material_cuts(
-    length, stations, attachments, base, tip, cutoff, midpoint_fraction=0.5
+    length, stations, attachments, base, tip, cutoff, midpoint_fraction=0.5, *, minimum_interval_cm=1e-12
 ):
     cuts = [0.0, length, *stations, *attachments]
     if midpoint_fraction != 0.5:
@@ -55,7 +71,7 @@ def material_cuts(
         not np.isfinite(cuts).all()
         or cuts[0] != 0
         or cuts[-1] != length
-        or np.any(np.diff(cuts) <= 1e-12)
+        or np.any(np.diff(cuts) <= minimum_interval_cm)
     ):
         raise ValueError("Unrepresentable or out-of-range material cuts")
     return cuts

@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel, RootTypeModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.model import root as root_module
 from deeprootgen.model.hgraph import RootSystemGraph
 from deeprootgen.utils.branching import redistribute_capped_sites, sample_branch_sites
@@ -19,7 +19,7 @@ BENT = np.array([[0., 0., 0.], [0., 0., -10.], [30., 0., -10.]])
 
 
 def parameters(mode=None):
-    values = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    values = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     values.update(max_order=2, min_sec_root_num=4, max_sec_root_num=5,
                   growth_sec_root=0., interbranch_distance=.5,
                   floor_threshold=.1, ceiling_threshold=.9,

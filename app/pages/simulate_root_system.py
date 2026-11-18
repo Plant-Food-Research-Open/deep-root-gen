@@ -17,12 +17,16 @@ from dash import (
     register_page,
 )
 
+import base64
+import json
+
+import yaml
+
+from deeprootgen.data_model.simulation_form import SoilDisplay, simulation_controls, simulation_document
 from deeprootgen.form import get_common_layout
 from deeprootgen.io import load_data_from_file, s3_upload_file
 from deeprootgen.pipeline import (
     dispatch_new_run,
-    load_form_parameters,
-    save_form_parameters,
     save_simulation_runs,
 )
 
@@ -173,9 +177,9 @@ def save_param(n_clicks: int | list[int], param_inputs: list) -> None:
     if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
         return no_update
 
-    outfile, file_name = save_form_parameters(PAGE_ID, FORM_NAME, param_inputs)
-    s3_upload_file(outfile, file_name)
-    return dcc.send_file(outfile)
+    fields = [v["param"] for v in get_app().settings[FORM_NAME].components["parameters"]["children"]]
+    document = simulation_document(dict(zip(fields, param_inputs)))
+    return dcc.send_string(json.dumps(document, indent=2), "root-system.json")
 
 
 @callback(
@@ -292,10 +296,13 @@ def load_params(list_of_contents: list, list_of_names: list) -> tuple:
     if list_of_contents[0] is None or list_of_contents[0] == 0:
         return no_update
 
-    inputs, toast_message = load_form_parameters(
-        list_of_contents, list_of_names, FORM_NAME
-    )
-    return inputs, True, toast_message
+    fields = [v["param"] for v in get_app().settings[FORM_NAME].components["parameters"]["children"]]
+    try:
+        document = yaml.safe_load(base64.b64decode(list_of_contents[0].split(",", 1)[1]))
+        inputs = simulation_controls(document, fields, current_soil={k: no_update for k in SoilDisplay.model_fields})
+    except (ValueError, TypeError, yaml.YAMLError) as error:
+        return no_update, True, str(error)
+    return inputs, True, f"Loaded {list_of_names[0]}"
 
 
 @callback(
@@ -343,8 +350,13 @@ def run_root_model(
     enable_soil: bool = enable_soils[0]
     form_inputs["enable_soil"] = enable_soil
 
+    try:
+        document = simulation_document(form_inputs)
+        soil = SoilDisplay.model_validate({k: form_inputs[k] for k in SoilDisplay.model_fields})
+    except (TypeError, ValueError) as error:
+        return no_update, True, str(error)
     simulation_runs, toast_message = dispatch_new_run(
-        TASK, form_inputs, simulation_runs
+        TASK, document, simulation_runs, soil_display=soil.model_dump()
     )
     return simulation_runs, True, toast_message
 

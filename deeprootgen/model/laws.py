@@ -57,9 +57,9 @@ def first_branch_sites(law, order, max_order, length, maturity, scale_probabilit
     return first_draw, sites
 
 
-def point_taper_dimensions(law, maturity, diameter_power, parent_diameter, cap, rng, counters):
+def point_taper_dimensions(law, maturity, diameter_power, parent_diameter, cap, rng, counters, *, diameter_scale=1.):
     """Base (scaled, then capped) and tip (limited to the base) diameters, cm."""
-    base = bounded_draw(law["base_cm"], rng)
+    base = bounded_draw(law["base_cm"], rng) * diameter_scale
     if diameter_power is not None:
         base = base * maturity**diameter_power
     if parent_diameter is not None and cap is not None:
@@ -67,7 +67,7 @@ def point_taper_dimensions(law, maturity, diameter_power, parent_diameter, cap, 
         if base > limit:
             counters["diameter_constrained"] += 1
             base = limit
-    tip_draw = bounded_draw(law["tip_cm"], rng)
+    tip_draw = bounded_draw(law["tip_cm"], rng) * diameter_scale
     counters["tip_constrained"] += int(tip_draw > base)
     return base, min(tip_draw, base)
 

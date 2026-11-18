@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from deeprootgen.archive import search_evaluation as historical_search
+
 from deeprootgen.research import population_evaluation as legacy
 from deeprootgen.research import search_evaluation as search
 from deeprootgen.research.order5_population_evaluation import (
@@ -284,9 +286,9 @@ def parameters(maximum=5, route="construction_steps_v1"):
 def test_both_routes_higher_order_preflight_and_tiny_simulation(maximum, route):
     values = parameters(maximum, route)
     original = copy.deepcopy(values)
-    assert search.validate_simulation_parameters(values, route=route) == values
+    assert historical_search.validate_simulation_parameters(values, route=route) == values
     samples = [
-        search.simulate_sample(dict(values, random_seed=seed), seed, route=route)
+        historical_search.simulate_sample(dict(values, random_seed=seed), seed, route=route)
         for seed in range(11, 16)
     ]
     assert values == original
@@ -312,9 +314,10 @@ def test_both_routes_higher_order_preflight_and_tiny_simulation(maximum, route):
 def test_cli_preflight_supports_five_orders_without_workers(
     tmp_path, monkeypatch, capsys, route
 ):
+    from deeprootgen.data_model.migration import convert_input
     config = setup_files(tmp_path)
     (tmp_path / "search_synthetic_parameters.json").write_text(
-        json.dumps(parameters(5, route))
+        json.dumps(convert_input(parameters(5, route)))
     )
     (tmp_path / "search_synthetic_reference.json").write_text(json.dumps(reference()))
     change(config, lambda d: d.update(simulation_route=route))
@@ -372,4 +375,4 @@ def test_missing_higher_order_settings_or_unsupported_maximum_fail_before_constr
         lambda *a, **k: pytest.fail("Invalid scope constructed"),
     )
     with pytest.raises(ValueError):
-        search.simulate_sample(values, 42, route="graph_segments_v1")
+        historical_search.simulate_sample(values, 42, route="graph_segments_v1")

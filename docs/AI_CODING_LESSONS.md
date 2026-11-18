@@ -1,16 +1,26 @@
 # Lessons for future AI coding
 
+Current fresh-generation input is schema 4. Use the [execution and parameter guide](NATIVE_EXECUTION.md).
+Earlier interface descriptions below document previous versions.
+
+The [verified schema-4 cutover](research/SINGLE_INPUT_IMPLEMENTATION_REPORT.md)
+follows the [native-engine repair report](research/NATIVE_ENGINE_REPAIR_REPORT.md).
+Schema-3 global planned selection has been removed; historical failure examples
+below remain lessons, and the repair report identifies current guarantees.
+
 18 November 2026. These lessons come from the native/SO4/cohort integration and
 its subsequent public-source review. They describe concrete risks and review
-methods, not a claim that the proposed unified engine is implemented. Use the
+methods. The shared engine is now implemented, with remaining gaps documented in
+the [post-merge review](research/NATIVE_ENGINE_REVIEW_AND_IMPROVEMENT_PLAN.md). Use the
 [coding guide](AI_CODING_GUIDE.md) for the working procedure and change boundaries.
 
 ## 1. A shared entrypoint does not establish a shared engine
 
-`RootSystemSimulation.run()` currently dispatches complete internal workers.
-A common deque and native-looking organ objects also leave distinct construction
-schedules and emitters intact. Shared ownership must extend to state, phase
-ordering, materialization, graph writing and results.
+The earlier `RootSystemSimulation.run()` dispatched complete internal workers.
+The merge removed those bodies and introduced shared phases and publication.
+It still infers a whole-forest native/planned construction choice from enabled
+features. Review actual ownership of state, traversal and calculations as well
+as the entrypoint: a shared phase trace alone does not prove independent options.
 
 Caller tracing also finds the archived `graph_segments_v1` search experiment
 constructing a fresh INITIAL outside `run()`. Inspect all supported callers and
@@ -24,17 +34,18 @@ executor. See [current run implementation](../deeprootgen/model/root.py) and the
 
 ## 2. Accepted JSON can contain ignored requests
 
-The current CLI falls back to the legacy model without `schema_version`.
-An unrecognized `features` block can disappear during that model's parsing.
-Successful parsing therefore does not prove an option affected execution.
+The previous CLI could silently drop an unrecognized `features` block through
+legacy parsing. The common parser now rejects reserved keys and duplicate JSON
+keys. A subtler case remains: an enabled disk-origin heading can be sampled but
+unused when curvature selects `scaffold_chord`. Successful parsing and an
+effective-hash change therefore do not prove an option affected execution.
 
-**Apply:** the planned common parser must recognize reserved keys before legacy
-fallback, reject unknown and duplicate raw JSON keys, and expose effective
-settings. Test each switch through its consuming stage. Disabled settings can
+**Apply:** retain the common parser's reserved-key and duplicate-key checks, and
+trace every active field to its consumer. Test each switch through its consuming stage. Disabled settings can
 be retained intentionally, with no draw/output effect; silently dropped active
 settings are a defect. See [CLI parsing](../deeprootgen/cli.py) and
-[execution schema](../deeprootgen/data_model/execution.py). These parser changes
-remain requirements of the proposed revision.
+[execution schema](../deeprootgen/data_model/execution.py) and
+[current resolver](../deeprootgen/data_model/resolution.py).
 
 ## 3. “Validation” can change the simulation
 

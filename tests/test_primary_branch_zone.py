@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research.so4_controlled import construct_skeleton, validate_geometry
 from deeprootgen.utils.primary_branch_zone import (
     FIELD,

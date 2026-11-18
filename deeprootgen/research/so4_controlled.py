@@ -191,7 +191,7 @@ def _initial_saved_parameters(parameters):
 def construct_skeleton(parameters, seed: int) -> Skeleton:
     """One INITIAL construction; deliberately never calls run/validate/gravity."""
     from deeprootgen.data_model import RootSimulationModel
-    from deeprootgen.model import RootSystemSimulation
+    from deeprootgen.archive.simulation import RootSystemSimulation
 
     values = (
         parameters.model_dump()

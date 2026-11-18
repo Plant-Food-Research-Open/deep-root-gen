@@ -1,0 +1,237 @@
+{
+  "schema_version": 4,
+  "random_seed": 42,
+  "simulation_tag": "invented-crown-origins-0-to-20cm",
+  "parameters": {
+    "max_order": 3,
+    "min_primary_length": 5.0,
+    "max_primary_length": 6.0,
+    "segments_per_root": 3,
+    "length_reduction": 0.7,
+    "root_vary": 2.0,
+    "interbranch_distance": 0.5,
+    "base_diameter": 0.2,
+    "diameter_reduction": 0.2,
+    "apex_diameter": 0.02,
+    "root_tissue_density": 0.3,
+    "gravitropism": 0.0,
+    "tropism_mode": "fichtl2024",
+    "soil_surface_z_cm": 0.0,
+    "floor_threshold": 0.4,
+    "ceiling_threshold": 0.9,
+    "fichtl_probability_down": 0.5,
+    "fichtl_sigma": 0.1,
+    "fichtl_trials_type2": 1.0,
+    "fichtl_trials_type3": 1.0,
+    "fichtl_theta2_deg": 50.0,
+    "fichtl_theta2_sd_deg": 10.0,
+    "fichtl_theta3_deg": 50.0,
+    "fichtl_theta3_sd_deg": 10.0,
+    "primary_root_count": 2,
+    "outer_primary_fraction": 0.5,
+    "min_branching_diameter_cm": 0.093,
+    "threshold_root_diameter_cm": 0.06,
+    "daughter_count_order_gain": 0.1,
+    "min_lateral_length": 2.0,
+    "max_lateral_length": 3.0,
+    "daughters_per_parent": {
+      "min": 1,
+      "max_exclusive": 2
+    }
+  },
+  "features": {
+    "curvature": {
+      "enabled": false,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate"
+          }
+        }
+      }
+    },
+    "taper": {
+      "enabled": false,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": {
+              "mean": 0.2,
+              "sd": 0.0,
+              "min": 0.2,
+              "max": 0.2
+            },
+            "tip_cm": {
+              "mean": 0.02,
+              "sd": 0.0,
+              "min": 0.02,
+              "max": 0.02
+            }
+          },
+          "2": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": {
+              "mean": 0.1,
+              "sd": 0.0,
+              "min": 0.1,
+              "max": 0.1
+            },
+            "tip_cm": {
+              "mean": 0.01,
+              "sd": 0.0,
+              "min": 0.01,
+              "max": 0.01
+            }
+          },
+          "3": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": {
+              "mean": 0.06666666666666667,
+              "sd": 0.0,
+              "min": 0.06666666666666667,
+              "max": 0.06666666666666667
+            },
+            "tip_cm": {
+              "mean": 0.006666666666666667,
+              "sd": 0.0,
+              "min": 0.006666666666666667,
+              "max": 0.006666666666666667
+            }
+          }
+        }
+      }
+    },
+    "primary_origins": {
+      "enabled": true,
+      "settings": {
+        "layout": "disk",
+        "radius_cm": 0.0,
+        "depth_range_cm": [
+          0.0,
+          20.0
+        ]
+      }
+    },
+    "cohort_maturity": {
+      "enabled": false,
+      "settings": {
+        "groups": [
+          {
+            "label": "established",
+            "primary_indices": [
+              0
+            ],
+            "maturity_range": [
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "label": "later",
+            "primary_indices": [
+              1
+            ],
+            "maturity_range": [
+              0.3,
+              0.6
+            ]
+          }
+        ],
+        "length_power": 0.5,
+        "diameter_power": 0.7,
+        "scale_branch_probability": false,
+        "diameter_target": "base_anchor"
+      }
+    },
+    "lengths": {
+      "enabled": false,
+      "settings": {
+        "by_order": {
+          "2": {
+            "law": "discrete_cdf",
+            "lengths_cm": [
+              2.0,
+              3.0
+            ],
+            "cumulative_probabilities": [
+              0.5,
+              1.0
+            ]
+          },
+          "3": {
+            "law": "bounded_lognormal",
+            "mean": 2.0,
+            "sd": 0.2,
+            "min": 1.0,
+            "max": 3.0
+          }
+        }
+      }
+    },
+    "branching": {
+      "enabled": false,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 0.5,
+              "sd": 0.0,
+              "min": 0.5,
+              "max": 0.5
+            },
+            "branch_probability": 0.8,
+            "daughter_probabilities": [
+              0.5,
+              0.5
+            ]
+          },
+          "2": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 0.5,
+              "sd": 0.0,
+              "min": 0.5,
+              "max": 0.5
+            },
+            "branch_probability": 0.8,
+            "daughter_probabilities": [
+              0.5,
+              0.5
+            ]
+          }
+        }
+      }
+    },
+    "parent_diameter_cap": {
+      "enabled": false,
+      "settings": {
+        "fraction_max": 0.8
+      }
+    },
+    "attachment_relocation": {
+      "enabled": false,
+      "settings": {
+        "orders": [
+          2
+        ],
+        "distal_fraction": 0.25,
+        "preserve_sampled_daughter_dimensions": true
+      }
+    }
+  },
+  "limits": {
+    "max_organs": 10000,
+    "max_nodes": 100000
+  }
+}

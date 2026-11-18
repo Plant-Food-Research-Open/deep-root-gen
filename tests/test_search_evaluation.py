@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from deeprootgen.archive import search_evaluation as historical_search
+
 from deeprootgen.research import search_evaluation as search
 from deeprootgen.research.population_evaluation import TRAIT_UNITS
 
@@ -208,8 +210,8 @@ def test_real_tiny_route_is_repeatable_fresh_and_retains_requested_identity(rout
         return result
 
     monkeypatch.setattr(so4_controlled, function_name, record)
-    first = search.simulate_sample(values, 42, route=route)
-    second = search.simulate_sample(values, 42, route=route)
+    first = historical_search.simulate_sample(values, 42, route=route)
+    second = historical_search.simulate_sample(values, 42, route=route)
     assert first == second and len(calls) == 2 and calls[0] is not calls[1]
     assert values == original
     assert first["diagnostics"]["simulation_route"] == route
@@ -224,9 +226,9 @@ def test_real_tiny_route_is_repeatable_fresh_and_retains_requested_identity(rout
 def test_changed_dimensions_construct_a_new_initial(monkeypatch):
     from tests.test_construction_step_replay import parameters
     values = parameters().model_dump()
-    first = search.simulate_sample(values, 42, route="construction_steps_v1")
+    first = historical_search.simulate_sample(values, 42, route="construction_steps_v1")
     values.update(min_primary_length=7., max_primary_length=8.)
-    second = search.simulate_sample(values, 42, route="construction_steps_v1")
+    second = historical_search.simulate_sample(values, 42, route="construction_steps_v1")
     assert first["diagnostics"]["initial_sha256"] != second["diagnostics"]["initial_sha256"]
     assert first["diagnostics"]["run_identity_sha256"] != second["diagnostics"]["run_identity_sha256"]
     assert first["traits"]["primary_mean_length_cm"] != second["traits"]["primary_mean_length_cm"]
@@ -237,12 +239,12 @@ def test_shared_route_preflight_does_not_construct_and_rejects_legacy_and_unknow
     from deeprootgen.research import so4_controlled
     monkeypatch.setattr(so4_controlled, "construct_skeleton", lambda *args: pytest.fail("Preflight constructed a graph"))
     values = parameters(active=False).model_dump()
-    result = search.validate_simulation_parameters(values, route="graph_segments_v1")
+    result = historical_search.validate_simulation_parameters(values, route="graph_segments_v1")
     assert result == values and result is not values
     with pytest.raises(ValueError, match="Fichtl"):
-        search.validate_simulation_parameters({**values, "tropism_mode": "legacy"}, route="graph_segments_v1")
+        historical_search.validate_simulation_parameters({**values, "tropism_mode": "legacy"}, route="graph_segments_v1")
     with pytest.raises(ValueError, match="Unknown simulation parameters"):
-        search.validate_simulation_parameters({**values, "pretend_parameter": 1.}, route="graph_segments_v1")
+        historical_search.validate_simulation_parameters({**values, "pretend_parameter": 1.}, route="graph_segments_v1")
 
 
 @pytest.mark.parametrize("updates,route", [
@@ -263,4 +265,4 @@ def test_route_seed_and_scope_mismatch_rejected_before_construction(updates, rou
     values.update(updates)
     monkeypatch.setattr(so4_controlled, "construct_skeleton", lambda *args: pytest.fail("Constructed before rejecting mismatch"))
     with pytest.raises(ValueError):
-        search.simulate_sample(values, 42, route=route)
+        historical_search.simulate_sample(values, 42, route=route)
