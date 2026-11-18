@@ -180,29 +180,6 @@ class RootSystemGraph:
         self.edges.append(edge)
         return edge
 
-    def apply_records(self, records):
-        """Commit a planned geometry edit without reallocating existing IDs.
-
-        New attachment cuts reserve explicit node IDs, while biological organ
-        IDs remain untouched. Native organ objects are rebound by their owner.
-        """
-        data = {nid: RootNodeModel(**row) for nid, row in records.items()}
-        edge_data = [RootEdgeModel(parent_id=records[n]['parent_id'], child_id=n)
-                     for n in sorted(records, key=lambda n: (records[n]['parent_id'], n))
-                     if records[n]['order'] > 0]
-        live = {node.node_data.node_id: node for node in self.nodes}
-        if not set(live).issubset(data):
-            raise ValueError('A geometry edit cannot silently remove native nodes')
-        for nid, row in data.items():
-            if nid not in live:
-                live[nid] = RootNode(self, row)
-            else:
-                live[nid].node_data = row
-        self.nodes = [live[n] for n in sorted(live)]
-        self.node_id = max(live) + 1
-        self.edges = [RootEdge(self, row) for row in edge_data]
-        return live
-
     def increment_node_id(self) -> int:
         """Increment the node ID.
 
@@ -352,6 +329,112 @@ class RootSystemGraph:
         edge_df = pd.read_csv(StringIO(decoded_edge))
 
         return node_df, edge_df
+
+
+def publish_graph(workspace, organs, *, axes=None, records=None, organ_records=None, first_node_id=0):
+    """The sole writer of published graphs and their organ registry.
+
+    Two declared identity-allocation policies exist, one per serialization
+    contract: ``birth_order`` (``axes``: bases first, then each organ's
+    materialized intervals in arc order) and ``records`` (record-based interval
+    laws: construction points keep IDs, inserted attachment cuts carry their
+    reserved IDs, edges ordered by parent then child).
+    """
+    if records is not None:
+        objects = {int(o.segments[0].node_data.organ_id): o for o in organs}
+        return _publish_records(workspace, records, organ_records, objects)
+    return _publish_birth_order(workspace, organs, axes, first_node_id)
+
+
+def _publish_birth_order(workspace: RootSystemGraph, organs: list, axes: dict, first_node_id: int = 0) -> RootSystemGraph:
+    """Birth-order allocation of a published graph and its organ registry.
+
+    ``workspace`` holds provisional construction points; ``organs`` are the
+    biological organs in birth order; ``axes`` maps each organ ID to its
+    materialized intervals. Bases are written first, then each organ's
+    intervals in arc order, so unchanged forests keep their historical IDs.
+    Organ objects are rebound to the published nodes in the same step.
+    """
+    published = RootSystemGraph(create_base=False)
+    published.node_id = first_node_id
+    ledger = {}
+    for base in workspace.nodes:
+        if base.node_data.order != 0:
+            continue
+        node = published.add_node(base.node_data.model_copy())
+        ledger[base.node_data.node_id] = node
+        published.bases.append(node)
+    if workspace.base_node is not None:
+        published.base_node = ledger[workspace.base_node.node_data.node_id]
+    elif published.bases:
+        published.base_node = published.bases[0]
+    for organ in organs:
+        parent = ledger[organ.parent_node.node_data.node_id]
+        attachment = parent
+        segments = []
+        for rank, interval in enumerate(axes[int(organ.segments[0].node_data.organ_id)], 1):
+            data = (interval.template if interval.data is None else interval.data).model_copy()
+            data.parent_id = parent.node_data.node_id
+            data.segment_rank = rank
+            if interval.data is None and interval.xyz is not None:
+                data.x, data.y, data.z = interval.xyz
+                data.length, data.diameter = interval.length, interval.diameter
+            node = published.add_node(data)
+            published.add_edge(RootEdgeModel(parent_id=parent.node_data.node_id, child_id=node.node_data.node_id))
+            node.organ = organ
+            if interval.source is not None:
+                ledger[interval.source.node_data.node_id] = node
+            segments.append(node)
+            parent = node
+        organ.segments = segments
+        organ.base_node = segments[0]
+        organ.parent_node = attachment
+    for organ in organs:
+        organ.lateral_attachment_nodes = [ledger[n.node_data.node_id] for n in organ.lateral_attachment_nodes]
+    published.organ_id = workspace.organ_id
+    return published
+
+
+def _publish_records(workspace: RootSystemGraph, rows: dict, organ_records: list, organs: dict) -> RootSystemGraph:
+    """Record-based allocation for interval laws (construction steps).
+
+    Existing construction points keep their IDs; attachment cuts inserted by
+    relocation carry the explicit IDs reserved for them. Nodes are ordered by
+    ID and material edges by (parent_id, child_id), the historical contract.
+    """
+    published = RootSystemGraph(create_base=False)
+    data = {nid: RootNodeModel(**row) for nid, row in rows.items()}
+    if not {node.node_data.node_id for node in workspace.nodes}.issubset(data):
+        raise ValueError("A geometry edit cannot silently remove native nodes")
+    live = {}
+    for nid in sorted(data):
+        live[nid] = RootNode(published, data[nid])
+        published.nodes.append(live[nid])
+    published.node_id = max(live) + 1
+    published.edges = [
+        RootEdge(published, RootEdgeModel(parent_id=rows[n]["parent_id"], child_id=n))
+        for n in sorted(rows, key=lambda n: (rows[n]["parent_id"], n))
+        if rows[n]["order"] > 0
+    ]
+    published.organ_id = workspace.organ_id
+    published.base_node = live[workspace.base_node.node_data.node_id]
+    published.bases = [published.base_node]
+    for record in organ_records:
+        organ = organs[record["organ_id"]]
+        organ.segments = [live[n] for n in record["node_ids"]]
+        organ.parent_node = live[record["parent_id"]]
+        organ.base_node = organ.segments[0]
+        organ.child_organs = []
+        for node in organ.segments:
+            node.organ = organ
+        organ.mass = organ.calculate_mass()
+    for record in organ_records:
+        organ = organs[record["organ_id"]]
+        if record["order"] > 1:
+            organs[rows[record["parent_id"]]["organ_id"]].child_organs.append(organ)
+        # Branch-node queues were consumed during construction.
+        organ.lateral_attachment_nodes = []
+    return published
 
 
 def process_graph(

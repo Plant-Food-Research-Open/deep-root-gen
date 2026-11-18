@@ -65,8 +65,12 @@ def equivalent_diameter(a, b):
     return np.sqrt((a * a + a * b + b * b) / 3.0)
 
 
-def integrate_curve(length, start, heading, step, q, ell, downward, rng):
-    """Integrate before inserting material/attachment nodes; z-positive up."""
+def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface_z=0.0):
+    """Integrate before inserting material/attachment nodes; z-positive up.
+
+    ``surface_z`` is the declared soil surface of the caller's frame; the
+    cohort frame keeps its historical surface at zero.
+    """
     if not (np.isfinite(length) and length > 0 and np.isfinite(step) and step > 0):
         raise ValueError("Positive finite length/step required")
     start = np.array(start, dtype=float, copy=True)
@@ -76,7 +80,7 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng):
         or heading.shape != (3,)
         or not np.isfinite(start).all()
         or not np.isfinite(heading).all()
-        or start[2] > 0
+        or start[2] > surface_z
         or np.linalg.norm(heading) <= 1e-12
     ):
         raise ValueError("Finite soil start and nonzero heading required")
@@ -99,7 +103,7 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng):
         heading = spherical_exp_heading(frame, turn)
         heading = heading + h * downward * np.array([0.0, 0.0, -1.0])
         heading /= np.linalg.norm(heading)
-        if points[-1][2] + h * heading[2] > 0:
+        if points[-1][2] + h * heading[2] > surface_z:
             heading[2] = -abs(heading[2])
             reflections += 1
             state = np.zeros(2)

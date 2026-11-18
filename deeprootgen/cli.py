@@ -12,28 +12,25 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     """Run a simulation and export to a new directory without services.
 
     The caller supplies model parameters; no calibration or uploads occur.
-    Existing directories are never overwritten.
+    Existing directories are never overwritten. Input is parsed and resolved
+    by the shared resolver before any directory or simulation state exists.
     """
     import numpy as np
 
-    from .data_model import RootSimulationModel, RootSimulationConfig
+    from .data_model.resolution import canonical_input, resolve_config
     from .model import RootSystemSimulation
 
+    resolved = resolve_config(spec)
+    parameters = resolved.config
     target = Path(outdir).expanduser().resolve()
     if target.exists():
         raise FileExistsError(f"Output directory already exists: {target}")
-    if "construction" in spec and "schema_version" not in spec:
-        raise ValueError("Extended construction requires explicit schema_version=2")
-    parameters = (
-        RootSimulationConfig(**spec)
-        if "schema_version" in spec
-        else RootSimulationModel(**spec)
-    )
     simulation = RootSystemSimulation(
         random_seed=parameters.random_seed,
         simulation_tag=parameters.simulation_tag,
     )
-    simulation.run(parameters)
+    # Pass the raw input so every caller records the same supplied-input hash.
+    simulation.run(spec)
     nodes, edges = simulation.G.as_df()
     geometry = nodes[["x", "y", "z", "length", "diameter"]].to_numpy()
     if not np.isfinite(geometry).all():
@@ -41,9 +38,9 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     target.mkdir(parents=True, exist_ok=False)
     nodes.to_csv(target / "nodes.csv", index=False)
     edges.to_csv(target / "edges.csv", index=False)
-    resolved = parameters.model_dump()
-    (target / "parameters.json").write_text(json.dumps(resolved, indent=2) + "\n")
-    if isinstance(parameters, RootSimulationConfig):
+    resolved_parameters = canonical_input(parameters)
+    (target / "parameters.json").write_text(json.dumps(resolved_parameters, indent=2) + "\n")
+    if resolved.source_schema != "flat":
         import plotly.graph_objects as go
 
         figure = go.Figure()
@@ -84,6 +81,10 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     else:
         figure = simulation.init_fig(parameters)
         simulation.plot_root_system(figure, nodes).write_html(target / "roots.html")
+    if simulation.result is not None and simulation.result.resolved:
+        (target / "resolved_config.json").write_text(
+            json.dumps(simulation.result.resolved, indent=2) + "\n"
+        )
     versions = {
         name: importlib.metadata.version(name)
         for name in ("deeprootgen", "numpy", "pandas", "torch", "pydantic")
@@ -96,7 +97,7 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
         "edge_count": len(edges),
         "invalid_node_count": int(nodes.invalid_root.sum()),
         "config_sha256": hashlib.sha256(
-            json.dumps(resolved, sort_keys=True).encode()
+            json.dumps(resolved_parameters, sort_keys=True).encode()
         ).hexdigest(),
         "outputs": {
             p.name: hashlib.sha256(p.read_bytes()).hexdigest()
@@ -104,6 +105,17 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
         },
         "scientific_validation": "not performed",
     }
+    if simulation.result is not None and simulation.result.resolved:
+        manifest["model_identity"] = {
+            key: simulation.result.metadata[key]
+            for key in ("supplied_input_sha256", "effective_model_sha256", "run_identity_sha256")
+            if key in simulation.result.metadata
+        }
+    from .data_model.resolution import source_identity
+    from .run_records import repository_state
+
+    manifest["source_sha256"] = source_identity()
+    manifest["repository"] = repository_state()
     (target / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
@@ -114,12 +126,29 @@ def main(argv=None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("simulate", help="run and export an offline simulation")
     run.add_argument("--config", required=True, type=Path, help="model parameter JSON")
-    run.add_argument("--outdir", required=True, type=Path, help="new output directory")
+    run.add_argument("--outdir", type=Path, help="new output directory")
+    run.add_argument(
+        "--explain-config",
+        action="store_true",
+        help="print the resolved laws, inactive values and hashes, then exit without running",
+    )
     args = parser.parse_args(argv)
+    if not args.explain_config and args.outdir is None:
+        parser.error("--outdir is required unless --explain-config is given")
     try:
-        spec = json.loads(args.config.read_text())
-        result = simulate(spec, args.outdir)
+        from .data_model.resolution import explain_config, load_json_config
+
+        spec = load_json_config(args.config)
+        if args.explain_config:
+            result = explain_config(spec)
+        else:
+            result = simulate(spec, args.outdir)
     except (OSError, ValueError, TypeError) as exc:
+        if args.explain_config:
+            # Dependency and validation errors are part of the explanation.
+            print(json.dumps(dict(valid=False, error=str(exc)), indent=2))
         parser.exit(1, f"Simulation failed: {exc}\n")
+    if args.explain_config:
+        result = dict(valid=True, **result)
     print(json.dumps(result, indent=2))
     return 0

@@ -1,7 +1,11 @@
 # Native feature composition: code review and further merge plan
 
-18 November 2026, revision 2. **Authoritative next implementation plan.
-Design only: the proposed feature-toggle input is not implemented.**
+18 November 2026, revision 2. **Authoritative implementation plan.
+Implementation status: deliveries 0–5 are implemented and synthetically
+verified (see the [implementation report](NATIVE_ENGINE_IMPLEMENTATION_REPORT.md)).
+Every input runs through one engine; the separate native, construction-step and
+cohort runners are removed.** The text below is the plan as revised before
+implementation; the report records where implementation decided open points.
 This review follows the owner's requirement: the same native
 parameter JSON should turn individual capabilities on/off, without selecting a
 complete SO4 or cohort execution route.
@@ -169,7 +173,9 @@ needed. Use ordinary functions and a small number of typed state records.
 ## 5. One JSON and one configuration resolver
 
 [The proposed complete example](../../examples/design/native_feature_options.proposed.json)
-is an invented **schema-version-3 design**, not an executable current input.
+is an invented **schema-version-3 input** and is executable. Each feature can
+be enabled within the declared supported combinations; unsupported combinations
+fail before execution.
 Its shape stays the same when features are enabled or disabled:
 
 ```json
@@ -485,6 +491,15 @@ commands and a receipt. This revision changes the design only.
 | 3. Independent material and origins | Point taper, disk origins and their supported combinations; cap as a separate constrained option. | Analytic volume/cutoff conservation; unchanged geometry under taper; origin-only tests without boundary events; interaction failures before construction. |
 | 4. Remaining research calculations | Per-order lengths, branching, membership/maturity, SO4 interval direction, family rank, attachment and heading controls from the inventory. | Every migrated control has a named stage/consumer, targeted tests and supported-combination declaration. Cohort reference rules run through shared phases. |
 | 5. Complete caller/adapter migration | Normalize old flat/v2 inputs to stage settings, preserve historical RNG and output identities, remove full bundle runners, capability-based results. | All supported fresh inputs use the same engine; old reference fixtures still pass exactly; no route dispatch or duplicate writers remain. |
+
+**Status, 18 November 2026:** deliveries 0–5 are implemented and verified with
+invented inputs and the frozen references. The forest state is the workspace
+(provisional construction points plus `RootOrgan` axis records), not a new
+array-backed `AxisState`; the published graph is written once by
+`publish_graph`. The engine executes the remaining historical research controls
+(inventory disposition `adapter_law`) for old inputs; giving them schema-3 keys
+is the main remaining extension. Details, decisions and deviations are in the
+[implementation report](NATIVE_ENGINE_IMPLEMENTATION_REPORT.md).
 
 Temporary old code may remain callable during intermediate deliveries for
 comparison, clearly marked migration-in-progress. It is not allowed in the final

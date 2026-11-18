@@ -277,7 +277,15 @@ def test_init_organs_constructs_higher_order_daughters(monkeypatch):
 
 
 def test_run_orders_simulation_steps_correctly():
-    sim = bare_sim()
+    """Real run: native kernels keep their order inside the fixed lifecycle."""
+    import json
+    from pathlib import Path
+
+    from deeprootgen.data_model import RootSimulationModel
+
+    spec = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    spec["gravitropism"] = 0.15
+    sim = RootSystemSimulation(random_seed=spec["random_seed"])
     stages = []
     for method in (
         "init_organs",
@@ -286,8 +294,16 @@ def test_run_orders_simulation_steps_correctly():
         "apply_gravitropism",
         "validate",
     ):
-        setattr(sim, method, lambda *args, _method=method, **kw: stages.append(_method))
-    sim.run(NS(gravitropism=0.15))
+        original = getattr(sim, method)
+        setattr(
+            sim,
+            method,
+            lambda *args, _method=method, _original=original, **kw: (
+                stages.append(_method),
+                _original(*args, **kw),
+            )[1],
+        )
+    sim.run(RootSimulationModel(**spec))
     assert stages == [
         "init_organs",
         "position_secondary_roots",
@@ -295,6 +311,7 @@ def test_run_orders_simulation_steps_correctly():
         "apply_gravitropism",
         "validate",
     ]
+    assert sim.result.engine["lifecycle"][-3:] == ["emit", "check", "publish"]
 
 
 def test_init_creates_fresh_graph_and_reproducible_rng(monkeypatch):
