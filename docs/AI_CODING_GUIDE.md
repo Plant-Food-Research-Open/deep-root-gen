@@ -1,5 +1,13 @@
 # AI coding guide for DeepRootGen
 
+Current fresh-generation input is schema 4. Use the [execution and parameter guide](NATIVE_EXECUTION.md).
+Earlier interface descriptions below document previous versions.
+
+The [verified schema-4 cutover](research/SINGLE_INPUT_IMPLEMENTATION_REPORT.md)
+follows the [native-engine repair report](research/NATIVE_ENGINE_REPAIR_REPORT.md).
+Schema-3 global planned selection has been removed; historical failure examples
+below remain lessons, and the repair report identifies current guarantees.
+
 Maintained 18 November 2026. Start here for AI-assisted code changes in this
 repository. Use the companion [lessons learned](AI_CODING_LESSONS.md) for concrete
 failure modes and review questions.
@@ -21,7 +29,9 @@ Read only the material relevant to the change:
    callers. Use function names and source searches; historical line numbers move.
 3. [Current native execution interface](NATIVE_EXECUTION.md) and the
    [single-engine revision plan](research/NATIVE_FEATURE_COMPOSITION_REVIEW_AND_PLAN.md)
-   when changing construction or configuration.
+   when changing construction or configuration. Follow its
+   [post-merge review and improvement sequence](research/NATIVE_ENGINE_REVIEW_AND_IMPROVEMENT_PLAN.md)
+   for the current findings and remaining work.
 4. [Active SO4 state](research/ACTIVE_SO4_RESEARCH.md) or
    [active Calvin state](research/ACTIVE_CALVIN_RESEARCH.md) when the task involves
    those research contracts. Reading public state does not authorize raw-data
@@ -32,16 +42,18 @@ Read only the material relevant to the change:
    Read [review notes](REVIEW_NOTES.md) for statistics/calibration changes and
    recheck every historical finding against current code.
 
-**Implementation snapshot, 18 November:** native and supported extended
-construction-step/cohort generation enter `RootSystemSimulation.run()`, whose
-implementation still dispatches complete workers. The archived
+**Implementation snapshot, 18 November, merge `0d5746a`:** native and supported
+extended construction-step/cohort inputs enter `RootSystemSimulation.run()` and
+the shared fixed-phase engine. The complete worker bodies are removed and schema
+3 executes eight feature blocks. The post-merge review found material,
+geometry, observer and provenance defects, plus remaining global native/planned
+coupling and SO4 options that have no schema-3 key. The archived
 `graph_segments_v1` experiment in [search evaluation](../deeprootgen/research/search_evaluation.py)
 also retains a separate fresh-INITIAL construction/replay path; inventory that
-bypass explicitly during caller migration. Schema version 3 and independent
-feature switches in `examples/design/` are proposed, not executable. The revision
-plan describes the destination; [the integration report](research/NATIVE_EXECUTION_INTEGRATION_REPORT.md)
-describes an earlier implementation and its checks. Reverify this snapshot before
-using it in a later task, and update it when implementation changes.
+bypass explicitly during caller migration. The `*.proposed.json` feature example
+is now executable despite its historical name. Reverify this snapshot before
+using it in a later task, and update it when implementation changes. A passing
+suite does not establish that every enabled setting has a numerical consumer.
 
 Older documentation retains historical recipes and findings. In particular,
 October development examples include obsolete gravity values and an unavailable

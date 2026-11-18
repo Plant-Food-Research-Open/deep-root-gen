@@ -18,25 +18,10 @@ components:
           persistence: true
           pushable: false
           allowCross: false
-      - id: root-ratio-range-slider
-        param: root_ratio
-        label: Root ratio
-        help: The interval for ratio between structural and fine roots
-        data_type: continuous
-        class_name: dash.dcc.RangeSlider
-        handler: range_slider
-        min_value: 0.4
-        max_value: 0.6
-        kwargs:
-          min: 0
-          max: 1
-          persistence: true
-          pushable: false
-          allowCross: false
       - id: fine-root-threshold-range-slider
-        param: fine_root_threshold
-        label: Fine root threshold
-        help: The interval for the threshold for classifying a root as a fine root, rather than a structural root (cm)
+        param: threshold_root_diameter_cm
+        label: Reporting diameter (cm)
+        help: Diameter cutoff for root length and dry biomass.
         data_type: continuous
         class_name: dash.dcc.RangeSlider
         handler: range_slider
@@ -49,9 +34,9 @@ components:
           pushable: false
           allowCross: false
       - id: outer-primary-root-num-range-slider
-        param: outer_root_num
-        label: Number of outer roots
-        help: The interval for the number of outer primary roots to be generated
+        param: primary_root_count
+        label: Primary count
+        help: Search interval for total first-order root count.
         data_type: discrete
         class_name: dash.dcc.RangeSlider
         handler: range_slider
@@ -64,17 +49,17 @@ components:
           pushable: false
           allowCross: false
       - id: inner-primary-root-num-range-slider
-        param: inner_root_num
-        label: Number of inner roots
-        help: The interval for the number of inner primary roots to be generated
-        data_type: discrete
+        param: outer_primary_fraction
+        label: Outer placement fraction
+        help: Fraction assigned to the outer primary placement group.
+        data_type: continuous
         class_name: dash.dcc.RangeSlider
         handler: range_slider
-        min_value: 6
-        max_value: 10
+        min_value: 0.3
+        max_value: 0.7
         kwargs:
           min: 0
-          max: 20
+          max: 1
           persistence: true
           pushable: false
           allowCross: false
@@ -125,8 +110,8 @@ components:
           allowCross: false
       - id: root-apex-range-slider
         param: apex_diameter
-        label: Apex diameter
-        help: The interval for the diameter of the root apex (cm)
+        label: Native cylinder endpoint (cm)
+        help: Sampling endpoint for native cylinder diameters.
         data_type: continuous
         class_name: dash.dcc.RangeSlider
         handler: range_slider
@@ -154,9 +139,9 @@ components:
           pushable: false
           allowCross: false
       - id: min-num-secondary-roots-range-slider
-        param: min_sec_root_num
-        label: Minimum number of secondary roots
-        help: The interval for the minimum number of secondary roots to be generated
+        param: daughters_per_parent
+        label: Daughters per parent
+        help: Requested daughter count on each eligible parent.
         data_type: discrete
         class_name: dash.dcc.RangeSlider
         handler: range_slider
@@ -168,25 +153,10 @@ components:
           persistence: true
           pushable: false
           allowCross: false
-      - id: max-num-secondary-roots-range-slider
-        param: max_sec_root_num
-        label: Maximum number of secondary roots
-        help: The interval for the maximum number of secondary roots to be generated
-        data_type: discrete
-        class_name: dash.dcc.RangeSlider
-        handler: range_slider
-        min_value: 2
-        max_value: 10
-        kwargs:
-          min: 0
-          max: 20
-          persistence: true
-          pushable: false
-          allowCross: false
       - id: secondary-root-growth-range-slider
-        param: growth_sec_root
-        label: Secondary root growth rate
-        help: The interval for the growth rate for the number of secondary roots per root order
+        param: daughter_count_order_gain
+        label: Daughter-count increase by order
+        help: Native order-dependent multiplier for daughters per parent.
         data_type: continuous
         class_name: dash.dcc.RangeSlider
         handler: range_slider
@@ -199,7 +169,7 @@ components:
           pushable: false
           allowCross: false
       - id: min-length-secondary-root-range-slider
-        param: min_sec_root_length
+        param: min_lateral_length
         label: Secondary root minimum length
         help: The interval for the minimum length of each secondary root (cm)
         data_type: continuous
@@ -214,7 +184,7 @@ components:
           pushable: false
           allowCross: false
       - id: max-length-secondary-root-range-slider
-        param: max_sec_root_length
+        param: max_lateral_length
         label: Secondary root maximum length
         help: The interval for the maximum length of each secondary root (cm)
         data_type: continuous
@@ -288,21 +258,6 @@ components:
           persistence: true
           pushable: false
           allowCross: false
-      - id: mechanical-constraints-slider
-        param: mechanical_constraints
-        label: Mechanical constraints
-        help: The interval for the mechanical constraints of the roots (radial degrees/cm)
-        data_type: continuous
-        class_name: dash.dcc.RangeSlider
-        handler: range_slider
-        min_value: 0.3
-        max_value: 0.6
-        kwargs:
-          min: 0.1
-          max: 1
-          persistence: true
-          pushable: false
-          allowCross: false
       - id: root-tissue-density-slider
         param: root_tissue_density
         label: Root tissue density
@@ -330,21 +285,6 @@ components:
         kwargs:
           min: 1
           max: 10
-          persistence: true
-          pushable: false
-          allowCross: false
-      - id: sim-t-slider
-        param: t
-        label: Time steps
-        help: The number of time steps to run the model (hourly)
-        data_type: discrete
-        class_name: dash.dcc.RangeSlider
-        handler: range_slider
-        min_value: 0
-        max_value: 20
-        kwargs:
-          min: 0
-          max: 100
           persistence: true
           pushable: false
           allowCross: false

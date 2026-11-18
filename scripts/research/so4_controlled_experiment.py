@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Bounded local four-arm replay. No observations, services or automatic retries."""
+"""Historical SO4 study protocol. For a fresh model use the schema-4 CLI.
+
+Bounded local four-arm replay. No observations, services or automatic retries."""
 from __future__ import annotations
 
 import os

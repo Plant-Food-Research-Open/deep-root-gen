@@ -1,205 +1,350 @@
 {
-  "schema_version": 2,
+  "schema_version": 4,
   "random_seed": 42,
   "simulation_tag": "invented-native-integration",
-  "construction": {
-    "kind": "cohort",
-    "parameters": {
-      "step_cm": 3.0,
-      "dry_density_g_cm3": 0.3,
-      "fine_cutoff_mm": 2.5,
-      "max_organs": 100,
-      "crown_mass_g": 0.0,
-      "crown_depth_cm": [
-        5.0,
-        8.0
-      ],
-      "crown_radius_cm": 1.0,
-      "later_maturity": [
-        0.3,
-        0.6
-      ],
-      "maturity_length_power": 0.5,
-      "maturity_diameter_power": 0.5,
-      "child_diameter_fraction_max": 0.8,
-      "inclination_mean_deg": 30.0,
-      "inclination_sd_deg": 10.0,
-      "inclination_bounds_deg": [
-        0.0,
-        90.0
-      ],
-      "insertion_mean_deg": 40.0,
-      "insertion_sd_deg": 5.0,
-      "orders": {
-        "1": {
-          "length_cm": {
+  "parameters": {
+    "max_order": 5,
+    "root_tissue_density": 0.3,
+    "tropism_mode": "legacy",
+    "soil_surface_z_cm": 0.0,
+    "primary_root_count": 3,
+    "outer_primary_fraction": 0.6666666666666666,
+    "min_branching_diameter_cm": 0.0,
+    "threshold_root_diameter_cm": 0.25
+  },
+  "features": {
+    "lengths": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "bounded_lognormal",
             "mean": 10.0,
-            "sd": 0,
+            "sd": 0.0,
             "min": 10.0,
             "max": 10.0
           },
-          "base_diameter_cm": {
-            "mean": 0.8,
-            "sd": 0,
-            "min": 0.8,
-            "max": 0.8
-          },
-          "tip_diameter_cm": {
-            "mean": 0.05,
-            "sd": 0,
-            "min": 0.05,
-            "max": 0.05
-          },
-          "first_branch_cm": {
-            "mean": 4.0,
-            "sd": 0,
-            "min": 4.0,
-            "max": 4.0
-          },
-          "branch_probability": 1.0,
-          "daughter_probabilities": [
-            1.0
-          ],
-          "curvature_sd_rad_cm": 0.005,
-          "correlation_cm": 10.0,
-          "downward_drift_per_cm": 0.0
-        },
-        "2": {
-          "length_cm": {
+          "2": {
+            "law": "bounded_lognormal",
             "mean": 10.0,
-            "sd": 0,
+            "sd": 0.0,
             "min": 10.0,
             "max": 10.0
           },
-          "base_diameter_cm": {
-            "mean": 0.4,
-            "sd": 0,
-            "min": 0.4,
-            "max": 0.4
-          },
-          "tip_diameter_cm": {
-            "mean": 0.05,
-            "sd": 0,
-            "min": 0.05,
-            "max": 0.05
-          },
-          "first_branch_cm": {
-            "mean": 4.0,
-            "sd": 0,
-            "min": 4.0,
-            "max": 4.0
-          },
-          "branch_probability": 1.0,
-          "daughter_probabilities": [
-            1.0
-          ],
-          "curvature_sd_rad_cm": 0.005,
-          "correlation_cm": 10.0,
-          "downward_drift_per_cm": 0.0
-        },
-        "3": {
-          "length_cm": {
+          "3": {
+            "law": "bounded_lognormal",
             "mean": 10.0,
-            "sd": 0,
+            "sd": 0.0,
             "min": 10.0,
             "max": 10.0
           },
-          "base_diameter_cm": {
-            "mean": 0.26666666666666666,
-            "sd": 0,
-            "min": 0.26666666666666666,
-            "max": 0.26666666666666666
-          },
-          "tip_diameter_cm": {
-            "mean": 0.05,
-            "sd": 0,
-            "min": 0.05,
-            "max": 0.05
-          },
-          "first_branch_cm": {
-            "mean": 4.0,
-            "sd": 0,
-            "min": 4.0,
-            "max": 4.0
-          },
-          "branch_probability": 1.0,
-          "daughter_probabilities": [
-            1.0
-          ],
-          "curvature_sd_rad_cm": 0.005,
-          "correlation_cm": 10.0,
-          "downward_drift_per_cm": 0.0
-        },
-        "4": {
-          "length_cm": {
+          "4": {
+            "law": "bounded_lognormal",
             "mean": 10.0,
-            "sd": 0,
+            "sd": 0.0,
             "min": 10.0,
             "max": 10.0
           },
-          "base_diameter_cm": {
-            "mean": 0.2,
-            "sd": 0,
-            "min": 0.2,
-            "max": 0.2
-          },
-          "tip_diameter_cm": {
-            "mean": 0.05,
-            "sd": 0,
-            "min": 0.05,
-            "max": 0.05
-          },
-          "first_branch_cm": {
-            "mean": 4.0,
-            "sd": 0,
-            "min": 4.0,
-            "max": 4.0
-          },
-          "branch_probability": 1.0,
-          "daughter_probabilities": [
-            1.0
-          ],
-          "curvature_sd_rad_cm": 0.005,
-          "correlation_cm": 10.0,
-          "downward_drift_per_cm": 0.0
-        },
-        "5": {
-          "length_cm": {
+          "5": {
+            "law": "bounded_lognormal",
             "mean": 10.0,
-            "sd": 0,
+            "sd": 0.0,
             "min": 10.0,
             "max": 10.0
-          },
-          "base_diameter_cm": {
-            "mean": 0.16,
-            "sd": 0,
-            "min": 0.16,
-            "max": 0.16
-          },
-          "tip_diameter_cm": {
-            "mean": 0.05,
-            "sd": 0,
-            "min": 0.05,
-            "max": 0.05
-          },
-          "first_branch_cm": {
-            "mean": 4.0,
-            "sd": 0,
-            "min": 4.0,
-            "max": 4.0
-          },
-          "branch_probability": 1.0,
-          "daughter_probabilities": [
-            1.0
-          ],
-          "curvature_sd_rad_cm": 0.005,
-          "correlation_cm": 10.0,
-          "downward_drift_per_cm": 0.0
+          }
         }
       }
     },
-    "older_count": 2,
-    "later_count": 1
+    "taper": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": {
+              "mean": 0.8,
+              "sd": 0.0,
+              "min": 0.8,
+              "max": 0.8
+            },
+            "tip_cm": {
+              "mean": 0.05,
+              "sd": 0.0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "midpoint_diameter_fraction": 0.5
+          },
+          "2": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": {
+              "mean": 0.4,
+              "sd": 0.0,
+              "min": 0.4,
+              "max": 0.4
+            },
+            "tip_cm": {
+              "mean": 0.05,
+              "sd": 0.0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "midpoint_diameter_fraction": 0.5
+          },
+          "3": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": {
+              "mean": 0.26666666666666666,
+              "sd": 0.0,
+              "min": 0.26666666666666666,
+              "max": 0.26666666666666666
+            },
+            "tip_cm": {
+              "mean": 0.05,
+              "sd": 0.0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "midpoint_diameter_fraction": 0.5
+          },
+          "4": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": {
+              "mean": 0.2,
+              "sd": 0.0,
+              "min": 0.2,
+              "max": 0.2
+            },
+            "tip_cm": {
+              "mean": 0.05,
+              "sd": 0.0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "midpoint_diameter_fraction": 0.5
+          },
+          "5": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": {
+              "mean": 0.16,
+              "sd": 0.0,
+              "min": 0.16,
+              "max": 0.16
+            },
+            "tip_cm": {
+              "mean": 0.05,
+              "sd": 0.0,
+              "min": 0.05,
+              "max": 0.05
+            },
+            "midpoint_diameter_fraction": 0.5
+          }
+        }
+      }
+    },
+    "branching": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "2": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "4": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "5": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "curvature": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "origin_heading"
+          },
+          "2": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          },
+          "3": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          },
+          "4": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          },
+          "5": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          }
+        }
+      }
+    },
+    "primary_origins": {
+      "enabled": true,
+      "settings": {
+        "layout": "disk",
+        "radius_cm": 1.0,
+        "depth_range_cm": [
+          5.0,
+          8.0
+        ],
+        "heading": {
+          "law": "radial_inclination",
+          "inclination_mean_deg": 30.0,
+          "inclination_sd_deg": 10.0,
+          "inclination_bounds_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      }
+    },
+    "cohort_maturity": {
+      "enabled": true,
+      "settings": {
+        "groups": [
+          {
+            "label": "A",
+            "primary_indices": [
+              0,
+              1
+            ],
+            "maturity_range": [
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "label": "B",
+            "primary_indices": [
+              2
+            ],
+            "maturity_range": [
+              0.3,
+              0.6
+            ]
+          }
+        ],
+        "length_power": 0.5,
+        "diameter_power": 0.5,
+        "scale_branch_probability": true,
+        "diameter_target": "base_anchor"
+      }
+    },
+    "parent_diameter_cap": {
+      "enabled": true,
+      "settings": {
+        "fraction_max": 0.8
+      }
+    },
+    "direction": {
+      "enabled": true,
+      "settings": {
+        "post_correction": "pure_surface_check"
+      }
+    }
   },
-  "trajectory": "cohort_v5"
+  "limits": {
+    "max_organs": 100
+  }
 }

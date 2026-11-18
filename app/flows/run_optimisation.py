@@ -23,6 +23,7 @@ from prefect import flow, task
 from prefect.artifacts import create_table_artifact
 from prefect.task_runners import ConcurrentTaskRunner
 
+from deeprootgen.data_model.simulation_form import SoilDisplay
 from deeprootgen.calibration import (
     OptimisationModel,
     calculate_summary_statistic_discrepancy,
@@ -229,7 +230,7 @@ def log_task(
         if not parameter_name.startswith(params_prefix):
             continue
         parameter_name = parameter_name.replace(params_prefix, "")
-        best_parameter = best_parameters[f"{params_prefix}{parameter_name}"]
+        best_parameter = best_parameters[f"{params_prefix}{parameter_name}"].iloc[0]
         parameter_specs[parameter_name] = best_parameter
         mlflow.log_metric(parameter_name, best_parameter)
 
@@ -282,7 +283,8 @@ def run_optimisation(
 
     config = input_parameters.dict()
     log_config(config, TASK)
-    log_simulation(simulation_parameters, simulation, TASK)
+    log_simulation(simulation_parameters, simulation, TASK,
+                   SoilDisplay(**input_parameters.model_dump(include=set(SoilDisplay.model_fields))))
     save_graph_to_db(simulation, TASK, simulation_uuid)
     mlflow.end_run()
 

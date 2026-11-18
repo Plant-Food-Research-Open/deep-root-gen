@@ -1,5 +1,8 @@
 # Model configurations, inputs and review workflow
 
+Current fresh-generation input is schema 4. Use the [execution and parameter guide](NATIVE_EXECUTION.md).
+Earlier interface descriptions below document previous versions.
+
 This guide describes optional interfaces integrated with the 1.0 offline runtime.
 Native defaults remain available. Empirical calibration files and validation
 receipts are caller-owned local inputs; these interfaces do not establish

@@ -10,13 +10,13 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.model import root as root_module
 from deeprootgen.utils.tropism import sample_primary_yaw
 
 
 def parameters(**updates):
-    values = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    values = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     values.update(max_order=3, min_sec_root_num=2, max_sec_root_num=3,
                   min_sec_root_length=4., max_sec_root_length=6.,
                   interbranch_distance=2., length_reduction=.7,

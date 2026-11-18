@@ -11,9 +11,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import pytest
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 
-mod = import_module(RootSystemSimulation.__module__)
+mod = import_module("deeprootgen.model.root")
 
 
 def bare_sim():
@@ -283,7 +283,7 @@ def test_run_orders_simulation_steps_correctly():
 
     from deeprootgen.data_model import RootSimulationModel
 
-    spec = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    spec = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     spec["gravitropism"] = 0.15
     sim = RootSystemSimulation(random_seed=spec["random_seed"])
     stages = []

@@ -98,20 +98,17 @@ def test_nonlist_distance_metrics_are_ignored(fake_stat_model):
 
 
 def test_run_calibration_simulation_sets_seed_and_runs(monkeypatch):
-    parsed = object()
-    parse = Mock(return_value=parsed)
     run = Mock()
     fake_sim = SimpleNamespace(run=run)
     ctor = Mock(return_value=fake_sim)
-    monkeypatch.setattr(subject.RootSimulationModel, "parse_obj", parse)
     monkeypatch.setattr(subject, "RootSystemSimulation", ctor)
-    params = {"root_growth_rate": 1.4}
-    actual_sim, actual_params = subject.run_calibration_simulation(params, make_input())
-    assert actual_sim is fake_sim and actual_params is parsed
-    assert params["random_seed"] == 17
-    parse.assert_called_once_with(params)
+    candidate = {"max_order": 2.0, "primary_root_count": 2, "root_tissue_density": .05}
+    actual_sim, config = subject.run_calibration_simulation(candidate, make_input())
+    assert actual_sim is fake_sim and config.random_seed == 17
+    assert config.schema_version == 4 and config.parameters.max_order == 2
+    assert "random_seed" not in candidate
     ctor.assert_called_once_with(simulation_tag="fixture", random_seed=17)
-    run.assert_called_once_with(parsed)
+    run.assert_called_once_with(config)
 
 
 @pytest.fixture
@@ -122,7 +119,7 @@ def stub_simulation(monkeypatch):
     sim = SimpleNamespace(
         G=SimpleNamespace(as_df=lambda: (df, pd.DataFrame())), soil=soil
     )
-    params = SimpleNamespace(root_tissue_density=0.21)
+    params = SimpleNamespace(parameters=SimpleNamespace(root_tissue_density=0.21))
     monkeypatch.setattr(subject, "run_calibration_simulation", lambda *_: (sim, params))
     return sim, df, grid
 

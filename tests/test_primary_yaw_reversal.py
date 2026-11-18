@@ -13,9 +13,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+from tests.public_checkpoint_reference import comparison_command, materialize_reference, subprocess_environment
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research import so4_controlled as controlled
 from deeprootgen.research import construction_step_replay as canonical
 from deeprootgen.utils.tropism import reverse_primary_yaw, sample_primary_yaw
@@ -168,7 +168,7 @@ def test_none_zero_prechange_subprocess_exact_bytes_rng(tmp_path):
             values['research_fichtl_sigma_by_order'] = None  # Includes legacy continuation arms A/B.
     results, hashes = {}, {}
     for name, source in [('old', old), ('current', current)]:
-        run = subprocess.run([sys.executable, '-c', script], input=json.dumps(configs), capture_output=True,
+        run = subprocess.run(comparison_command(script, current=name == "current"), input=json.dumps(configs), capture_output=True,
                              text=True, check=True, timeout=90, cwd=source,
                              env=subprocess_environment(source))
         result = json.loads(run.stdout)

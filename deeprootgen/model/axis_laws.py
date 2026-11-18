@@ -21,7 +21,7 @@ def scaffold_chord_heading(organ):
 
 
 def realize_correlated_curvature(organ, law, streams, *, start=None, heading=None, length=None, arcs=None,
-                                 rng=None):
+                                 rng=None, reserve_stations=None):
     """Correlated (OU) curvature over the organ's sampled contour length.
 
     Construction intervals keep their lengths and material; their boundaries
@@ -49,6 +49,10 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
     identity = int(organ.segments[0].node_data.organ_id)
     if rng is None:
         rng = streams.keyed(CURVATURE_STREAM_NAMESPACE, CURVATURE_LAW_VERSION, identity)
+    if reserve_stations is not None:
+        import math
+
+        reserve_stations("stations", math.ceil(total / law["step_cm"]) + 1)
     stations, points, reflections = integrate_curve(
         total,
         start,

@@ -14,52 +14,73 @@ components:
           value: 2
           step: 1
           persistence: true
-      - id: root-ratio-input
-        param: root_ratio
-        label: Root ratio
-        help: The ratio between structural and fine roots
-        class_name: dash_bootstrap_components.Input 
+      - id: root-ratio-biomass-input
+        param: root_ratio_biomass
+        label: Target fine-root biomass fraction
+        help: Optional share of dry root biomass at or below the reporting diameter. Supply adjustable orders and scale bounds in advanced settings.
+        class_name: dash_bootstrap_components.Input
         kwargs:
           type: number
           min: 0
           max: 1
-          step: 0.1
-          value: 0.5
+          step: 0.01
+          persistence: true
+      - id: root-ratio-length-input
+        param: root_ratio_length
+        label: Target fine-root length fraction
+        help: Optional share of root length at or below the reporting diameter. Supply adjustable orders and scale bounds in advanced settings.
+        class_name: dash_bootstrap_components.Input
+        kwargs:
+          type: number
+          min: 0
+          max: 1
+          step: 0.01
           persistence: true
       - id: fine-root-threshold-input
-        param: fine_root_threshold
-        label: Fine root threshold
-        help: Threshold for classifying a root as a fine root, rather than a structural root (cm)
+        param: threshold_root_diameter_cm
+        label: Reporting diameter (cm)
+        help: Sum root length and dry biomass in two classes using this diameter as the upper bound of the fine class.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
           min: 0
           step: 0.01
-          value: 0.06
+          value: 0.25
+          persistence: true
+      - id: branch-minimum-input
+        param: min_branching_diameter_cm
+        label: Minimum parent diameter for branching (cm)
+        help: Allow a daughter at a site at or above this diameter. Zero disables the minimum.
+        class_name: dash_bootstrap_components.Input
+        kwargs:
+          type: number
+          min: 0
+          step: 0.001
+          value: 0.093
           persistence: true
       - id: outer-primary-root-num-input
-        param: outer_root_num
-        label: Number of outer roots
-        help: The number of outer primary roots to be generated
+        param: primary_root_count
+        label: Primary root count
+        help: Total number of first-order roots.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
-          min: 0
+          min: 1
           max: 20
           step: 1
-          value: 10
+          value: 18
           persistence: true
       - id: inner-primary-root-num-input
-        param: inner_root_num
-        label: Number of inner roots
-        help: The number of inner primary roots to be generated
+        param: outer_primary_fraction
+        label: Outer placement fraction
+        help: Fraction of first-order roots assigned to outer placement.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
           min: 0
-          max: 20
-          step: 1
-          value: 8
+          max: 1
+          step: 0.01
+          value: 0.55556
           persistence: true
       - id: min-length-primary-root-input
         param: min_primary_length
@@ -99,8 +120,8 @@ components:
           persistence: true
       - id: root-apex-input
         param: apex_diameter
-        label: Apex diameter
-        help: The diameter of the root apex (cm)
+        label: Native cylinder sampling endpoint (cm)
+        help: Draw native cylinder diameters between this endpoint and the order-adjusted base.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
@@ -122,32 +143,20 @@ components:
           value: 0.2
           persistence: true
       - id: min-num-secondary-roots-input
-        param: min_sec_root_num
-        label: Minimum number of secondary roots
-        help: The minimum number of secondary roots to be generated
+        param: daughters_per_parent
+        label: Daughters per parent
+        help: Requested daughter count on each nonterminal parent before branch-site restrictions.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
           min: 0
           step: 1
-          value: 1
-          persistence: true
-      - id: max-num-secondary-roots-input
-        param: max_sec_root_num
-        label: Maximum number of secondary roots
-        help: The maximum number of secondary roots to be generated
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          max: 20
-          step: 1
-          value: 3
+          value: 2
           persistence: true
       - id: secondary-root-growth-input
-        param: growth_sec_root
-        label: Secondary root growth rate
-        help: The growth rate for the number of secondary roots per root order
+        param: daughter_count_order_gain
+        label: Daughter-count increase by order
+        help: Coefficient for the native per-order increase in requested daughters.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
@@ -156,9 +165,9 @@ components:
           value: 0.2
           persistence: true
       - id: min-length-secondary-root-input
-        param: min_sec_root_length
-        label: Secondary root minimum length
-        help: The minimum length of each secondary root (cm)
+        param: min_lateral_length
+        label: Minimum lateral length (cm)
+        help: Lower length bound for orders above 1 before order scaling.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
@@ -168,9 +177,9 @@ components:
           value: 100
           persistence: true
       - id: max-length-secondary-root-input
-        param: max_sec_root_length
-        label: Secondary root maximum length
-        help: The maximum length of each secondary root (cm)
+        param: max_lateral_length
+        label: Maximum lateral length (cm)
+        help: Upper length bound for orders above 1 before order scaling.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
@@ -227,18 +236,6 @@ components:
           step: 0.001
           value: 0.0078
           persistence: true
-      - id: mechanical-constraints-input
-        param: mechanical_constraints
-        label: Mechanical constraints
-        help: The mechanical constraints of the roots (radial degrees/cm)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0.1
-          max: 1
-          step: 0.1
-          value: 0.5
-          persistence: true
       - id: root-tissue-density-input
         param: root_tissue_density
         label: Root tissue density
@@ -262,17 +259,6 @@ components:
           max: 1
           step: 0.01
           value: 0.1
-          persistence: true
-      - id: sim-t-input
-        param: t
-        label: Time steps
-        help: The number of time steps to run the model (hourly)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
           persistence: true
       - id: enable-soil-input
         param: enable_soil
@@ -361,6 +347,15 @@ components:
           type: text
           value: default
           persistence: true
+      - id: advanced-settings
+        param: advanced_settings
+        label: Advanced settings (JSON)
+        help: 'Optional features, limits and additional parameters. For a ratio target, add parameters.allocation_controls with length_scale_by_order or diameter_scale_by_order and [minimum, maximum] scale bounds.'
+        class_name: dash_bootstrap_components.Textarea
+        kwargs:
+          rows: 4
+          persistence: true
+          value: '{}'
   simulation:
     collapsible: true
     children:

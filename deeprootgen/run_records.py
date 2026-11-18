@@ -44,10 +44,15 @@ def tracked_run(config, outdir, *, label, ledger=None, edit=None):
     the edited input is saved as ``parameters.json`` and hashed.
     """
     from .cli import simulate
+    return _tracked_run(config, outdir, label, ledger, edit, simulate)
+
+
+def _tracked_run(config, outdir, label, ledger, edit, simulate):
     from .data_model.resolution import load_json_config
 
     path = Path(config) if isinstance(config, (str, Path)) else None
-    spec = load_json_config(path) if path is not None else copy.deepcopy(config)
+    input_bytes = path.read_bytes() if path is not None else None
+    spec = load_json_config(input_bytes.decode()) if input_bytes is not None else copy.deepcopy(config)
     if edit is not None:
         edit(spec)
     manifest = simulate(spec, outdir)
@@ -59,7 +64,7 @@ def tracked_run(config, outdir, *, label, ledger=None, edit=None):
         created_utc=datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
         outdir=str(target),
         config_path=None if path is None else str(path.resolve()),
-        config_file_sha256=None if path is None else hashlib.sha256(path.read_bytes()).hexdigest(),
+        config_file_sha256=None if path is None else hashlib.sha256(input_bytes).hexdigest(),
         edited_before_run=edit is not None,
         source_schema=resolved.get("source_schema"),
         seed=manifest["seed"],

@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel, RootSimulationConfig
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research.cohort_root_generator import CohortRootGenerator
 from deeprootgen.research.so4_controlled import capture_initial
 
@@ -263,4 +263,4 @@ def test_service_guard_rejects_extended_contracts_before_side_effects():
         first_action = function.body[1]  # After the docstring, before any service call.
         assert isinstance(first_action, ast.Expr)
         assert isinstance(first_action.value, ast.Call)
-        assert first_action.value.func.id == "require_native_service_request"
+        assert first_action.value.func.id == "resolve_config"

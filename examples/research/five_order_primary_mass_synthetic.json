@@ -1,0 +1,163 @@
+{
+  "schema_version": 4,
+  "random_seed": 17,
+  "simulation_tag": "invented-five-order-primary-mass-example",
+  "parameters": {
+    "max_order": 5,
+    "min_primary_length": 10.0,
+    "max_primary_length": 15.0,
+    "base_diameter": 0.25,
+    "diameter_reduction": 0.2,
+    "apex_diameter": 0.04,
+    "segments_per_root": 3,
+    "length_reduction": 0.5,
+    "root_vary": 2.0,
+    "interbranch_distance": 0.5,
+    "root_tissue_density": 0.07,
+    "gravitropism": 0.0,
+    "tropism_mode": "fichtl2024",
+    "soil_surface_z_cm": 0.0,
+    "fichtl_probability_down": 1.0,
+    "fichtl_sigma": 0.05,
+    "fichtl_trials_type2": 0.5,
+    "fichtl_trials_type3": 0.5,
+    "fichtl_theta2_deg": 35.0,
+    "fichtl_theta2_sd_deg": 0.0,
+    "fichtl_theta3_deg": 25.0,
+    "fichtl_theta3_sd_deg": 0.0,
+    "primary_root_count": 2,
+    "outer_primary_fraction": 0.5,
+    "min_branching_diameter_cm": 0.0,
+    "threshold_root_diameter_cm": 0.06,
+    "daughter_count_order_gain": 0.0,
+    "min_lateral_length": 2.0,
+    "max_lateral_length": 5.0,
+    "daughters_per_parent": {
+      "min": 1,
+      "max_exclusive": 2
+    }
+  },
+  "features": {
+    "primary_placement": {
+      "enabled": true,
+      "settings": {
+        "explicit_design": [
+          {
+            "primary_id": "invented-A",
+            "category": "invented",
+            "length_cm": 12.0,
+            "diameter_base_cm": 0.25,
+            "diameter_apex_cm": 0.1,
+            "inclination_deg": 20.0,
+            "azimuth_deg": 0.0
+          },
+          {
+            "primary_id": "invented-B",
+            "category": "invented",
+            "length_cm": 14.0,
+            "diameter_base_cm": 0.22,
+            "diameter_apex_cm": 0.08,
+            "inclination_deg": 45.0,
+            "azimuth_deg": 100.0
+          }
+        ]
+      }
+    },
+    "branch_sites": {
+      "enabled": true,
+      "settings": {
+        "counts_by_order": {
+          "1": 2,
+          "2": 3,
+          "3": 3,
+          "4": 2,
+          "5": 2
+        },
+        "primary_zone_cm": {
+          "start_cm": 1.0,
+          "end_cm": 5.0
+        }
+      }
+    },
+    "direction": {
+      "enabled": true,
+      "settings": {
+        "higher_order_tropism": {
+          "4": {
+            "theta_deg": 25.0,
+            "theta_sd_deg": 0.0,
+            "probability_down": 1.0,
+            "trials": 0.5
+          },
+          "5": {
+            "theta_deg": 15.0,
+            "theta_sd_deg": 0.0,
+            "probability_down": 1.0,
+            "trials": 0.5
+          }
+        }
+      }
+    },
+    "lengths": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "2": {
+            "law": "discrete_cdf",
+            "lengths_cm": [
+              4.0,
+              5.0
+            ],
+            "cumulative_probabilities": [
+              0.5,
+              1.0
+            ]
+          },
+          "3": {
+            "law": "discrete_cdf",
+            "lengths_cm": [
+              3.0,
+              4.0
+            ],
+            "cumulative_probabilities": [
+              0.5,
+              1.0
+            ]
+          },
+          "4": {
+            "law": "discrete_cdf",
+            "lengths_cm": [
+              2.0,
+              3.0
+            ],
+            "cumulative_probabilities": [
+              0.5,
+              1.0
+            ]
+          },
+          "5": {
+            "law": "discrete_cdf",
+            "lengths_cm": [
+              1.0,
+              2.0
+            ],
+            "cumulative_probabilities": [
+              0.5,
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "primary_origins": {
+      "enabled": true,
+      "settings": {
+        "layout": "point",
+        "x_cm": 0.0,
+        "y_cm": 0.0,
+        "depth_cm": 50.0
+      }
+    }
+  },
+  "limits": {}
+}

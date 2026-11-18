@@ -8,7 +8,7 @@ import numpy as np
 import plotly.graph_objects as go
 import pytest
 
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 
 
 def fake_graph(nodes):
@@ -130,7 +130,7 @@ def test_run_calls_stages_in_the_expected_order(monkeypatch):
     from deeprootgen.data_model import RootSimulationModel
     from deeprootgen.data_model.resolution import ENGINE_PHASES
 
-    spec = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    spec = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     params = RootSimulationModel(**spec)
     sim = RootSystemSimulation(random_seed=spec["random_seed"], simulation_tag=spec["simulation_tag"])
     calls = []

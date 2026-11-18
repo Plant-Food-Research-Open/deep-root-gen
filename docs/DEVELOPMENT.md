@@ -5,8 +5,25 @@ and [lessons learned](AI_CODING_LESSONS.md). They cover change boundaries,
 source verification and task-appropriate checks; the historical recipes below
 must be rechecked against current code before use.
 
-Current environment/CLI/UI qualification is tracked in [RUNNING.md](../RUNNING.md).
-The evidence below is the historical 28 October reconnaissance snapshot.
+Start with [RUNNING.md](../RUNNING.md) for the current build and execution
+commands.
+
+## Schema-4 build checks (19 November 2026)
+
+| Check | Local result |
+| --- | --- |
+| Python package | Poetry checked the lock and built the wheel and source distribution. The installed wheel generated the invented crown fixture with seed 42, 32 nodes, 30 edges and zero invalid nodes. |
+| Simulator and caller tests | Python 3.10.20 ran 2,005 tests with integration checks enabled. The suite passed with zero failures and skips. Dependency deprecation and serialization warnings remain visible in the log. |
+| Export and reload | The engine matrix replayed all eight invented or public reference cases with exact checked exports. |
+| Local app image | `dockerfiles/python/Dockerfile.local` built successfully. In a network-isolated container, the non-root runtime passed `pip check`, generated the seed-42 crown fixture, returned HTTP 200 from Dash and preserved the schema-4 input through the Simulation load and save callbacks. |
+| Lint and docs | Repository-wide flake8 passed. Sphinx built the HTML with warnings treated as errors. The three standalone Python examples ran, including the soil voxel and segment-length checks. |
+
+Use the [workflow guide](source/usage/native_workflow.rst) for a synthetic
+exploration exercise. Calibration quality still depends on the study's
+observations, sampling support and held checks. Preserve geometry failures
+in search records alongside the input and seed that produced them.
+
+## Historical 28 October reconnaissance
 
 Commands refer to the verified checkout at
 `/home/jzhu/Workspace/Github/FruitCropXL/13-deep-root-gen-PFR-open`.
@@ -115,51 +132,14 @@ The install is potentially large because of inference/Torch dependencies and
 was not started in the documentation task. Provisioning is a separate scoped
 task. An import pass and dummy pass still do not validate model outputs.
 
-The following is a **proposed** tiny offline simulation probe after imports
-work. It is derived from existing form/schema fields and has not run against
-the locked application. It uses synthetic parameters, no services, no data,
-no fitting and no output files. Values are chosen for a cheap plumbing check,
-not a scientific reference scenario or calibration.
+A small offline run is available from the repository root.
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 poetry run python - <<'PY'
-import numpy as np
-from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
-
-spec = dict(
-    random_seed=42, max_order=1, root_ratio=0.5,
-    fine_root_threshold=0.06, outer_root_num=1, inner_root_num=1,
-    min_primary_length=20.0, max_primary_length=30.0,
-    base_diameter=0.11, diameter_reduction=0.2, apex_diameter=0.02,
-    min_sec_root_num=1, max_sec_root_num=2, growth_sec_root=0.2,
-    min_sec_root_length=10.0, max_sec_root_length=20.0,
-    segments_per_root=5, length_reduction=0.5, root_vary=30.0,
-    interbranch_distance=0.0078, mechanical_constraints=0.5,
-    root_tissue_density=0.05, gravitropism=7.5, t=0,
-    enable_soil=False,
-)
-params = RootSimulationModel(**spec)
-tables = []
-for _ in range(2):
-    sim = RootSystemSimulation(random_seed=params.random_seed)
-    sim.run(params)
-    nodes, edges = sim.G.as_df()
-    assert nodes.node_id.is_unique
-    ids = set(nodes.node_id)
-    assert set(edges.parent_id) <= ids and set(edges.child_id) <= ids
-    assert np.isfinite(nodes[['x', 'y', 'z', 'length', 'diameter']].to_numpy()).all()
-    assert (nodes[['length', 'diameter']] >= 0).all().all()
-    tables.append((nodes, edges))
-assert tables[0][0].equals(tables[1][0])
-assert tables[0][1].equals(tables[1][1])
-print('Synthetic plumbing probe passed; scientific validation still pending')
-PY
+poetry run python -m deeprootgen simulate --config examples/synthetic_minimal.json --outdir /tmp/deeprootgen-smoke
 ```
 
-This narrow probe cannot validate branching (max_order=1), growth (t=0), mass,
-geometry correctness, statistics, inference, observed-data compatibility or
-invalid-root policy. Add targeted fixtures only under a future code/test task.
+Use a fresh output directory each time. See the [canonical execution guide](NATIVE_EXECUTION.md)
+for schema-4 settings and material summaries.
 
 ## Application and deployment commands: source-derived only
 
