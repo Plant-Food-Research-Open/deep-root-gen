@@ -260,6 +260,11 @@ The direct calls are exercised in the tests. No notebook server or kernel
 installation was added or qualified. If using existing notebook tooling,
 select this environment and set the working directory explicitly.
 
+For traceable notebook runs (saved input, resolved laws, model identities, git
+state and an append-only ledger), use
+`notebooks/grapevine_fichtl_2024/6_native_engine_tracked_runs.ipynb`; see
+[native execution](docs/NATIVE_EXECUTION.md#run-from-a-notebook-with-tracking).
+
 Node columns are node_id, plant_id, parent_id, organ_id, x, y, z, order,
 segment_rank, diameter, length, root_tissue_density, root_type, order_type,
 position_type, simulation_tag and invalid_root. Edge columns are parent_id and

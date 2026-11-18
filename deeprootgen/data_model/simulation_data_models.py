@@ -29,6 +29,48 @@ class Config:
     arbitrary_types_allowed = True
 
 
+# Top-level keys of versioned (schema 2/3) inputs and schema-3 feature names.
+# Flat parsing rejects them, and close misspellings of them, rather than
+# silently discarding a requested option block.
+VERSIONED_INPUT_KEYS = ("schema_version", "construction", "trajectory", "parameters", "features", "limits")
+FEATURE_NAMES = (
+    "curvature",
+    "taper",
+    "primary_origins",
+    "cohort_maturity",
+    "lengths",
+    "branching",
+    "parent_diameter_cap",
+    "attachment_relocation",
+)
+RESERVED_INPUT_KEYS = VERSIONED_INPUT_KEYS + FEATURE_NAMES
+
+
+def _reserved_variants():
+    variants = set()
+    for name in RESERVED_INPUT_KEYS:
+        stem = name[:-1] if name.endswith("s") else name
+        variants.update({name, stem, stem + "s"})
+    return variants
+
+
+def reserved_key_conflicts(keys, fields=()):
+    """Unknown keys naming a reserved block: case, separators and plural ignored.
+
+    Deterministic variants only (no fuzzy matching), so unrelated historical
+    keys keep their behaviour while ``Features``/``feature``/``limit`` fail.
+    """
+    variants = _reserved_variants()
+    conflicts = []
+    for key in keys:
+        if key in fields or not isinstance(key, str):
+            continue
+        normalized = key.strip().lower().replace("-", "_").replace(" ", "_")
+        if normalized in variants:
+            conflicts.append(key)
+    return sorted(conflicts)
+
+
 class RootType(Enum):
     STRUCTURAL = "structural"
     FINE = "fine"
@@ -227,6 +269,24 @@ class RootSimulationModel(BaseModel):
     fichtl_theta2_sd_deg: Optional[float] = Field(default=None, ge=0)
     fichtl_theta3_deg: Optional[float] = Field(default=None, ge=0, le=90)
     fichtl_theta3_sd_deg: Optional[float] = Field(default=None, ge=0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def reject_versioned_input_keys(cls, values):
+        """Flat parsing ignores unknown keys, so it must never see versioned ones.
+
+        Otherwise a requested option block (for example ``features``) would be
+        accepted and silently discarded. Other unknown keys keep their
+        historical behaviour.
+        """
+        if isinstance(values, dict):
+            reserved = reserved_key_conflicts(values, cls.model_fields)
+            if reserved:
+                raise ValueError(
+                    f"Flat simulation parameters cannot contain {reserved}; versioned inputs "
+                    "and feature blocks require parse_config with an explicit schema_version"
+                )
+        return values
 
     @model_validator(mode="before")
     @classmethod

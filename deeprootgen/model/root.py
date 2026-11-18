@@ -46,6 +46,7 @@ from ..utils.tropism import (
 )
 from .hgraph import RootNode, RootSystemGraph
 from .soil import Soil
+from .streams import RandomStreams
 
 
 class RootOrgan:
@@ -221,8 +222,21 @@ class RootOrgan:
 
         New nodes are inserted before edges are created, retaining existing
         RootSystemGraph parent/child rules. Each site is an endpoint of a
-        parent-organ segment, and is mapped to its new segment index.
+        parent-organ segment, and is mapped to its new segment index. A
+        replaced branching law supplies the sites; subdivision is shared.
         """
+        features = getattr(self, "feature_laws", None)
+        if features is not None and features.replaces_branching(self):
+            diameters = np.asarray(diameters, dtype=float)
+            lengths = np.asarray(lengths, dtype=float)
+            coordinates = np.asarray(coordinates, dtype=float)
+            polyline = np.vstack((np.zeros((1, 3)), coordinates))
+            original_lengths = np.linalg.norm(np.diff(polyline, axis=0), axis=1)
+            cumulative = np.r_[0.0, np.cumsum(original_lengths)]
+            sites = features.branch_sites(self, float(cumulative[-1]))
+            if not sites:
+                return diameters, lengths, coordinates, []
+            return RootOrgan._subdivide_at_sites(self, diameters, lengths, polyline, original_lengths, cumulative, sites)
         count_mode = getattr(self.input_parameters, COUNTS_FIELD, None) is not None
         n_requested = RootOrgan._requested_daughter_count(self)
         zone = getattr(self.input_parameters, "research_parent2_branch_zone_cm", None)
@@ -299,6 +313,10 @@ class RootOrgan:
             )
         if not sites:
             return diameters, lengths, coordinates, []
+        return RootOrgan._subdivide_at_sites(self, diameters, lengths, polyline, original_lengths, cumulative, sites)
+
+    def _subdivide_at_sites(self, diameters, lengths, polyline, original_lengths, cumulative, sites):
+        """Insert attachment cuts at arc-length sites; corners and material unchanged."""
         sites = np.asarray(sites, dtype=float)
         if sites.ndim != 1 or not np.all(np.isfinite(sites)):
             raise ValueError("sample_branch_sites must return finite arc lengths")
@@ -405,6 +423,10 @@ class RootOrgan:
         lengths = self.init_lengths(segments_per_root)
         if hasattr(self, "primary_design"):
             diameters, lengths = primary_dimensions(self.primary_design, lengths)
+        features = getattr(self, "feature_laws", None)
+        if features is not None:
+            replaced = features.replace_lengths(self, lengths)
+            lengths = features.scale_lengths(self, lengths if replaced is None else replaced)
         coordinates = self.init_segment_coordinates(segments_per_root, lengths)
         diameters, lengths, coordinates, attachments = self._prepare_branch_nodes(
             diameters, lengths, coordinates
@@ -455,8 +477,14 @@ class RootOrgan:
             self._construction_step_lengths_cm = lengths.copy()
         parent_order = parent_data.order
         diameters += parent_data.diameter * 0.1**parent_order
-        if self._current_length_cdf() is None:
+        features = getattr(self, "feature_laws", None)
+        replaced = None if features is None else features.replace_lengths(self, lengths)
+        if replaced is not None:
+            lengths = replaced
+        elif self._current_length_cdf() is None:
             lengths += parent_data.length * 0.1**parent_order
+        if features is not None:
+            lengths = features.scale_lengths(self, lengths)
         coordinates = self.init_segment_coordinates(segments_per_root, lengths)
 
         root_type_name = (
@@ -685,21 +713,13 @@ class RootSystemSimulation:
         self.organs: Dict[int, List[RootOrgan]] = {}
         self.simulation_tag = simulation_tag
         self.random_seed = random_seed
-        self.rng = default_rng(random_seed)
+        # One owner: native kernels draw from streams.native in historical order.
+        self.streams = RandomStreams(random_seed)
+        self.rng = self.streams.native
 
     def get_yaw(self, number_of_roots: int) -> tuple:
         yaw_base = 360 / number_of_roots
         return yaw_base, yaw_base * 0.05, yaw_base
-
-    def _realize_organs(self, tasks, realize):
-        """Own parent-before-child scheduling for extended construction policies.
-
-        A policy can enqueue daughters after realizing their parent's curve and
-        point material. Preconstructed native plans use the same ordered queue.
-        """
-        self._organ_queue = tasks
-        while tasks:
-            realize(tasks.popleft())
 
     def plot_hierarchical_graph(
         self,
@@ -863,14 +883,20 @@ class RootSystemSimulation:
         return fig
 
     def init_organs(
-        self, input_parameters: RootSimulationModel
+        self, input_parameters: RootSimulationModel, laws=None
     ) -> Dict[int, List[RootOrgan]]:
-        """Construct organs; daughters attach at sampled parent arc-length sites."""
+        """Construct organs; daughters attach at sampled parent arc-length sites.
+
+        ``laws`` (engine-supplied) replaces selected leaf laws: feature
+        lengths, point taper, branching, maturity and distributed origins.
+        """
         self._validate_primary_yaw_seed(input_parameters)
         primary_design = validate_primary_design_scope(input_parameters, getattr(self, "random_seed", None))
         self.organs = {
             order: [] for order in range(1, int(input_parameters.max_order) + 1)
         }
+        if laws is not None:
+            laws.begin(self)
         counts = validate_order_scope(input_parameters, getattr(self, "random_seed", None))
         quota_plans = {} if counts is None else {
             order: plan_child_quotas(input_parameters.random_seed, order + 1, counts[order], counts[order + 1])
@@ -883,33 +909,7 @@ class RootSystemSimulation:
                 child_quotas_by_parent_order={str(k): v for k, v in quota_plans.items()},
                 seed=input_parameters.random_seed,
             )
-        for position_type, n_roots in (
-            (RootType.OUTER.value, input_parameters.outer_root_num),
-            (RootType.INNER.value, input_parameters.inner_root_num),
-        ):
-            root_type = RootTypeModel(
-                root_type=RootType.STRUCTURAL.value,
-                order_type=RootType.PRIMARY.value,
-                position_type=position_type,
-            )
-            for _ in range(int(n_roots)):
-                organ = RootOrgan(
-                    self.G.base_node,
-                    input_parameters=input_parameters,
-                    root_type=root_type,
-                    simulation_tag=self.simulation_tag,
-                    rng=self.rng,
-                )
-                if counts is not None:
-                    organ._conditioned_child_quota = quota_plans[1][len(self.organs[1])]
-                if primary_design is not None:
-                    organ.primary_design = copy.deepcopy(primary_design[len(self.organs[1])])
-                organ.construct_root(
-                    input_parameters.segments_per_root,
-                    input_parameters.apex_diameter,
-                    input_parameters.root_tissue_density,
-                )
-                self.organs[1].append(organ)
+        self._init_primary_organs(input_parameters, laws, counts, quota_plans, primary_design)
 
         for order in range(2, int(input_parameters.max_order) + 1):
             for parent_organ in self.organs[order - 1]:
@@ -930,6 +930,8 @@ class RootSystemSimulation:
                         floor_threshold=input_parameters.floor_threshold,
                         ceiling_threshold=input_parameters.ceiling_threshold,
                     )
+                    if laws is not None:
+                        laws.assign_daughter(child, parent_organ)
                     if rank_plans is not None:
                         child._tertiary_length_plan = rank_plans[child_index]
                     if counts is not None:
@@ -940,6 +942,8 @@ class RootSystemSimulation:
                         input_parameters.segments_per_root,
                         input_parameters.apex_diameter,
                     )
+                    if laws is not None:
+                        laws.after_construction(child)
                     child_index += 1
         if counts is not None:
             realised = {str(k): len(v) for k, v in self.organs.items()}
@@ -947,6 +951,40 @@ class RootSystemSimulation:
                 raise ValueError("Count-conditioned construction did not realize supplied population totals")
             self.count_conditioning_diagnostics["realized_counts_by_order"] = realised
         return self.organs
+
+    def _init_primary_organs(self, input_parameters, laws, counts, quota_plans, primary_design):
+        """Outer then inner primaries, in birth order (one organ ID each)."""
+        for position_type, n_roots in (
+            (RootType.OUTER.value, input_parameters.outer_root_num),
+            (RootType.INNER.value, input_parameters.inner_root_num),
+        ):
+            root_type = RootTypeModel(
+                root_type=RootType.STRUCTURAL.value,
+                order_type=RootType.PRIMARY.value,
+                position_type=position_type,
+            )
+            for _ in range(int(n_roots)):
+                organ = RootOrgan(
+                    self.G.base_node if laws is None else laws.primary_parent(self, len(self.organs[1])),
+                    input_parameters=input_parameters,
+                    root_type=root_type,
+                    simulation_tag=self.simulation_tag,
+                    rng=self.rng,
+                )
+                if laws is not None:
+                    laws.assign_primary(organ, len(self.organs[1]), int(self.G.organ_id))
+                if counts is not None:
+                    organ._conditioned_child_quota = quota_plans[1][len(self.organs[1])]
+                if primary_design is not None:
+                    organ.primary_design = copy.deepcopy(primary_design[len(self.organs[1])])
+                organ.construct_root(
+                    input_parameters.segments_per_root,
+                    input_parameters.apex_diameter,
+                    input_parameters.root_tissue_density,
+                )
+                if laws is not None:
+                    laws.after_construction(organ)
+                self.organs[1].append(organ)
 
     def _validate_primary_yaw_seed(self, input_parameters: RootSimulationModel) -> None:
         if getattr(input_parameters, DESIGN_FIELD, None) is not None:
@@ -1177,9 +1215,17 @@ class RootSystemSimulation:
                 or "soil_surface_z_cm" not in getattr(input_parameters, "model_fields_set", set())
                 or getattr(input_parameters, "tropism_mode", "legacy") != "fichtl2024"):
             raise ValueError("Root-origin initialization requires explicit finite x/y/positive depth and surface in fichtl2024")
+        self.root_origin_diagnostics = self.translate_common_base(values[0], values[1], values[2], surface)
+
+    def translate_common_base(self, x_cm, y_cm, depth_cm, surface_z_cm):
+        """The one common-base origin law: rigid translation, no draw or rotation.
+
+        Shared by the historical research origin (whose old-input restrictions
+        are checked by its caller) and the schema-3 ``point`` origin layout.
+        """
         base = self.G.base_node.node_data
         old = np.array([base.x, base.y, base.z], dtype=float)
-        target = np.array([values[0], values[1], surface - values[2]], dtype=float)
+        target = np.array([x_cm, y_cm, surface_z_cm - depth_cm], dtype=float)
         nodes = self.G.nodes
         coordinates = np.array([[node.node_data.x, node.node_data.y, node.node_data.z] for node in nodes])
         if not np.isfinite(coordinates).all() or not np.isfinite(target).all():
@@ -1189,11 +1235,11 @@ class RootSystemSimulation:
             raise ValueError("Root-origin translation produced nonfinite coordinates")
         for node, xyz in zip(nodes, translated):
             node.node_data.x, node.node_data.y, node.node_data.z = xyz
-        self.root_origin_diagnostics = dict(
+        return dict(
             stage="after_primary_positioning_and_yaw_before_tropism",
             old_base_cm=old.tolist(), target_base_cm=target.tolist(),
-            delta_cm=(target - old).tolist(), soil_surface_z_cm=surface,
-            base_depth_cm=values[2], translated_node_count=len(nodes),
+            delta_cm=(target - old).tolist(), soil_surface_z_cm=surface_z_cm,
+            base_depth_cm=depth_cm, translated_node_count=len(nodes),
         )
 
     def apply_primary_yaw_initialization(self, input_parameters: RootSimulationModel) -> None:
@@ -1250,7 +1296,14 @@ class RootSystemSimulation:
         pitch: int = 45,
         orders=None,
         allow_reorient: bool = True,
+        check_only=None,
     ) -> None:
+        """Native validation; ``check_only`` organ IDs draw as usual but never repair.
+
+        Replaced direction laws own their axes, so a native repair must not
+        rotate them. Their historical draw is still consumed, keeping the
+        native sequential schedule unchanged.
+        """
         mode = getattr(input_parameters, "tropism_mode", "legacy")
         if mode == "fichtl2024" and not hasattr(self, "validation_diagnostics"):
             self.validation_diagnostics = []
@@ -1262,6 +1315,8 @@ class RootSystemSimulation:
                 if mode == "fichtl2024":
                     extra["enforce_downward_apex"] = False
                     extra["allow_reorient"] = allow_reorient
+                if check_only is not None and int(organ.segments[0].node_data.organ_id) in check_only:
+                    extra["allow_reorient"] = False
                 organ.validate(
                     (input_parameters.no_root_zone if mode == "legacy" else 0.0)
                     + getattr(input_parameters, "soil_surface_z_cm", 0.0),
@@ -1297,72 +1352,41 @@ class RootSystemSimulation:
             if getattr(primary, "validation_reorientations", 0) or primary.invalid_root:
                 raise ValueError("Primary validation changed or invalidated optional yaw/origin/inclination initialization")
 
-    def run(self, input_parameters: RootSimulationModel, *, initial_recorder=None) -> None:
-        from ..data_model.execution import RootSimulationConfig
-        if isinstance(input_parameters, RootSimulationConfig):
-            # Detach and revalidate: callers can mutate nested Pydantic objects.
-            input_parameters = RootSimulationConfig.model_validate(input_parameters.model_dump())
+    def run(self, input_parameters, *, initial_recorder=None) -> None:
+        """Parse, resolve and execute one fresh generation.
+
+        Accepts a validated model (flat, schema 2 or schema 3), a raw JSON
+        object, JSON text or a ``pathlib.Path``. Every native input, including
+        legacy flat parameters, runs through the same fixed engine lifecycle.
+        """
+        from ..data_model.resolution import resolve_config
+
+        resolved = resolve_config(input_parameters)
+        if resolved.source_schema == "flat":
+            if initial_recorder is not None:
+                raise ValueError('INITIAL recording requires extended construction-step execution')
+            if getattr(self, '_extended_run_started', False):
+                raise ValueError("Use a fresh simulator after an extended run")
+        else:
             if len(self.G.nodes) != 1 or self.organs or getattr(self, '_extended_run_started', False):
                 raise ValueError("Use a fresh simulator for each extended run")
-            if self.random_seed != input_parameters.random_seed:
+            if self.random_seed != resolved.seed:
                 raise ValueError("Simulator and execution random_seed must match")
             self._extended_run_started = True
             self.result = None
-            if initial_recorder is not None and input_parameters.trajectory != 'construction_steps_v1':
-                raise ValueError('INITIAL recording requires construction-step execution')
-            if input_parameters.trajectory == 'cohort_v5':
-                from .cohort import run_cohort
-                run_cohort(self, input_parameters)
-                self._check_extended_result()
-                return
-            if input_parameters.trajectory == 'construction_steps_v1':
-                from .execution import run_construction_steps
-                run_construction_steps(self, input_parameters, initial_recorder=initial_recorder)
-                self._check_extended_result()
-                return
-            self.simulation_tag = input_parameters.simulation_tag
-            self._run_native(input_parameters.construction.parameters)
-            from .execution import SimulationResult
-            self.result = SimulationResult(metadata=dict(
-                schema_version=2, execution='native', seed=input_parameters.random_seed,
-                requested_simulation_tag=input_parameters.simulation_tag,
-                tropism_mode=input_parameters.construction.parameters.tropism_mode,
-                biological_validation=False))
-            self._check_extended_result()
-            return
-        if initial_recorder is not None:
-            raise ValueError('INITIAL recording requires extended construction-step execution')
-        if getattr(self, '_extended_run_started', False):
-            raise ValueError("Use a fresh simulator after an extended run")
-        self._run_native(input_parameters)
-
-    def _run_native(self, input_parameters):
-        """Retain native call and random-draw ordering for flat compatibility."""
-        if (getattr(input_parameters, "research_current_length_grid", None) is not None
-                or getattr(input_parameters, "research_parent2_branch_zone_cm", None) is not None
-                or validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None))
-                or validate_distal_fraction(getattr(input_parameters, ATTACH_FIELD, None))):
-            raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native run is unsupported")
-        self._validate_primary_yaw_seed(input_parameters)
-        self.init_organs(input_parameters)
-        # self.grow(self, input_parameters)
-        self.position_secondary_roots(input_parameters)
-        self.position_primary_roots(input_parameters)
-        if getattr(input_parameters, "tropism_mode", "legacy") == "fichtl2024":
-            self.validate(input_parameters, pitch=60, orders=(1,))
-            self._check_optional_primary_validation(input_parameters)
-
-            self.apply_fichtl_tropism(input_parameters)
-            self.validate(
-                input_parameters,
-                pitch=60,
-                orders=range(2, input_parameters.max_order + 1),
-                allow_reorient=False,
-            )
-        else:
-            self.apply_gravitropism(input_parameters.gravitropism)
-            self.validate(input_parameters, pitch=60)
-            self._check_optional_primary_validation(input_parameters)
+            if initial_recorder is not None:
+                # A read-only view of a placed native scaffold: the historical
+                # construction-step contract, or schema-3 native construction.
+                if resolved.source_schema == "2" and not resolved.laws.writer.get("records"):
+                    raise ValueError('INITIAL recording requires construction-step execution')
+                if resolved.laws.construction != "native":
+                    raise ValueError("INITIAL recording requires native construction with a placed scaffold")
+            if resolved.simulator_tag is not None:
+                self.simulation_tag = resolved.simulator_tag
+        # One engine for every input; ``initial_recorder`` is a read-only view
+        # taken at the fixed INITIAL phase after scaffold placement.
+        from .engine import execute
+        execute(self, resolved, initial_recorder=initial_recorder)
 
     def _check_extended_result(self):
         from .integrity import validate_result
@@ -1372,13 +1396,23 @@ class RootSystemSimulation:
             self.result = None
             raise
 
-    def apply_fichtl_tropism(self, parameters: RootSimulationModel) -> None:
+    def apply_fichtl_tropism(
+        self, parameters: RootSimulationModel, *, scaffold=None, tangent_at=None, orders=None,
+        reset_diagnostics=True,
+    ) -> None:
         """Keep the generated primary scaffold; reconstruct attached lateral paths.
 
         Order 2 uses the gravity/plagiotropism mixture; order 3 uses gravity.
         Higher orders use explicit research direction assumptions.
         This is a static, optional kernel with explicit insertion/surface
         assumptions, not temporal CPlantBox growth or an exact 2024 replay.
+
+        ``scaffold`` supplies interval lengths captured before any direction
+        law ran; ``tangent_at(attachment_node, chord)`` returns the realized
+        parent tangent when the parent axis has a replaced law; ``orders``
+        realizes a subset so replaced orders can interleave parent-first, with
+        diagnostics accumulated unless ``reset_diagnostics``. All default to
+        the historical behaviour.
         """
         if (getattr(parameters, "research_current_length_grid", None) is not None
                 or getattr(parameters, "research_parent2_branch_zone_cm", None) is not None
@@ -1387,26 +1421,31 @@ class RootSystemSimulation:
             raise ValueError("Construction-step grid/tertiary rank requires named controlled replay; native tropism is unsupported")
         self._validate_primary_yaw_seed(parameters)
         row_kappas = getattr(parameters, "research_insertion_row_axial_kappa", None)
-        if row_kappas is not None:
+        if row_kappas is not None and (reset_diagnostics or not hasattr(self, "row_insertion_diagnostics")):
             self.row_insertion_diagnostics = []
         by_id = {n.node_data.node_id: n for n in self.G.nodes}
-        original = {
-            k: np.array([n.node_data.x, n.node_data.y, n.node_data.z])
-            for k, n in by_id.items()
-        }
+        original = (
+            {
+                k: np.array([n.node_data.x, n.node_data.y, n.node_data.z])
+                for k, n in by_id.items()
+            }
+            if scaffold is None
+            else scaffold
+        )
         lengths = {
             k: np.linalg.norm(v - original[by_id[k].node_data.parent_id])
             for k, v in original.items()
             if by_id[k].node_data.parent_id in original
         }
-        self.tropism_diagnostics = {
-            "segments": 0,
-            "downward": 0,
-            "surface_fallback": 0,
-            "rejected_surface": 0,
-            "by_order": {},
-        }
-        for order in range(2, parameters.max_order + 1):
+        if reset_diagnostics or not hasattr(self, "tropism_diagnostics"):
+            self.tropism_diagnostics = {
+                "segments": 0,
+                "downward": 0,
+                "surface_fallback": 0,
+                "rejected_surface": 0,
+                "by_order": {},
+            }
+        for order in (range(2, parameters.max_order + 1) if orders is None else orders):
             sigma, sigma_receipt = resolve_fichtl_sigma(
                 parameters.fichtl_sigma, order, getattr(parameters, "research_fichtl_sigma_by_order", None),
             )
@@ -1431,6 +1470,8 @@ class RootSystemSimulation:
                 position = np.array([parent.x, parent.y, parent.z])
                 gp = grandparent.node_data
                 tangent = position - np.array([gp.x, gp.y, gp.z])
+                if tangent_at is not None:
+                    tangent = tangent_at(organ.parent_node, tangent)
                 control = direction_controls(parameters, order)
                 mean, sd = control["theta_deg"], control["theta_sd_deg"]
                 heading = insertion_heading(tangent, mean, sd, self.rng)
@@ -1488,7 +1529,12 @@ class RootSystemSimulation:
                         self.tropism_diagnostics[name] += int(diagnostics[name])
                         by_order[name] += int(diagnostics[name])
 
-    def apply_gravitropism(self, gravitropism: float) -> None:
+    def apply_gravitropism(self, gravitropism: float, *, fixed=None) -> None:
+        """Legacy blend toward gravity; ``fixed`` node IDs belong to replaced laws.
+
+        A fixed node keeps its realized position; its native daughters blend
+        relative to it as they do relative to any parent.
+        """
         if not 0 <= gravitropism <= 1:
             raise ValueError("gravitropism must be between 0 and 1")
         if gravitropism == 0:
@@ -1509,7 +1555,7 @@ class RootSystemSimulation:
         for node in self.G.nodes:
             data = node.node_data
             node_id, parent_id = data.node_id, data.parent_id
-            if parent_id not in original:
+            if parent_id not in original or (fixed is not None and node_id in fixed):
                 updated[node_id] = original[node_id].copy()
                 continue
             displacement = original[node_id] - original[parent_id]

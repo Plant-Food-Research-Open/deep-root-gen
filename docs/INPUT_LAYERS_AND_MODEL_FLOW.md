@@ -1,5 +1,13 @@
 # How the input layers reach the model
 
+18 November update: every input (flat, schema 2 native, construction steps,
+cohort, schema 3) now runs through one fixed engine lifecycle in
+`deeprootgen/model/engine.py`, parsed and resolved by
+`deeprootgen/data_model/resolution.py`; the separate construction-step and cohort
+runners were removed. Schema 3 switches curvature, taper, origins, maturity,
+lengths, branching, capping and relocation independently; see
+[native execution](NATIVE_EXECUTION.md). Route diagrams below predate this.
+
 17 November integration update: [native execution and compatibility contracts](NATIVE_EXECUTION.md)
 now describe the supported engine. The route diagrams below retain the
 pre-consolidation source review; cohort generation and fresh SO4 construction-step
