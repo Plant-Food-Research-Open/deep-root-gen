@@ -98,3 +98,9 @@ adapters and sealed reference results.
 python scripts/migration/convert_input.py previous.json converted.schema4.json
 python -m deeprootgen simulate --config converted.schema4.json --explain-config
 ```
+
+### Random placement of related lateral roots
+
+For a curvature order with an insertion angle, set `sibling_sectors` to a window length in cm and the fraction of eligible sibling groups to stratify, for example `{"window_cm": 12, "fraction": 0.5}`. Each selected group receives a random angular offset and each daughter draws within its assigned sector. The insertion-angle distribution remains the one supplied for the order. A fraction of zero keeps the independent bearings.
+
+With the first-site and daughter-count branching law, `stratify_distal_sites: true` draws one distal attachment per equal arclength interval beyond the first site. A separate research tool, `scripts/research/realize_terminal_recruitment.py`, can retain fifth-order axes probabilistically as a function of their insertion depth. The complete vine can be sampled at any set of soil locations.

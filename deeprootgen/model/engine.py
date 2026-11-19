@@ -365,17 +365,23 @@ def _realize_native(state):
     first_native_lateral = True
     for order in range(1, int(p.max_order) + 1):
         if order in laws.direction:
-            for organ in sim.organs.get(order, []):
+            organs = sim.organs.get(order, [])
+            transverse = {}
+            law = laws.direction[order]
+            if "sibling_sectors" in law:
+                from .sibling_placement import sibling_directions
+
+                transverse = sibling_directions(state, organs, law["sibling_sectors"])
+            for organ in organs:
                 if organ.invalid_root:
                     # A scaffold invalidated by a native pre-direction correction
                     # stays native and invalid, exactly as the native laws treat it.
                     skipped.append(organ_id(organ))
                     continue
-                law = laws.direction[order]
                 if law["law"] == "construction_step_intervals":
                     curve = _realize_construction_curve(state, organ, law)
                 else:
-                    curve = _realize_native_curve(state, organ, law, tangent_at)
+                    curve = _realize_native_curve(state, organ, law, tangent_at, transverse.get(organ_id(organ)))
                 if law["law"] != "construction_step_intervals":
                     _place_construction_points(organ, curve)
                 state.curves[organ_id(organ)] = curve
@@ -437,7 +443,7 @@ def _realize_construction_curve(state, organ, law):
     return AxisCurve(organ_id(organ), stations, points, arcs, dict(law), receipt)
 
 
-def _realize_native_curve(state, organ, law, tangent_at):
+def _realize_native_curve(state, organ, law, tangent_at, transverse=None):
     """Curvature on a natively constructed axis, from its realized attachment."""
     from ..utils.tropism import insertion_heading, row_axial_insertion_heading
     from .axis_laws import realize_correlated_curvature
@@ -452,6 +458,10 @@ def _realize_native_curve(state, organ, law, tangent_at):
         oid = organ_id(organ)
         heading = insertion_heading(tangent, law["insertion_mean_deg"], law["insertion_sd_deg"],
                                     law_stream(state.streams, state.laws.streams, "insertion", oid))
+        if transverse is not None:
+            axis = tangent / np.linalg.norm(tangent)
+            cosine = np.clip(heading @ axis, -1., 1.)
+            heading = cosine * axis + np.sqrt(max(0., 1. - cosine**2)) * transverse
         axial_receipt = None
         if "row_axial_kappa" in law:
             order = int(parent.node_data.order) + 1
@@ -460,6 +470,8 @@ def _realize_native_curve(state, organ, law, tangent_at):
             )
         curve = realize_correlated_curvature(organ, law, state.streams, start=position, heading=heading,
                                              reserve_stations=state.budget.reserve)
+        if transverse is not None:
+            curve.receipt["sibling_sector_applied"] = True
         if axial_receipt is not None:
             curve.receipt["row_axial_insertion"] = axial_receipt
         return curve

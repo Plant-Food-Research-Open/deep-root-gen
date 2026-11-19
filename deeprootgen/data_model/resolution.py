@@ -579,6 +579,11 @@ def _resolve_curvature(settings, p):
             first_interval=law.first_interval, initial_heading=heading,
             surface_z_cm=float(p.soil_surface_z_cm), stream_namespace=CURVATURE_STREAM_NAMESPACE,
         )
+        if law.sibling_sectors is not None:
+            if heading != "insertion_angle":
+                raise ValueError("sibling_sectors requires lateral insertion_angle")
+            if law.sibling_sectors.fraction:
+                entry["sibling_sectors"] = law.sibling_sectors.model_dump()
         if heading == "insertion_angle":
             entry["insertion_mean_deg"] = _number(law.insertion_mean_deg, f"curvature[{key}].insertion_mean_deg", 0, 90)
             entry["insertion_sd_deg"] = _number(law.insertion_sd_deg, f"curvature[{key}].insertion_sd_deg", 0)
@@ -646,6 +651,8 @@ def _resolve_branching(settings, p):
             law=law.law, first_branch_cm=_distribution(law.first_branch_cm, f"branching[{order}].first_branch_cm"),
             branch_probability=probability, daughter_probabilities=list(weights),
         )
+        if law.stratify_distal_sites:
+            laws[order]["stratify_distal_sites"] = True
     return laws
 
 

@@ -51,7 +51,11 @@ def first_branch_sites(law, order, max_order, length, maturity, scale_probabilit
             n = int(rng.choice(np.arange(1, len(weights) + 1), p=weights))
             sites = [first_draw]
             if n > 1:
-                sites += sorted(rng.uniform(first_draw, length, n - 1).tolist())
+                if law.get("stratify_distal_sites"):
+                    fractions = (np.arange(n - 1) + rng.random(n - 1)) / (n - 1)
+                    sites.extend((first_draw + (length - first_draw) * fractions).tolist())
+                else:
+                    sites += sorted(rng.uniform(first_draw, length, n - 1).tolist())
         else:
             counters["branch_beyond_tip"] += 1
     return first_draw, sites
