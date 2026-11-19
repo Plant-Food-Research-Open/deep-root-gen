@@ -104,3 +104,59 @@ python -m deeprootgen simulate --config converted.schema4.json --explain-config
 For a curvature order with an insertion angle, set `sibling_sectors` to a window length in cm and the fraction of eligible sibling groups to stratify, for example `{"window_cm": 12, "fraction": 0.5}`. Each selected group receives a random angular offset and each daughter draws within its assigned sector. The insertion-angle distribution remains the one supplied for the order. A fraction of zero keeps the independent bearings.
 
 With the first-site and daughter-count branching law, `stratify_distal_sites: true` draws one distal attachment per equal arclength interval beyond the first site. A separate research tool, `scripts/research/realize_terminal_recruitment.py`, can retain fifth-order axes probabilistically as a function of their insertion depth. The complete vine can be sampled at any set of soil locations.
+
+### Growing a neighbourhood of vines
+
+Use the offline Python generator to compare translated copies of a focal vine
+with vines grown from independent seeds. Supply crown offsets in centimetres
+in the model's x/y frame, including the focal position (0, 0) exactly once.
+Here the distances and configuration are synthetic.
+
+```python
+import json
+from pathlib import Path
+from deeprootgen.research.neighbourhood import generate_neighbourhood
+
+config = json.loads(Path("examples/synthetic_minimal.json").read_text())
+origins = [(x, y) for x in (-180, 0, 180) for y in (-140, 0, 140)]
+translated = generate_neighbourhood(config, origins)
+independent = generate_neighbourhood(config, origins, mode="independent")
+```
+
+The translated mode grows the focal vine once. Independent mode uses the same
+focal realization and grows a new vine for each other position under the same
+parameters. Generation precedes translation. Each result has node and edge
+tables with globally unique node IDs, plus a plant table with offsets, seeds
+and single-vine run identities. Identify the focal plant by its zero offsets.
+The single-vine generation API continues to produce one vine. The neighbourhood
+wrapper represents overlapping root systems grown without plant competition.
+
+For a comparison, keep origins, rotations, physical core volumes and diameter
+filters identical. Measure root length density (RLD) by summing intercepted
+length across plants and dividing once by the volume of each core. Keep the
+focal contribution as a separate output. The finite-cylinder observation API
+accepts root-only node and edge tables and can report a row per plant. Where
+the growth configuration includes crown support or a tapered-axis observation
+model, retain the matching root projection and observer for both arms.
+See the [finite-core method](research/FINITE_CORE_RESEARCH.md).
+
+Review how often a section is empty, how much RLD a positive section contains,
+and how often every section in a whole core is empty. A shift in mean RLD on
+a small panel can reflect the vines drawn for the neighbours. A balanced
+check can isolate spatial overlap: within a set of nine generated vines, let
+each vine occupy each of the nine positions exactly once across nine different
+layouts, then compare with the nine all-copy layouts. The pooled mean is equal
+by construction, while occupancy and the amount conditional on a hit can vary.
+Treat all layouts reusing the same nine vines as one block for uncertainty.
+
+The offline CLI also accepts the layout as a JSON array of coordinate pairs:
+
+```bash
+python -m deeprootgen neighbourhood --config examples/synthetic_minimal.json \
+  --origins offsets_cm.json --mode independent --outdir independent-vines
+```
+
+The new directory contains the node and edge tables, the plant seed map, both
+input documents and a manifest. Omit `--mode` for the translated comparison.
+See the [placement experiment options](research/PLACEMENT_EXPERIMENT_OPTIONS.md)
+for review questions and tests that separate placement from total root length.
