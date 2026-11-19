@@ -1,6 +1,8 @@
 """Synthetic checks for random angular and arclength stratification."""
 
+import json
 from copy import deepcopy
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -8,8 +10,6 @@ import pytest
 
 from deeprootgen.data_model import resolve_config
 from deeprootgen.model.sibling_placement import sector_bearings, transported_normals
-import json
-from pathlib import Path
 from deeprootgen.model import RootSystemSimulation
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
@@ -146,3 +146,17 @@ def test_terminal_recruitment_preserves_parents_and_uses_birth_depth():
     reverse = retained_terminals(orders[::-1], ids[::-1], depths[::-1], 981, 0.4, 30.0)
     np.testing.assert_array_equal(keep, reverse[::-1])
     assert retained_terminals(orders, ids, depths, 981, 1.0, 30.0).all()
+
+
+def test_sector_and_row_bearing_controls_on_one_order():
+    config = siblings()
+    curvature = config["features"]["curvature"]["settings"]["by_order"]["3"]
+    curvature["sibling_sectors"] = {"window_cm": 12.0, "fraction": 1.0}
+    config["features"]["insertion"] = {
+        "enabled": True,
+        "settings": {"row_axial_kappa_by_order": {"3": 4.0}},
+    }
+    with pytest.raises(ValueError, match="both set the bearing"):
+        resolve_config(config)
+    curvature["sibling_sectors"]["fraction"] = 0.0
+    resolve_config(config)
