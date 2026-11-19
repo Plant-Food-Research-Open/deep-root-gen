@@ -80,6 +80,8 @@ def _export(spec, outdir, resolve_config, canonical_input, simulation_class):
                 json.dumps(result.metadata["root_summary"], indent=2, allow_nan=False) + "\n"
             )
         result.organ_table.to_csv(target / "organs.csv", index=False)
+        if "irrigation" in result.diagnostics:
+            (target / "irrigation.json").write_text(json.dumps(result.diagnostics["irrigation"], allow_nan=False) + "\n")
         if not result.node_metadata.empty:
             result.node_metadata.to_csv(target / "node_metadata.csv", index=False)
         (target / "execution.json").write_text(
@@ -148,7 +150,22 @@ def _main(argv, run_config, explain=None):
         action="store_true",
         help="print the resolved laws, inactive values and hashes, then exit without running",
     )
+    group = commands.add_parser("neighbourhood", help="grow vines at supplied horizontal offsets")
+    group.add_argument("--config", type=Path, required=True, help="seeded model parameter JSON")
+    group.add_argument("--origins", type=Path, help="JSON array of [x_cm, y_cm] offsets")
+    group.add_argument("--vine-distance-cm", type=float, help="distance along a row")
+    group.add_argument("--row-distance-cm", type=float, help="distance between rows")
+    group.add_argument("--mode", choices=("translated", "independent"), default="translated")
+    group.add_argument("--outdir", type=Path, required=True, help="new graph export directory")
     args = parser.parse_args(argv)
+    if args.command == "neighbourhood":
+        from .research.neighbourhood import export_neighbourhood
+        try:
+            receipt = export_neighbourhood(args.config, args.origins, args.mode, args.outdir, vine_distance_cm=args.vine_distance_cm, row_distance_cm=args.row_distance_cm)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.exit(1, f"Neighbourhood generation failed: {exc}\n")
+        print(json.dumps(receipt, indent=2))
+        return 0
     if not args.explain_config and args.outdir is None:
         parser.error("--outdir is required unless --explain-config is given")
     try:

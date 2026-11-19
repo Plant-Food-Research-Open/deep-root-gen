@@ -1,0 +1,311 @@
+{
+  "schema_version": 4,
+  "random_seed": 42,
+  "simulation_tag": "synthetic-surface-strip",
+  "parameters": {
+    "max_order": 5,
+    "root_tissue_density": 0.3,
+    "tropism_mode": "legacy",
+    "soil_surface_z_cm": 0.0,
+    "primary_root_count": 3,
+    "outer_primary_fraction": 0.6666666666666666,
+    "min_branching_diameter_cm": 0.0,
+    "threshold_root_diameter_cm": 0.25
+  },
+  "features": {
+    "lengths": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "bounded_lognormal",
+            "mean": 10.0,
+            "sd": 0.0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "2": {
+            "law": "bounded_lognormal",
+            "mean": 10.0,
+            "sd": 0.0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "3": {
+            "law": "bounded_lognormal",
+            "mean": 10.0,
+            "sd": 0.0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "4": {
+            "law": "bounded_lognormal",
+            "mean": 10.0,
+            "sd": 0.0,
+            "min": 10.0,
+            "max": 10.0
+          },
+          "5": {
+            "law": "bounded_lognormal",
+            "mean": 10.0,
+            "sd": 0.0,
+            "min": 10.0,
+            "max": 10.0
+          }
+        }
+      }
+    },
+    "taper": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": 0.3,
+            "tip_cm": 0.25,
+            "midpoint_diameter_fraction": 0.5
+          },
+          "2": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": 0.3,
+            "tip_cm": 0.25,
+            "midpoint_diameter_fraction": 0.5
+          },
+          "3": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": 0.3,
+            "tip_cm": 0.25,
+            "midpoint_diameter_fraction": 0.5
+          },
+          "4": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": 0.3,
+            "tip_cm": 0.25,
+            "midpoint_diameter_fraction": 0.5
+          },
+          "5": {
+            "law": "piecewise_linear_arclength",
+            "base_cm": 0.3,
+            "tip_cm": 0.25,
+            "midpoint_diameter_fraction": 0.5
+          }
+        }
+      }
+    },
+    "branching": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "2": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "4": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              0,
+              0,
+              1
+            ]
+          },
+          "5": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 4.0,
+              "sd": 0.0,
+              "min": 4.0,
+              "max": 4.0
+            },
+            "branch_probability": 1.0,
+            "daughter_probabilities": [
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "curvature": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "origin_heading"
+          },
+          "2": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          },
+          "3": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          },
+          "4": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          },
+          "5": {
+            "law": "correlated_curvature",
+            "step_cm": 3.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 40.0,
+            "insertion_sd_deg": 5.0
+          }
+        }
+      }
+    },
+    "primary_origins": {
+      "enabled": true,
+      "settings": {
+        "layout": "disk",
+        "radius_cm": 1.0,
+        "depth_range_cm": [
+          5.0,
+          8.0
+        ],
+        "heading": {
+          "law": "radial_inclination",
+          "inclination_mean_deg": 30.0,
+          "inclination_sd_deg": 10.0,
+          "inclination_bounds_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      }
+    },
+    "cohort_maturity": {
+      "enabled": true,
+      "settings": {
+        "groups": [
+          {
+            "label": "A",
+            "primary_indices": [
+              0,
+              1
+            ],
+            "maturity_range": [
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "label": "B",
+            "primary_indices": [
+              2
+            ],
+            "maturity_range": [
+              0.3,
+              0.6
+            ]
+          }
+        ],
+        "length_power": 0.5,
+        "diameter_power": 0.5,
+        "scale_branch_probability": true,
+        "diameter_target": "base_anchor"
+      }
+    },
+    "parent_diameter_cap": {
+      "enabled": false,
+      "settings": {
+        "fraction_max": 0.8
+      }
+    },
+    "direction": {
+      "enabled": true,
+      "settings": {
+        "post_correction": "pure_surface_check"
+      }
+    }
+  },
+  "limits": {
+    "max_organs": 100
+  },
+  "irrigation": {
+    "treatment": "surface_drip",
+    "irrigation_depth_cm": 0.0,
+    "line_offsets_cm": [
+      0.0
+    ],
+    "across_radius_cm": 35.0,
+    "peak_multiplier": 2.0
+  }
+}
