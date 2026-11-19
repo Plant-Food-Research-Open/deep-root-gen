@@ -1,5 +1,12 @@
 # Active Calvin population research
 
+## Site 1 notebook teaching
+
+The [teaching plan](CALVIN_MODEL_TEACHING_PLAN.md) covers JupyterLab, a runnable
+synthetic lesson and the settings to optimize in the
+[Site 1 RLD and biomass notebook](../../notebooks/grapevine_root_architecture/calvin_site1_rld_mass_search.ipynb).
+The field notebook reads the locally prepared Site 1 study bundle.
+
 ## Current review entrypoint (16 November 2026)
 
 Use the public [model review guide](../MODEL_REVIEW_GUIDE.md) for constructor
