@@ -22,3 +22,7 @@ Compare dry tissue density assumptions on fixed geometry when assessing
 biomass. Root recovery and species assignment can also affect the measured
 response. Replicated recovery samples and a blinded review of shallow and deep
 fragments would help quantify those effects.
+
+The [executed synthetic notebook](../../notebooks/grapevine_root_architecture/neighbourhood_comparison.ipynb)
+shows the paired comparison, focal and neighbour decomposition, and where
+collaborators can find the measured comparison in their local notebook archive.
