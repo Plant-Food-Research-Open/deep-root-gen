@@ -160,3 +160,5 @@ The new directory contains the node and edge tables, the plant seed map, both
 input documents and a manifest. Omit `--mode` for the translated comparison.
 See the [placement experiment options](research/PLACEMENT_EXPERIMENT_OPTIONS.md)
 for review questions and tests that separate placement from total root length.
+
+[Configure irrigation depth, daughter recruitment and vineyard spacing](research/IRRIGATION_INPUTS.md)

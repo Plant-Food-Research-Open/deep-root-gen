@@ -2,9 +2,10 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, RootModel, Tag
 
 from .features import (
+    BranchingFeature, BranchingOrder, BranchingSettings, Limits, STRICT,
     Distribution,
     Features,
     LengthsFeature,
@@ -108,7 +109,45 @@ class CanonicalLengths(LengthsFeature):
     settings: CanonicalLengthsSettings = Field(default_factory=CanonicalLengthsSettings)
 
 
+class LengthPoissonSites(BaseModel):
+    model_config = STRICT
+
+    law: Literal["length_poisson_sites_v1"]
+    basal_exclusion_cm: PositiveCm
+    apical_exclusion_cm: PositiveCm
+    mean_spacing_cm: PositiveCm
+    branch_probability: Annotated[float, Field(ge=0, le=1)]
+
+
+def _branching_law(value):
+    law = value.get("law") if isinstance(value, dict) else getattr(value, "law", None)
+    # Existing dormant blocks can preserve an incomplete first-site law.
+    if law is None:
+        return "first_branch_and_daughter_count"
+    return law if isinstance(law, str) else "invalid"
+
+
+CanonicalBranchingOrder = Annotated[
+    Annotated[BranchingOrder, Tag("first_branch_and_daughter_count")]
+    | Annotated[LengthPoissonSites, Tag("length_poisson_sites_v1")],
+    Discriminator(_branching_law),
+]
+
+
+class CanonicalBranchingSettings(BranchingSettings):
+    by_order: dict[str, CanonicalBranchingOrder] = Field(default_factory=dict)
+
+
+class CanonicalBranching(BranchingFeature):
+    settings: CanonicalBranchingSettings = Field(default_factory=CanonicalBranchingSettings)
+
+
+class CanonicalLimits(Limits):
+    max_branch_proposals: Annotated[int, Field(gt=0)] | None = None
+
+
 class CanonicalFeatures(Features):
+    branching: CanonicalBranching = Field(default_factory=CanonicalBranching)
     taper: PointTaperFeature = Field(default_factory=PointTaperFeature)
     lengths: CanonicalLengths = Field(default_factory=CanonicalLengths)
 
