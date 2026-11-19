@@ -1,5 +1,7 @@
 """Fail before allocating native organs, curve stations and output nodes."""
 
+DEFAULT_MAX_BRANCH_PROPOSALS = 100_000
+
 
 class AllocationBudget:
     def __init__(self, limits):
@@ -21,3 +23,13 @@ class AllocationBudget:
         limit = self.limits.get("max_nodes")
         if limit is not None and count > limit:
             raise ValueError(f"Node limit exceeded ({count} > {limit})")
+
+    def reserve_branch_proposals(self, count, existing_nodes, intervals, parent_id):
+        """Budget the full Poisson draw before allocating its position or cut arrays."""
+        limit = self.limits.get("max_branch_proposals", DEFAULT_MAX_BRANCH_PROPOSALS)
+        used = self.used.get("branch_proposals", 0)
+        if count + used > limit:
+            raise ValueError(f"Branch proposal limit exceeded on parent {parent_id}: "
+                             f"{count} proposals, {limit - used} remaining; proposals are never truncated")
+        self.check_nodes(existing_nodes + intervals + count)
+        self.used["branch_proposals"] = used + count

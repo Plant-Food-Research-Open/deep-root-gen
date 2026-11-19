@@ -66,7 +66,41 @@ class NeighbourhoodGraph:
     plants: "pd.DataFrame"
 
 
-def generate_neighbourhood(config, origins_cm, mode="translated") -> NeighbourhoodGraph:
+def vineyard_origins(vine_distance_cm, row_distance_cm):
+    """One ring of crowns. X is across rows and Y is along each row."""
+    for value in (vine_distance_cm, row_distance_cm):
+        if (
+            isinstance(value, (bool, np.bool_))
+            or not isinstance(value, (int, float, np.integer, np.floating))
+            or not np.isfinite(value)
+            or value <= 0
+        ):
+            raise ValueError(
+                "vine_distance_cm and row_distance_cm must be positive finite distances"
+            )
+    return [
+        (float(i * row_distance_cm), float(j * vine_distance_cm))
+        for i in (-1, 0, 1)
+        for j in (-1, 0, 1)
+    ]
+
+
+def layout_origins(origins_cm, vine_distance_cm, row_distance_cm):
+    if origins_cm is None:
+        return vineyard_origins(vine_distance_cm, row_distance_cm)
+    if vine_distance_cm is not None or row_distance_cm is not None:
+        raise ValueError("Supply explicit origins or both spacing distances")
+    return origins_cm
+
+
+def generate_neighbourhood(
+    config,
+    origins_cm=None,
+    mode="translated",
+    *,
+    vine_distance_cm=None,
+    row_distance_cm=None,
+) -> NeighbourhoodGraph:
     """Grow a focal vine and place translated copies or independent vines around it.
 
     Accepts a seeded native configuration through the standard parser. All
@@ -77,14 +111,20 @@ def generate_neighbourhood(config, origins_cm, mode="translated") -> Neighbourho
     from deeprootgen.model import RootSystemSimulation
 
     document = parse_config(config)
+    origins_cm = layout_origins(origins_cm, vine_distance_cm, row_distance_cm)
     plan = neighbourhood_plan(origins_cm, document.random_seed, mode)
 
-    def grow(seed):
+    active = document.irrigation is not None and document.irrigation.peak_multiplier > 1
+
+    def grow(seed, x=0.0, y=0.0):
         simulation = RootSystemSimulation(
             random_seed=seed, simulation_tag=document.simulation_tag
         )
         supplied = document.model_dump(mode="json", exclude_unset=True)
         supplied["random_seed"] = seed
+        if active:
+            supplied["irrigation"]["origin_x_cm"] = document.irrigation.origin_x_cm + x
+            supplied["irrigation"]["origin_y_cm"] = document.irrigation.origin_y_cm + y
         simulation.run(supplied)
         nodes, edges = simulation.G.as_df()
         return nodes, edges, simulation.result.metadata["run_identity_sha256"]
@@ -94,7 +134,10 @@ def generate_neighbourhood(config, origins_cm, mode="translated") -> Neighbourho
     node_offset = organ_offset = 0
     for plant_id, site in enumerate(plan):
         nodes, edges, identity = (
-            template if site.seed == document.random_seed else grow(site.seed)
+            template
+            if site.seed == document.random_seed
+            and (not active or (site.x_cm, site.y_cm) == (0.0, 0.0))
+            else grow(site.seed, site.x_cm, site.y_cm)
         )
         if nodes.plant_id.nunique() != 1:
             raise ValueError("Each input realization must describe a single vine")
@@ -103,8 +146,17 @@ def generate_neighbourhood(config, origins_cm, mode="translated") -> Neighbourho
         placed["node_id"] += node_offset
         placed.loc[placed.parent_id >= 0, "parent_id"] += node_offset
         placed["organ_id"] += organ_offset
-        placed["x"] += site.x_cm
-        placed["y"] += site.y_cm
+        if document.irrigation is not None:
+            placed["x"] *= document.irrigation.reflect_x
+            placed["y"] *= document.irrigation.reflect_y
+        origin_x = site.x_cm + (
+            document.irrigation.origin_x_cm if document.irrigation else 0.0
+        )
+        origin_y = site.y_cm + (
+            document.irrigation.origin_y_cm if document.irrigation else 0.0
+        )
+        placed["x"] += origin_x
+        placed["y"] += origin_y
         links = (
             edges.reindex(columns=["parent_id", "child_id"]).astype("int64")
             + node_offset
@@ -112,8 +164,8 @@ def generate_neighbourhood(config, origins_cm, mode="translated") -> Neighbourho
         plants.append(
             dict(
                 plant_id=plant_id,
-                x_cm=site.x_cm,
-                y_cm=site.y_cm,
+                x_cm=origin_x,
+                y_cm=origin_y,
                 seed=site.seed,
                 run_identity_sha256=identity,
                 node_id_offset=node_offset,
@@ -131,7 +183,15 @@ def generate_neighbourhood(config, origins_cm, mode="translated") -> Neighbourho
     )
 
 
-def export_neighbourhood(config_path, origins_path, mode, outdir):
+def export_neighbourhood(
+    config_path,
+    origins_path,
+    mode,
+    outdir,
+    *,
+    vine_distance_cm=None,
+    row_distance_cm=None,
+):
     """Write the graph, seed map and replay inputs into a new directory."""
     import json
     import os
@@ -143,7 +203,15 @@ def export_neighbourhood(config_path, origins_path, mode, outdir):
     target = Path(outdir).resolve()
     if target.exists():
         raise FileExistsError(f"Output directory already exists: {target}")
-    origins = json.loads(Path(origins_path).read_text())
+    origins = layout_origins(
+        (
+            json.loads(Path(origins_path).read_text())
+            if origins_path is not None
+            else None
+        ),
+        vine_distance_cm,
+        row_distance_cm,
+    )
     config = load_json_config(Path(config_path))
     graph = generate_neighbourhood(config, origins, mode)
     receipt = dict(
@@ -154,6 +222,10 @@ def export_neighbourhood(config_path, origins_path, mode, outdir):
         node_count=len(graph.nodes),
         edge_count=len(graph.edges),
     )
+    if vine_distance_cm is not None:
+        receipt.update(
+            vine_distance_cm=vine_distance_cm, row_distance_cm=row_distance_cm
+        )
     target.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=target.parent) as tmp:
         stage = Path(tmp) / "export"

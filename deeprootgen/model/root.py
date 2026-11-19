@@ -260,7 +260,7 @@ class RootOrgan:
             polyline = np.vstack((np.zeros((1, 3)), coordinates))
             original_lengths = np.linalg.norm(np.diff(polyline, axis=0), axis=1)
             cumulative = np.r_[0.0, np.cumsum(original_lengths)]
-            sites = features.branch_sites(self, float(cumulative[-1]))
+            sites = features.branch_sites(self, float(cumulative[-1]), len(original_lengths))
             if not sites:
                 return diameters, lengths, coordinates, []
             return RootOrgan._subdivide_at_sites(self, diameters, lengths, polyline, original_lengths, cumulative, sites)

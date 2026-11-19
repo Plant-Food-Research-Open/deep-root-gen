@@ -27,6 +27,7 @@ Declared semantics (also recorded in the resolved description):
 
 import numpy as np
 
+from .branching_laws import LENGTH_POISSON_LAW, length_poisson_sites
 from .cohort_geometry import bounded_draw
 from .laws import disk_origin, first_branch_sites, law_stream, point_taper_dimensions, primary_maturity, radial_inclination
 from .materialize import EmittedInterval, fine_by_equivalent_diameter
@@ -129,17 +130,47 @@ class NativeFeatureLaws:
 
     def filter_branch_sites(self, organ):
         from .branch_eligibility import filter_branch_sites
-        filter_branch_sites(self.state, organ)
 
-    def branch_sites(self, organ, total_length):
+        candidates = len(organ.lateral_attachment_nodes)
+        filter_branch_sites(self.state, organ)
+        if self.state.resolved.source_schema == "4":
+            organ.plan["placed_sites"] = candidates
+            organ.plan["diameter_rejections"] = candidates - len(organ.lateral_attachment_nodes)
+            if "length_poisson" in organ.plan:
+                first = None
+                if organ.lateral_attachment_nodes:
+                    index = organ.segments.index(organ.lateral_attachment_nodes[0])
+                    first = float(np.cumsum(organ.get_lengths())[index])
+                organ.plan["length_poisson"]["first_accepted_site_cm"] = first
+
+    def branch_sites(self, organ, total_length, intervals):
         order = _organ_order(organ)
         expected = int(organ.parent_node.G.organ_id)
+        law = self.laws.branching[order]
+        if law["law"] == LENGTH_POISSON_LAW:
+            graph = organ.parent_node.G
+            sites, receipt = length_poisson_sites(
+                law, total_length,
+                lambda: self.state.streams.keyed(law["stream_namespace"], law["version"], expected),
+                lambda count: self.state.budget.reserve_branch_proposals(count, len(graph.nodes), intervals, expected),
+            )
+            organ.plan["length_poisson"] = receipt
+            return sites
         scale = self.laws.maturity is not None and self.laws.maturity["scale_branch_probability"]
+        beyond_tip = self.state.law_counters["branch_beyond_tip"]
         first, sites = first_branch_sites(
-            self.laws.branching[order], order, self.max_order, total_length, organ.plan["maturity"], scale,
+            law, order, self.max_order, total_length, organ.plan["maturity"], scale,
             self.stream("branching", expected), self.state.law_counters,
         )
         organ.plan.update(first_draw=first, sites=list(sites))
+        if self.state.resolved.source_schema == "4":
+            if sites:
+                decision = "proposed"
+            elif self.state.law_counters["branch_beyond_tip"] > beyond_tip:
+                decision = "first_site_at_or_beyond_tip"
+            else:
+                decision = "bernoulli_rejected"
+            organ.plan["branch_decision"] = decision
         return sites
 
     # -- material ----------------------------------------------------------

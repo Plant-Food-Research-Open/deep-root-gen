@@ -336,6 +336,22 @@ def _place_construction_points(organ, curve):
         node.node_data.x, node.node_data.y, node.node_data.z = (float(v) for v in xyz)
 
 
+def _irrigated_directions(state, order, organs, law, transverse):
+    zone = getattr(state.resolved.config, "irrigation", None)
+    if zone is None or zone.peak_multiplier == 1 or order != zone.parent_order + 1:
+        return transverse
+    from .irrigation_branching import recruit_terminals
+    from .sibling_placement import sibling_directions
+
+    before = len(organs)
+    recruit_terminals(state, zone)
+    if "sibling_sectors" in law:
+        if zone.response == "redistribute":
+            return sibling_directions(state, organs, law["sibling_sectors"])
+        transverse.update(sibling_directions(state, organs[before:], law["sibling_sectors"]))
+    return transverse
+
+
 def _realize_native(state):
     sim, p, laws = state.simulation, state.parameters, state.laws
     replaced = state.replaced_organs()
@@ -372,6 +388,7 @@ def _realize_native(state):
                 from .sibling_placement import sibling_directions
 
                 transverse = sibling_directions(state, organs, law["sibling_sectors"])
+            transverse = _irrigated_directions(state, order, organs, law, transverse)
             for organ in organs:
                 if organ.invalid_root:
                     # A scaffold invalidated by a native pre-direction correction
