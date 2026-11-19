@@ -148,7 +148,20 @@ def _main(argv, run_config, explain=None):
         action="store_true",
         help="print the resolved laws, inactive values and hashes, then exit without running",
     )
+    group = commands.add_parser("neighbourhood", help="grow vines at supplied horizontal offsets")
+    group.add_argument("--config", type=Path, required=True, help="seeded model parameter JSON")
+    group.add_argument("--origins", type=Path, required=True, help="JSON array of [x_cm, y_cm] offsets")
+    group.add_argument("--mode", choices=("translated", "independent"), default="translated")
+    group.add_argument("--outdir", type=Path, required=True, help="new graph export directory")
     args = parser.parse_args(argv)
+    if args.command == "neighbourhood":
+        from .research.neighbourhood import export_neighbourhood
+        try:
+            receipt = export_neighbourhood(args.config, args.origins, args.mode, args.outdir)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.exit(1, f"Neighbourhood generation failed: {exc}\n")
+        print(json.dumps(receipt, indent=2))
+        return 0
     if not args.explain_config and args.outdir is None:
         parser.error("--outdir is required unless --explain-config is given")
     try:
