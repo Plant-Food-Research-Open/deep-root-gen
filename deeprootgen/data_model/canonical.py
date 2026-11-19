@@ -5,7 +5,9 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from .canonical_features import CanonicalFeatures as Features, check_allocation_ownership
-from .features import Limits, NativeParameters, _order_keys
+from .features import NativeParameters, _order_keys
+from .canonical_features import CanonicalLimits
+from .irrigation import Irrigation
 
 
 Positive = Annotated[float, Field(gt=0)]
@@ -123,12 +125,21 @@ class RootParameters(StrictModel):
 
 
 class RootConfig(StrictModel):
+    irrigation: Irrigation | None = None
+
+    @field_validator("irrigation", mode="before")
+    @classmethod
+    def rainfed(cls, value):
+        if value == "rainfed" or (isinstance(value, dict) and (value.get("treatment") == "rainfed" or value.get("irrigation_depth_cm", "required") in (None, "rainfed"))):
+            return None
+        return value
+
     schema_version: Literal[4]
     random_seed: Annotated[int, Field(ge=0)] | None
     simulation_tag: str = "default"
     parameters: RootParameters
     features: Features = Field(default_factory=Features)
-    limits: Limits = Field(default_factory=Limits)
+    limits: CanonicalLimits = Field(default_factory=CanonicalLimits)
 
     @field_validator("schema_version", mode="before")
     @classmethod

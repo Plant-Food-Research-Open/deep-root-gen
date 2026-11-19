@@ -541,3 +541,8 @@ support and calibration seed propagation. This t=0 sample does not settle them.
 No calibration, optimisation, inference, measured-data compatibility or Calvin
 raw-data inspection/upload was performed. Those require a separately scoped
 scientific/data task. See [architecture](docs/ARCHITECTURE.md) for the code map.
+
+For a finite vineyard layout use `python -m deeprootgen neighbourhood --help`.
+The [neighbourhood example](docs/NATIVE_EXECUTION.md#growing-a-neighbourhood-of-vines)
+shows how to keep the focal plant fixed and switch between translated and
+independently generated neighbours at the same crown positions.

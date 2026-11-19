@@ -1,5 +1,7 @@
 """Decide daughter eligibility from local parent material in centimetres."""
 
+from collections import Counter
+
 import numpy as np
 
 from .attachment import distal_arc_cm
@@ -78,3 +80,59 @@ def validate_branching_diameters(state):
                     raise ValueError(
                         f"Daughter base exceeds the diameter cap on parent organ {parent.axis_state.biological_id}"
                     )
+
+
+def branching_receipt(simulation, parameters):
+    """Keep proposal, attachment and post-validation counts distinguishable."""
+    by_order = {}
+    for order, parents in sorted(simulation.organs.items()):
+        if order >= parameters.max_order:
+            continue
+        totals = Counter(dict(proposed=0, placed_sites=0, accepted=0, invalid_daughters=0))
+        reasons = Counter()
+        first_sites = []
+        poisson_sites = []
+        for parent in parents:
+            plan = parent.plan
+            placed = plan["placed_sites"]
+            poisson = plan.get("length_poisson")
+            proposed = len(plan["sites"]) if "sites" in plan else placed
+            if poisson is not None:
+                proposed = poisson["proposed"]
+            proposed += plan.get("irrigation_extra_proposed", 0)
+            placed += plan.get("irrigation_extra_placed", 0)
+            nonunique = proposed - placed
+            reasons.update(diameter_below_branch_minimum=plan["diameter_rejections"], coincident_sites=nonunique)
+            children = parent.child_organs
+            invalid = sum(bool(child.invalid_root) for child in children)
+            totals.update(proposed=proposed, placed_sites=placed, accepted=len(children),
+                          invalid_daughters=invalid)
+            if poisson is not None:
+                poisson_sites.append(dict(
+                    poisson, organ_id=parent.axis_state.biological_id, placed_sites=placed,
+                    diameter_below_branch_minimum=plan["diameter_rejections"], accepted=len(children),
+                    invalid_daughters=invalid, invalid_descendants=_invalid_descendants(children),
+                ))
+                if poisson["decision"] != "proposed":
+                    reasons[poisson["decision"]] += 1
+            if "branch_decision" in plan:
+                decision = plan["branch_decision"]
+                first_sites.append(dict(organ_id=parent.axis_state.biological_id, first_site_cm=plan["first_draw"],
+                                        proposed=proposed, accepted=len(children), decision=decision))
+                if decision != "proposed":
+                    reasons[decision] += 1
+        by_order[str(order)] = dict(parents=len(parents), **totals, rejections=dict(reasons),
+                                    sampled_first_sites=first_sites)
+        if poisson_sites:
+            by_order[str(order)]["length_poisson_sites"] = poisson_sites
+    return dict(by_parent_order=by_order)
+
+
+def _invalid_descendants(children):
+    count = 0
+    remaining = list(children)
+    while remaining:
+        child = remaining.pop()
+        count += bool(child.invalid_root)
+        remaining.extend(child.child_organs)
+    return count

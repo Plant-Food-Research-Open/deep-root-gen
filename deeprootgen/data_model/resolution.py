@@ -263,7 +263,23 @@ def resolve_config(spec):
     if p.allocation_controls is not None:
         settings["allocation"] = dict(root_ratio_biomass=p.root_ratio_biomass, root_ratio_length=p.root_ratio_length,
                                       controls=p.allocation_controls.model_dump())
+    irrigation = parsed.irrigation
+    if irrigation is not None and irrigation.peak_multiplier > 1:
+        settings["irrigation"] = irrigation.model_dump(exclude_none=True)
     resolved = _resolve_features(parsed, p.kernel_parameters(), "4", contract=settings)
+    if "irrigation" in settings:
+        order = irrigation.parent_order
+        if order + 1 != p.max_order or parsed.random_seed is None:
+            raise ValueError("Irrigation requires a seeded terminal daughter order")
+        if order not in resolved.laws.branching or p.daughters_by_parent_order.get(str(order)) is not None or getattr(resolved.parameters, "research_root_counts_by_order", None):
+            raise ValueError("Irrigation requires a stochastic branching law without an exact daughter quota")
+        parent = resolved.laws.direction.get(order, {})
+        daughter = resolved.laws.direction.get(order + 1, {})
+        if parent.get("law") != "correlated_curvature" or daughter.get("initial_heading") != "insertion_angle":
+            raise ValueError("Irrigation requires realized parent curvature and terminal insertion-angle curvature")
+        if order == 1 and resolved.laws.relocation is not None:
+            raise ValueError("Irrigation of relocated primary sites is outside the terminal-order pilot")
+        resolved.description["irrigation"] = settings["irrigation"]
     if parsed.random_seed is None:
         keyed = list(_keyed_features(resolved.laws))
         if keyed:
@@ -579,6 +595,11 @@ def _resolve_curvature(settings, p):
             first_interval=law.first_interval, initial_heading=heading,
             surface_z_cm=float(p.soil_surface_z_cm), stream_namespace=CURVATURE_STREAM_NAMESPACE,
         )
+        if law.sibling_sectors is not None:
+            if heading != "insertion_angle":
+                raise ValueError("sibling_sectors requires lateral insertion_angle")
+            if law.sibling_sectors.fraction:
+                entry["sibling_sectors"] = law.sibling_sectors.model_dump()
         if heading == "insertion_angle":
             entry["insertion_mean_deg"] = _number(law.insertion_mean_deg, f"curvature[{key}].insertion_mean_deg", 0, 90)
             entry["insertion_sd_deg"] = _number(law.insertion_sd_deg, f"curvature[{key}].insertion_sd_deg", 0)
@@ -633,11 +654,15 @@ class _Spec:
 
 def _resolve_branching(settings, p):
     import numpy as np
+    from ..model.branching_laws import LENGTH_POISSON_LAW, LENGTH_POISSON_STREAM, LENGTH_POISSON_VERSION
 
     laws = {}
     for order, law in _orders(settings, "branching", p.max_order):
         if law.law is None:
             raise ValueError(f"Enabled branching.by_order['{order}'] requires law")
+        if law.law == LENGTH_POISSON_LAW:
+            laws[order] = dict(law.model_dump(), stream_namespace=LENGTH_POISSON_STREAM, version=LENGTH_POISSON_VERSION)
+            continue
         probability = _number(law.branch_probability, f"branching[{order}].branch_probability", 0, 1)
         weights = law.daughter_probabilities
         if not weights or any(w < 0 for w in weights) or not np.isclose(sum(weights), 1.0, rtol=0, atol=1e-12):
@@ -646,6 +671,8 @@ def _resolve_branching(settings, p):
             law=law.law, first_branch_cm=_distribution(law.first_branch_cm, f"branching[{order}].first_branch_cm"),
             branch_probability=probability, daughter_probabilities=list(weights),
         )
+        if getattr(law, "stratify_distal_sites", False):
+            laws[order]["stratify_distal_sites"] = True
     return laws
 
 
@@ -729,6 +756,13 @@ def _resolve_features(config, parameters, version, contract=None):
         laws.lengths = _resolve_lengths(f.lengths.settings, p)
     if f.branching.enabled:
         laws.branching = _resolve_branching(f.branching.settings, p)
+        if version == "4" and p.max_order in laws.branching and laws.branching[p.max_order]["law"] == "length_poisson_sites_v1":
+            terminal = str(p.max_order)
+            laws.branching.pop(p.max_order)
+            supplied = active["branching"]["by_order"]
+            dormant["branching"] = {"by_order": {terminal: supplied.pop(terminal)}}
+            if not supplied:
+                active.pop("branching")
     if f.primary_origins.enabled:
         laws.origins = _resolve_origins(f.primary_origins.settings, p)
     if f.cohort_maturity.enabled:
@@ -764,11 +798,20 @@ def _resolve_features(config, parameters, version, contract=None):
                       ("parent_diameter_cap", laws.cap), ("attachment_relocation", laws.relocation)):
         if law:
             active[name] = law
-    limits = config.limits.model_dump(exclude_none=True)
+    limits = _execution_limits(config, laws)
     description, hashes = _describe(version, p, config.random_seed, config.simulation_tag, laws, active, dormant, limits, contract)
     return ResolvedConfig(version, config, p, config.random_seed, config.simulation_tag, laws, limits,
                           description, hashes, requested_simulation_tag=config.simulation_tag,
                           simulator_tag=config.simulation_tag)
+
+
+def _execution_limits(config, laws):
+    from ..model.budget import DEFAULT_MAX_BRANCH_PROPOSALS
+
+    limits = config.limits.model_dump(exclude_none=True)
+    if _poisson_orders(laws):
+        limits.setdefault("max_branch_proposals", DEFAULT_MAX_BRANCH_PROPOSALS)
+    return limits
 
 
 def _check_supported_combinations(p, laws):
@@ -779,6 +822,21 @@ def _check_supported_combinations(p, laws):
     _check_direction_rules(p, laws)
     _check_material_rules(p, laws, orders)
     _check_relocation(p, laws)
+    _check_poisson_ownership(laws)
+
+
+def _poisson_orders(laws):
+    from ..model.branching_laws import LENGTH_POISSON_LAW
+
+    return {order for order, law in laws.branching.items() if law["law"] == LENGTH_POISSON_LAW}
+
+
+def _check_poisson_ownership(laws):
+    orders = _poisson_orders(laws)
+    if orders and laws.maturity is not None and laws.maturity["scale_branch_probability"]:
+        raise ValueError("length_poisson_sites_v1 conflicts with maturity-scaled branch probability")
+    if 1 in orders and laws.relocation is not None:
+        raise ValueError("length_poisson_sites_v1 on parent order 1 conflicts with order-2 attachment relocation")
 
 
 def _check_native_parameters(p, laws):
