@@ -82,7 +82,7 @@ def test_begin_experiment_sets_tags_and_creates_if_needed(monkeypatch, already_e
     assert tags["simulation_tag"] == "my-tag"
     assert tags["app_url"] == "http://localhost:8000"
     expected = "http://localhost:4200/flow-runs/flow-run/flow-19"
-    assert expected in tags["prefect_flow_url"]
+    assert tags["prefect_flow_url"] == expected
 
 
 def test_begin_experiment_uses_public_hosts(monkeypatch):
