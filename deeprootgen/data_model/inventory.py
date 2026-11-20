@@ -24,6 +24,38 @@ COHORT_ORDER = "CohortOrder"
 
 _ORDER = "features.{feature}.settings.by_order.<order>.{key}"
 
+# Schema-4-only settings have no historical input alias.
+SPATIAL_CONSTRUCTION_FIELDS = {
+    "row_alignment_per_cm": dict(
+        path=_ORDER.format(feature="curvature", key="row_alignment_per_cm"),
+        units="1/cm", operation="symmetric alignment at physical curvature stations", rng="no draws",
+    ),
+    "basal_exclusion_cm": dict(
+        path=_ORDER.format(feature="branching", key="basal_exclusion_cm"),
+        units="cm", operation="exclude basal arclength from Poisson sites", rng="feature.branching_length_poisson",
+    ),
+    "apical_exclusion_cm": dict(
+        path=_ORDER.format(feature="branching", key="apical_exclusion_cm"),
+        units="cm", operation="exclude tip arclength from Poisson sites", rng="feature.branching_length_poisson",
+    ),
+    "mean_spacing_cm": dict(
+        path=_ORDER.format(feature="branching", key="mean_spacing_cm"),
+        units="cm", operation="mean contour spacing of unfiltered Poisson sites", rng="feature.branching_length_poisson",
+    ),
+    "length_poisson_branch_probability": dict(
+        path=_ORDER.format(feature="branching", key="branch_probability"),
+        units="probability", operation="parent activation before Poisson site draws", rng="feature.branching_length_poisson",
+    ),
+    "max_branch_proposals": dict(
+        path="limits.max_branch_proposals", units="count", operation="execution budget for all Poisson proposals",
+        rng="no draws",
+    ),
+    "vine_origin_catalogue": dict(
+        path="features.primary_origins.settings", units="model-soil-frame cm and unit headings",
+        operation="one whole-vine origin record", rng="feature.vine_origin_catalogue for sample selection",
+    ),
+}
+
 
 def _e(schema, field, destination, units, activation, consumer, disposition, delivery=None, alias=None):
     return dict(

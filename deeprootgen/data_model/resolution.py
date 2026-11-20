@@ -63,6 +63,7 @@ UNITS = dict(
     curvature_sd_rad_cm="stationary per-component curvature SD, rad/cm",
     correlation_length_cm="cm",
     downward_drift_per_cm="heading drift toward -z per cm of arclength (dimensionless/cm)",
+    row_alignment_per_cm="symmetric heading alignment toward model ±y, 1/cm",
     step_cm="physical direction-integration step, cm",
 )
 
@@ -243,6 +244,8 @@ def _keyed_features(laws):
         yield "direction"
     if laws.origins is not None and laws.origins["layout"] == "disk":
         yield "primary_origins"
+    if laws.origins is not None and laws.origins["layout"] == "vine_catalogue" and laws.origins["selection"]["mode"] == "sample":
+        yield "primary_origins.vine_catalogue"
     if laws.maturity is not None:
         yield "cohort_maturity"
     if laws.branching:
@@ -255,6 +258,8 @@ def _keyed_features(laws):
 
 def resolve_config(spec):
     """Resolve a schema-4 input against the shared native construction kernels."""
+    from .consumers import spatial_feature_consumers
+
     parsed = parse_config(spec)
     p = parsed.parameters
     settings = {"daughters_by_parent_order": p.daughters_by_parent_order}
@@ -285,6 +290,7 @@ def resolve_config(spec):
         if keyed:
             raise ValueError(f"An explicit random_seed is required for keyed calculations: {keyed}")
     consumers = resolved.description["consumers"]
+    consumers.update(spatial_feature_consumers(resolved.laws))
     nonterminal = list(range(1, p.max_order))
     consumers["min_branching_diameter_cm"] = dict(
         operation="daughter eligibility at the final attachment", units="cm",
@@ -600,6 +606,12 @@ def _resolve_curvature(settings, p):
                 raise ValueError("sibling_sectors requires lateral insertion_angle")
             if law.sibling_sectors.fraction:
                 entry["sibling_sectors"] = law.sibling_sectors.model_dump()
+        strength = getattr(law, "row_alignment_per_cm", 0.0)
+        if strength:
+            from ..model.row_alignment import ROW_AXIS, ROW_ALIGNMENT_LAW, check_alignment_step
+
+            check_alignment_step(strength, step)
+            entry["row_alignment"] = dict(law=ROW_ALIGNMENT_LAW, row_alignment_per_cm=strength, axis=list(ROW_AXIS))
         if heading == "insertion_angle":
             entry["insertion_mean_deg"] = _number(law.insertion_mean_deg, f"curvature[{key}].insertion_mean_deg", 0, 90)
             entry["insertion_sd_deg"] = _number(law.insertion_sd_deg, f"curvature[{key}].insertion_sd_deg", 0)
@@ -678,6 +690,10 @@ def _resolve_branching(settings, p):
 
 def _resolve_origins(settings, p):
     surface = float(p.soil_surface_z_cm)
+    if settings.layout == "vine_catalogue":
+        from ..model.vine_origins import resolve_vine_origins
+
+        return resolve_vine_origins(settings, p.outer_root_num + p.inner_root_num, surface)
     supplied = settings.model_dump(exclude_none=True)
     foreign = ({"x_cm", "y_cm", "depth_cm"} if settings.layout == "disk" else
                {"radius_cm", "depth_range_cm", "heading"}) & set(supplied)
@@ -756,12 +772,12 @@ def _resolve_features(config, parameters, version, contract=None):
         laws.lengths = _resolve_lengths(f.lengths.settings, p)
     if f.branching.enabled:
         laws.branching = _resolve_branching(f.branching.settings, p)
-        if version == "4" and p.max_order in laws.branching and laws.branching[p.max_order]["law"] == "length_poisson_sites_v1":
+        if version == "4" and p.max_order in laws.branching:
             terminal = str(p.max_order)
             laws.branching.pop(p.max_order)
-            supplied = active["branching"]["by_order"]
-            dormant["branching"] = {"by_order": {terminal: supplied.pop(terminal)}}
-            if not supplied:
+            settings = active["branching"]["by_order"]
+            dormant["branching"] = {"by_order": {terminal: settings.pop(terminal)}}
+            if not settings:
                 active.pop("branching")
     if f.primary_origins.enabled:
         laws.origins = _resolve_origins(f.primary_origins.settings, p)
@@ -861,7 +877,7 @@ def _check_native_parameters(p, laws):
 
 
 def _check_headings(laws):
-    origin_heading = laws.origins is not None and "heading" in laws.origins
+    origin_heading = laws.origins is not None and ("heading" in laws.origins or laws.origins.get("measured_headings", False))
     if any(law.get("initial_heading") == "origin_heading" for law in laws.direction.values()) and not origin_heading:
         raise ValueError("initial_heading 'origin_heading' requires primary_origins with a heading law")
     if origin_heading and laws.direction.get(1, {}).get("initial_heading") != "origin_heading":

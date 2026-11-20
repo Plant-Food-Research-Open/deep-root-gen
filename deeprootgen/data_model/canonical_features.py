@@ -1,19 +1,29 @@
 """Canonical value forms for optional length and material calculations."""
 
+from math import hypot, isclose
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Discriminator, Field, RootModel, Tag
+from pydantic import BaseModel, ConfigDict, Discriminator, Field, RootModel, Tag, field_validator, model_validator
 
 from .features import (
-    BranchingFeature, BranchingOrder, BranchingSettings, Limits, STRICT,
+    BranchingFeature,
+    BranchingOrder,
+    BranchingSettings,
+    CurvatureFeature,
+    CurvatureOrder,
+    CurvatureSettings,
     Distribution,
     Features,
+    Limits,
     LengthsFeature,
     LengthsOrder,
     LengthsSettings,
+    PrimaryOriginsFeature,
+    PrimaryOriginsSettings,
     TaperFeature,
     TaperOrder,
     TaperSettings,
+    STRICT,
 )
 
 
@@ -109,6 +119,18 @@ class CanonicalLengths(LengthsFeature):
     settings: CanonicalLengthsSettings = Field(default_factory=CanonicalLengthsSettings)
 
 
+class CanonicalCurvatureOrder(CurvatureOrder):
+    row_alignment_per_cm: Annotated[float, Field(ge=0)] = 0.0
+
+
+class CanonicalCurvatureSettings(CurvatureSettings):
+    by_order: dict[str, CanonicalCurvatureOrder] = Field(default_factory=dict)
+
+
+class CanonicalCurvature(CurvatureFeature):
+    settings: CanonicalCurvatureSettings = Field(default_factory=CanonicalCurvatureSettings)
+
+
 class LengthPoissonSites(BaseModel):
     model_config = STRICT
 
@@ -146,8 +168,118 @@ class CanonicalLimits(Limits):
     max_branch_proposals: Annotated[int, Field(gt=0)] | None = None
 
 
+class OriginCoordinates(BaseModel):
+    model_config = STRICT
+
+    x_cm: float
+    y_cm: float
+    depth_cm: Annotated[float, Field(ge=0)]
+
+
+class IndexedPrimaryOrigin(OriginCoordinates):
+    index: Annotated[int, Field(ge=0)]
+    heading_unit: Annotated[list[float], Field(min_length=3, max_length=3)] | None = None
+
+    @field_validator("heading_unit")
+    @classmethod
+    def unit_heading(cls, heading):
+        if heading is not None and not isclose(hypot(*heading), 1.0, abs_tol=1e-12, rel_tol=0):
+            raise ValueError("heading_unit must be a unit vector in the model frame")
+        return heading
+
+
+class OriginProvenance(BaseModel):
+    model_config = STRICT
+
+    source_frame: str | None = None
+    source_sha256: Annotated[str, Field(pattern=r"^[a-fA-F0-9]{64}$")] | None = None
+    conversion_version: str | None = None
+    comment: str | None = None
+
+
+class VineOriginEntry(BaseModel):
+    model_config = STRICT
+
+    entry_id: Annotated[str, Field(min_length=1)]
+    weight: Annotated[float, Field(gt=0)] = 1.0
+    origins_status: Literal["complete", "inferred"] = "complete"
+    crown_census_status: Literal["complete", "missing", "inferred"] = "missing"
+    provenance: OriginProvenance | None = None
+
+
+class CommonPointEntry(VineOriginEntry):
+    layout: Literal["common_point"]
+    origin: OriginCoordinates
+
+
+class PrimaryLayoutEntry(VineOriginEntry):
+    layout: Literal["primary_layout"]
+    primaries: Annotated[list[IndexedPrimaryOrigin], Field(min_length=1)]
+    headings_status: Literal["complete", "missing", "inferred"] | None = None
+
+    @model_validator(mode="after")
+    def check_layout(self):
+        indices = {origin.index for origin in self.primaries}
+        if len(indices) != len(self.primaries):
+            raise ValueError("Vine primary layout has duplicate primary indices")
+        headings = sum(origin.heading_unit is not None for origin in self.primaries)
+        if headings not in (0, len(self.primaries)):
+            raise ValueError("A vine primary layout must supply all headings or omit all headings")
+        if self.headings_status is not None and (self.headings_status == "missing") == bool(headings):
+            raise ValueError("headings_status disagrees with the supplied primary headings")
+        return self
+
+
+class SampleVineOrigin(BaseModel):
+    model_config = STRICT
+    mode: Literal["sample"] = "sample"
+
+
+class FixedVineOrigin(BaseModel):
+    model_config = STRICT
+    mode: Literal["fixed"]
+    entry_id: Annotated[str, Field(min_length=1)]
+
+
+class VineCatalogueSettings(BaseModel):
+    model_config = STRICT
+
+    layout: Literal["vine_catalogue"]
+    catalogue_version: Literal["vine_origins_v1"]
+    coordinate_frame: Literal["model_soil_cm_v1"]
+    selection: Annotated[SampleVineOrigin | FixedVineOrigin, Field(discriminator="mode")] = Field(
+        default_factory=SampleVineOrigin
+    )
+    entries: Annotated[list[Annotated[CommonPointEntry | PrimaryLayoutEntry, Field(discriminator="layout")]],
+                       Field(min_length=1)]
+
+    @model_validator(mode="after")
+    def check_entries(self):
+        ids = {entry.entry_id for entry in self.entries}
+        if len(ids) != len(self.entries):
+            raise ValueError("Vine-origin catalogue entry_id values must be unique")
+        if self.selection.mode == "fixed" and self.selection.entry_id not in ids:
+            raise ValueError("Fixed vine-origin entry_id must be present in the catalogue")
+        return self
+
+
+def _origin_layout(value):
+    layout = value.get("layout") if isinstance(value, dict) else getattr(value, "layout", None)
+    return "vine_catalogue" if layout == "vine_catalogue" else "point_or_disk"
+
+
+class CanonicalPrimaryOrigins(PrimaryOriginsFeature):
+    settings: Annotated[
+        Annotated[PrimaryOriginsSettings, Tag("point_or_disk")]
+        | Annotated[VineCatalogueSettings, Tag("vine_catalogue")],
+        Discriminator(_origin_layout),
+    ] = Field(default_factory=PrimaryOriginsSettings)
+
+
 class CanonicalFeatures(Features):
     branching: CanonicalBranching = Field(default_factory=CanonicalBranching)
+    curvature: CanonicalCurvature = Field(default_factory=CanonicalCurvature)
+    primary_origins: CanonicalPrimaryOrigins = Field(default_factory=CanonicalPrimaryOrigins)
     taper: PointTaperFeature = Field(default_factory=PointTaperFeature)
     lengths: CanonicalLengths = Field(default_factory=CanonicalLengths)
 

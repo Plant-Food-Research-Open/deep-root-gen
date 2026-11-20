@@ -4,9 +4,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .canonical_features import CanonicalFeatures as Features, check_allocation_ownership
+from .canonical_features import CanonicalFeatures as Features, CanonicalLimits, check_allocation_ownership
 from .features import NativeParameters, _order_keys
-from .canonical_features import CanonicalLimits
 from .irrigation import Irrigation
 
 

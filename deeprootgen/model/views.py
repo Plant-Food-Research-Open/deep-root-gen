@@ -104,9 +104,11 @@ def native_view(state):
         capabilities=dict(multiple_bases=multiple, tree_to_vine_map=bool(tree_map), crown_support_view=False),
         **_identity(state, seed),
     )
-    if resolved.source_schema == "4" and "irrigation" in state.diagnostics:
+    if resolved.source_schema == "4":
         from .branch_eligibility import branching_receipt
 
+        metadata["resolved_primary_counts"] = dict(total=p.outer_root_num + p.inner_root_num,
+                                                   outer=p.outer_root_num, inner=p.inner_root_num)
         state.diagnostics["branching"] = branching_receipt(sim, p)
     diagnostics = {k: v for k, v in state.diagnostics.items() if k != "native_rng_before_directions_sha256"}
     return SimulationResult(

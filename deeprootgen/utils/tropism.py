@@ -91,12 +91,12 @@ def resolve_fichtl_sigma(global_sigma, order, mapping=None):
     if (
         isinstance(order, (bool, np.bool_))
         or order not in (2, 3, 4, 5)
-        or global_sigma is None
-        or not np.isfinite(global_sigma)
-        or global_sigma < 0
+        or (global_sigma is not None and (not np.isfinite(global_sigma) or global_sigma < 0))
     ):
-        raise ValueError("Order sigma resolution requires valid order/global sigma")
+        raise ValueError("Order sigma resolution requires a valid order and a per-order or global sigma")
     sigma = overrides.get(order, global_sigma)
+    if sigma is None:
+        raise ValueError(f"Order {order} needs a per-order or global sigma")
     if sigma == global_sigma:
         sigma = global_sigma  # Preserve even signed-zero innovations when equal.
     return sigma, dict(

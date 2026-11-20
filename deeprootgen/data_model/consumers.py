@@ -5,6 +5,31 @@ Values with no numerical consumer remain only in supplied-input provenance.
 """
 
 
+def fichtl_direction_orders(p, laws):
+    """Orders that use Fichtl controls, including construction-step directions."""
+    if p.tropism_mode != "fichtl2024":
+        return set()
+    return {
+        order for order in range(2, p.max_order + 1)
+        if order not in laws.direction or laws.direction[order]["law"] == "construction_step_intervals"
+    }
+
+
+def spatial_feature_consumers(laws):
+    from .inventory import SPATIAL_CONSTRUCTION_FIELDS
+    from ..model.branching_laws import LENGTH_POISSON_LAW
+
+    aligned = sorted(order for order, law in laws.direction.items() if "row_alignment" in law)
+    poisson = sorted(order for order, law in laws.branching.items() if law["law"] == LENGTH_POISSON_LAW)
+    catalogue = laws.origins is not None and laws.origins["layout"] == "vine_catalogue"
+    owners = dict.fromkeys(SPATIAL_CONSTRUCTION_FIELDS, poisson)
+    owners.update(row_alignment_per_cm=aligned, vine_origin_catalogue=[1] if catalogue else [])
+    return {
+        field: dict(record, orders=owners[field], status="active" if owners[field] else "inactive")
+        for field, record in SPATIAL_CONSTRUCTION_FIELDS.items()
+    }
+
+
 def parameter_consumers(p, laws):
     orders = set(range(1, int(p.max_order) + 1))
     planned = laws.construction == "planned"  # historical adapter policy only
@@ -13,7 +38,7 @@ def parameter_consumers(p, laws):
     birth_material = {k for k in orders if any(j >= k for j in native_material)}
     branches = {k for k in orders if k < max(orders) and k not in laws.branching}
     counts_conditioned = getattr(p, "research_root_counts_by_order", None) is not None
-    fallback_directions = {k for k in orders if k > 1 and (k not in laws.direction or laws.direction[k]["law"] == "construction_step_intervals")}
+    fallback_directions = fichtl_direction_orders(p, laws)
     geometry_needed = {k for k in orders if k not in laws.direction or laws.direction[k].get("initial_heading") == "scaffold_chord"}
     result = {}
 
@@ -43,9 +68,9 @@ def parameter_consumers(p, laws):
     else:
         add(("gravitropism", "no_root_zone"), "native_direction", set(), "native")
     for name in ("fichtl_probability_down", "fichtl_trials_type2", "fichtl_theta2_deg", "fichtl_theta2_sd_deg"):
-        add((name,), "fichtl_direction", fallback_directions & {2} if p.tropism_mode == "fichtl2024" else set(), "native")
+        add((name,), "fichtl_direction", fallback_directions & {2}, "native")
     for name in ("fichtl_trials_type3", "fichtl_theta3_deg", "fichtl_theta3_sd_deg"):
-        add((name,), "fichtl_direction", fallback_directions & {3} if p.tropism_mode == "fichtl2024" else set(), "native")
+        add((name,), "fichtl_direction", fallback_directions & {3}, "native")
     sigma_orders = fallback_directions - set(getattr(p, "research_fichtl_sigma_by_order", None) or {})
-    add(("fichtl_sigma",), "fichtl_direction", sigma_orders if p.tropism_mode == "fichtl2024" else set(), "rad/sqrt(cm)")
+    add(("fichtl_sigma",), "fichtl_direction", sigma_orders, "rad/sqrt(cm)")
     return result

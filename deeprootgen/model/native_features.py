@@ -220,6 +220,9 @@ def place_origins(state):
     """Translate native scaffolds to their origins after native placement."""
     sim, laws = state.simulation, state.laws
     law = laws.origins
+    if state.vine_origin is not None:
+        _place_catalogue_origins(state)
+        return
     if law["layout"] == "point":
         receipt = sim.translate_common_base(law["x_cm"], law["y_cm"], law["depth_cm"], law["surface_z_cm"])
         state.diagnostics["primary_origins"] = dict(layout="point", **receipt)
@@ -228,20 +231,53 @@ def place_origins(state):
     for index, primary in enumerate(sim.organs.get(1, [])):
         oid = int(primary.segments[0].node_data.organ_id)
         start, phi = disk_origin(law, law_stream(state.streams, laws.streams, "origin", oid))
-        anchor = sim.G.bases[index].node_data
-        delta = start - np.array([anchor.x, anchor.y, anchor.z])
-        anchor.x, anchor.y, anchor.z = (float(v) for v in start)
-        subtree = [primary]
-        while subtree:
-            organ = subtree.pop()
-            organ.set_coordinates(organ.get_coordinates() + delta)
-            subtree.extend(organ.child_organs)
+        _translate_primary(primary, sim.G.bases[index].node_data, start)
         if "heading" in law:
             primary.plan["initial_heading"] = radial_inclination(
                 law["heading"], phi, law_stream(state.streams, laws.streams, "heading", oid)
             )
         receipts.append(dict(organ_id=oid, origin_cm=start.tolist(), polar_angle_rad=float(phi)))
     state.diagnostics["primary_origins"] = dict(layout="disk", primaries=receipts)
+
+
+def _translate_primary(primary, anchor, start):
+    delta = start - np.array([anchor.x, anchor.y, anchor.z])
+    anchor.x, anchor.y, anchor.z = (float(v) for v in start)
+    subtree = [primary]
+    while subtree:
+        organ = subtree.pop()
+        organ.set_coordinates(organ.get_coordinates() + delta)
+        subtree.extend(organ.child_organs)
+
+
+def _place_catalogue_origins(state):
+    from ..data_model.resolution import sha256_json
+
+    law = state.laws.origins
+    entry, weight = state.vine_origin
+    sim = state.simulation
+    primaries = sim.organs[1]
+    surface = law["surface_z_cm"]
+    if entry["layout"] == "common_point":
+        sim.translate_common_base(**entry["origin"], surface_z_cm=surface)
+    else:
+        for point, primary in zip(entry["primaries"], primaries):
+            anchor = sim.G.bases[point["index"]].node_data
+            position = np.array([point["x_cm"], point["y_cm"], surface - point["depth_cm"]])
+            _translate_primary(primary, anchor, position)
+            if "heading_unit" in point:
+                primary.plan["initial_heading"] = point["heading_unit"]
+    inputs = state.resolved.config.features.primary_origins.settings
+    supplied = next(item for item in inputs.entries if item.entry_id == entry["entry_id"])
+    state.diagnostics["vine_origin_catalogue"] = dict(
+        catalogue_version=law["catalogue_version"], coordinate_frame=law["coordinate_frame"],
+        selection=law["selection"]["mode"], normalized_selection_weight=weight,
+        pool_sha256=sha256_json(law), entry_sha256=sha256_json(entry), selected_entry=entry,
+        soil_surface_z_cm=surface, origins_status=supplied.origins_status, crown_census_status=supplied.crown_census_status,
+        headings_status=getattr(supplied, "headings_status", None) or ("complete" if law["measured_headings"] else "missing"),
+        provenance=None if supplied.provenance is None else supplied.provenance.model_dump(exclude_none=True),
+        primary_organ_ids={str(index): axis.axis_state.biological_id for index, axis in enumerate(primaries)},
+    )
 
 
 def tapered_axis(organ, curve, taper, state):

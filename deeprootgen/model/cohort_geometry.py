@@ -5,6 +5,7 @@ import numpy as np
 from ..utils.tropism import _basis
 from ..utils.primary_orientation import proper_rotation
 from .curvature import ou_joint_step, spherical_exp_heading
+from .row_alignment import ROW_AXIS, align_heading, check_alignment_step
 
 
 def bounded_draw(spec, rng):
@@ -81,7 +82,7 @@ def equivalent_diameter(a, b):
     return np.sqrt((a * a + a * b + b * b) / 3.0)
 
 
-def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface_z=0.0):
+def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface_z=0.0, *, row_alignment_per_cm=0.0):
     """Integrate before inserting material/attachment nodes; z-positive up.
 
     ``surface_z`` is the declared soil surface of the caller's frame; the
@@ -102,6 +103,7 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface
         raise ValueError("Finite soil start and nonzero heading required")
     if not np.isfinite(downward) or downward < 0 or step * downward >= 1:
         raise ValueError("Require finite nonnegative drift with step*drift < 1")
+    check_alignment_step(row_alignment_per_cm, step)
     stations = np.arange(0.0, length, step)
     if len(stations) > 1 and length - stations[-1] <= 64 * np.finfo(float).eps * max(
         length, step
@@ -119,6 +121,8 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface
         heading = spherical_exp_heading(frame, turn)
         heading = heading + h * downward * np.array([0.0, 0.0, -1.0])
         heading /= np.linalg.norm(heading)
+        if row_alignment_per_cm:
+            heading = align_heading(heading, ROW_AXIS, row_alignment_per_cm * h)
         if points[-1][2] + h * heading[2] > surface_z:
             heading[2] = -abs(heading[2])
             reflections += 1

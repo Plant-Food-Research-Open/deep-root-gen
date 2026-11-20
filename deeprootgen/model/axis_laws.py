@@ -53,6 +53,7 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         import math
 
         reserve_stations("stations", math.ceil(total / law["step_cm"]) + 1)
+    alignment = law.get("row_alignment")
     stations, points, reflections = integrate_curve(
         total,
         start,
@@ -63,6 +64,7 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         law["downward_drift_per_cm"],
         rng,
         surface_z=law["surface_z_cm"],
+        row_alignment_per_cm=alignment["row_alignment_per_cm"] if alignment else 0.0,
     )
     unit_heading = np.asarray(heading, dtype=float)
     receipt = dict(
@@ -77,4 +79,11 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         surface_reflections=int(reflections),
         initial_heading_unit=(unit_heading / np.linalg.norm(unit_heading)).tolist(),
     )
+    if alignment is not None:
+        widths = np.diff(stations)
+        along_row = np.diff(points[:, 1]) / widths
+        receipt["row_alignment"] = dict(
+            alignment, step_cm=law["step_cm"],
+            length_weighted_squared_row_component=float(np.dot(widths, along_row**2) / total),
+        )
     return AxisCurve(identity, stations, points, np.asarray(arcs, dtype=float), dict(law), receipt)
