@@ -10,6 +10,16 @@ Select **Check setup** to verify the observations, active ranges and trial setti
 
 Use the CSV columns `statistic_name,statistic_value`. Values are numeric and use the simulator's units for the selected whole-root statistic. Prefer one metric at first. When selecting several metrics the worker sums those discrepancies. Save the ranges together with the seed, the original upload, the observed units and the final training result. The existing Dash form is intended for supported whole-root scalar comparisons. Local coring studies and canonical feature combinations use the documented research routes.
 
+Verified locally with the isolated Prefect test harness and real file-backed MLflow artifacts. It completed five synthetic trials, found the known optimum, and exported the trial table and history plot. The model-registry and graph-database outputs used test substitutes. A live deployment from this revision remains a separate verification.
+
+## Fit a saved architecture
+
+Open **Architecture Search** and upload a schema-4 JSON saved by Simulation. For a synthetic trial use [the minimal graph configuration](../examples/synthetic_minimal.json), enter **2–4** for primary count, and paste the two rows from [the target CSV](../examples/research/optimisation_summary_synthetic.csv). Choose adaptive Optuna TPE, normalized MAE, five trials, two startup trials and seeds `0, 1`. Leave unused ranges blank. The page lists active laws by order and exposes compatible primary, branching, direction, retention and placement controls when they are enabled in the uploaded configuration. Select the laws and advanced options in the base JSON before uploading.
+
+**Check setup** validates the active ranges, scales and seeds without queuing anything. **Run search** uses the configured `architecture_search/run_architecture_search_flow` deployment. It updates the backend state and provides the trial table and replayable best JSON when results are available. Current Docker setups can register this deployment through the existing deployment initializer. The worker puts each job's study database and exports in its shared outputs directory. Choose a single, interpretable target for the first run and set a scale if different targets need a meaningful tolerance. Exported best configurations use the first simulation seed, while fitted candidates are compared on all supplied seeds.
+
+The bounded worker accepts 2–60 trials and at most four seeds. Adaptive Optuna TPE uses preceding results after startup. Latin-hypercube screening spreads candidates through the declared ranges independently of preceding results and ignores startup trials. Both methods score paired native simulations against the same targets. It respects stricter architecture limits supplied in the JSON. Early invalid trials remain in the trial table. Whole-root rows use `statistic_name,statistic_value` and may supply a positive `scale`. The interface is for whole-root targets. Local research tools handle physical-core fitting, tube partitions and empirical observations. [Architecture scoring](ARCHITECTURE_SCORING.md)
+
 ## Which controls belong on the starting screen?
 
 | Control | Place in the interface | Explanation |
@@ -25,7 +35,7 @@ Use the CSV columns `statistic_name,statistic_value`. Values are numeric and use
 ## Extend the interface in stages
 
 1. **Promote the present scalar workflow.** Keep the preview and error display close to the run button. Begin with one active range and a synthetic upload. The current implementation checks ranges and target support and uses the configured Prefect deployment.
-2. **Reuse canonical generation controls.** Load the Simulation page's saved schema-4 JSON as a fixed starting point. Build the searchable parameter list from the resolver's consumers, expose only deliberate overrides and show their effective model. Keep the base document and retain a replayable JSON for every candidate. Handle small seeds, failed trials and a resource ceiling using the local search machinery.
+2. **Fit a canonical configuration in Architecture Search.** Inspect active laws and search a bounded set of controls. Use the replayable best configuration and trial CSV to review fit and failures.
 3. **Add a separate physical core workflow.** Provide an observation preview with the depth frame, soil volume, radius, units, diameter interval, treatment and whole-tube train/holdout assignment. Require explicit mass and deep-coverage settings for a study that uses them. Use the existing finite-cylinder or declared grid observer. The browser can show status, but local restricted observations need a local runner and local outputs. Offer loss components, paired reference losses, root distribution plots and biomass counts.
 4. **Qualify automated runs.** Test preview without queuing, malformed input, workflow assignment, known best trial on a synthetic target, failed-trial recovery, best-config export and identical replay. Run end-to-end on a configured development stack before calling the UI integration ready. Independently assess held positions before promoting an empirical fit.
 
