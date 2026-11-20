@@ -7,6 +7,16 @@ synthetic lesson and the settings to optimize in the
 [Site 1 RLD and biomass notebook](../../notebooks/grapevine_root_architecture/calvin_site1_rld_mass_search.ipynb).
 The field notebook reads the locally prepared Site 1 study bundle.
 
+## Rainfed terminal placement and retention
+
+The current research retains the rainfed reference. A core-informed rule improved
+the fit at calibrated locations on fresh simulator seeds. Whole-tube evaluation
+did not establish the requested 10% spatial loss reduction. The mass-balanced
+sensitivity and individual-vine counts are recorded in the local study report.
+The [placement guide](PLACEMENT_EXPERIMENT_OPTIONS.md#core-informed-placement-and-retention)
+describes the tested decisions, physical-core score and interpretation of each
+comparison.
+
 ## Current review entrypoint (16 November 2026)
 
 Use the public [model review guide](../MODEL_REVIEW_GUIDE.md) for constructor
