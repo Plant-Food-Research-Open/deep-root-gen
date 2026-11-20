@@ -33,6 +33,13 @@ deployments:
   work_pool:
     name: default
 
+- name: run_architecture_search_flow
+  description: Fit active parameters of a saved schema-4 architecture to whole-root targets.
+  entrypoint: /app/flows/run_architecture_search.py:run_architecture_search_flow
+  parameters: {}
+  work_pool:
+    name: default
+
 - name: run_sensitivity_analysis_flow
   description: Run a sensitivity analysis for the root model.
   entrypoint: /app/flows/run_sensitivity_analysis.py:run_sensitivity_analysis_flow

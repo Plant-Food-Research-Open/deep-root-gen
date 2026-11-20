@@ -82,7 +82,7 @@ def test_begin_experiment_sets_tags_and_creates_if_needed(monkeypatch, already_e
     assert tags["simulation_tag"] == "my-tag"
     assert tags["app_url"] == "http://localhost:8000"
     expected = "http://localhost:4200/flow-runs/flow-run/flow-19"
-    assert expected in tags["prefect_flow_url"]
+    assert tags["prefect_flow_url"] == expected
 
 
 def test_begin_experiment_uses_public_hosts(monkeypatch):
@@ -105,7 +105,7 @@ def test_begin_experiment_uses_public_hosts(monkeypatch):
     monkeypatch.setenv("APP_PREFECT_USER_HOST", "https://prefect.example.org")
     subject.begin_experiment.fn("calibration", "uuid", "tag")
     assert dict(tags)["app_url"] == "https://roots.example.org"
-    assert dict(tags)["prefect_flow_url"].startswith("https://prefect.example.org")
+    assert dict(tags)["prefect_flow_url"] == "https://prefect.example.org/flow-runs/flow-run/flow-2"
 
 
 def test_log_config_saves_yaml_and_logs_each_parameter(monkeypatch, tmp_path):
@@ -129,7 +129,7 @@ def test_calculate_graph_metrics_outputs_six_metrics(monkeypatch, tmp_path):
     monkeypatch.setattr(subject, "OUT_DIR", str(tmp_path))
     metric, artifact = Mock(), Mock()
     monkeypatch.setattr(
-        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact)
+        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact, log_dict=Mock())
     )
     # A connected path has unambiguous diameter=3, radius=2.
     result = subject.calculate_graph_metrics.fn(nx.path_graph(4), "now", "simulation")
@@ -198,14 +198,15 @@ def test_save_form_parameters_includes_calibration_fields(monkeypatch, tmp_path)
     }
 
 
-def test_save_simulation_runs_writes_relative_outputs(monkeypatch, tmp_path):
+def test_save_simulation_runs_writes_configured_outputs(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "outputs").mkdir()
+    monkeypatch.setattr(subject, "OUT_DIR", str(tmp_path / "outputs"))
     monkeypatch.setattr(subject, "get_datetime_now", lambda: "now")
     output, filename = subject.save_simulation_runs(
         [{"task": "simulation", "tag": "a"}]
     )
     assert filename == "now-root-simulation-runs.csv"
+    assert Path(output).parent == tmp_path / "outputs"
     assert Path(output).exists()
     assert pd.read_csv(output).to_dict("records") == [
         {"task": "simulation", "tag": "a"}
@@ -256,7 +257,7 @@ def log_simulation_setup(monkeypatch, tmp_path):
     monkeypatch.setattr(subject, "get_datetime_now", lambda: "now")
     metric, artifact = Mock(), Mock()
     monkeypatch.setattr(
-        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact)
+        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact, log_dict=Mock())
     )
     monkeypatch.setattr(subject, "ProfileReport", FakeProfile)
     graph = SimpleNamespace(
@@ -274,6 +275,7 @@ def log_simulation_setup(monkeypatch, tmp_path):
         )
     )
     sim = SimpleNamespace(
+        result=SimpleNamespace(metadata={"root_summary": {}}),
         G=graph,
         soil=soil,
         init_fig=lambda *_: FakeFigure(),
@@ -304,7 +306,7 @@ def test_log_simulation_artifacts_and_scalar_metric(log_simulation_setup, monkey
             return 2.0
 
     monkeypatch.setattr(subject, "get_summary_statistic_func", lambda _: RootNumber)
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     metrics = dict(call.args for call in metric.call_args_list)
     assert metrics == {"root_number": 2.0}
     assert (folder / "now-simulation_nodes.csv").exists()
@@ -321,7 +323,7 @@ def test_log_simulation_skips_rld_without_soil_grid(log_simulation_setup, monkey
     monkeypatch.setattr(
         subject, "get_summary_statistics", lambda: [{"value": "root_length_density"}]
     )
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     metric.assert_not_called()
     assert not list(folder.glob("*_rld_*"))
 
@@ -347,7 +349,7 @@ def test_log_simulation_skips_non_scalar_values(log_simulation_setup, monkeypatc
         "get_summary_statistic_func",
         lambda name: lambda **kw: Metric(name, **kw),
     )
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     logged = dict(call.args for call in metric.call_args_list)
     assert logged == {"average_tuple": 3.0}
     df = pd.read_csv(folder / "now-simulation_summary_statistics.csv")
@@ -400,7 +402,7 @@ def test_log_simulation_rld_dry_mass_and_grid_exports(
             pd.DataFrame({"mass": [0.2]}),
         ),
     )
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     assert metric.call_args_list[0].args == ("root_length_density", 0.15)
     assert (folder / "now-simulation_rld_voxels.csv").exists()
     assert (folder / "now-simulation_rld_rows.csv").exists()

@@ -1,0 +1,162 @@
+x-runtime: &runtime
+  image: ${DRG_LOCAL_IMAGE:-deeprootgen-local:upstream-80315af}
+  pull_policy: never
+  init: true
+  restart: "no"
+  cpus: 0.5
+  mem_limit: 2g
+  environment: &environment
+    PREFECT_API_URL: http://prefect-server:4200/api
+    PREFECT_API_ENABLE_HTTP2: "false"
+    PREFECT_SERVER_ANALYTICS_ENABLED: "false"
+    MLFLOW_TRACKING_URI: http://mlflow:5000
+    MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+    AWS_ACCESS_KEY_ID: drgadmin
+    AWS_SECRET_ACCESS_KEY: ${DRG_STORAGE_PASSWORD:?Generate .env.local}
+    ARANGO_DB: deeprootgen
+    ARANGO_ROOT_USER: root
+    ARANGO_ROOT_PASSWORD: ${DRG_ARANGO_PASSWORD:?Generate .env.local}
+    ARANGO_HOST_URL: http://arangodb:8529
+    APP_USER_HOST: http://127.0.0.1:${DRG_APP_PORT:-8000}
+    APP_PREFECT_USER_HOST: http://127.0.0.1:${DRG_PREFECT_PORT:-4200}
+    APP_MLFLOW_USER_HOST: http://127.0.0.1:${DRG_MLFLOW_PORT:-5000}
+    BENTOML_DO_NOT_TRACK: "True"
+    DEEPROOTGEN_OUTPUT_DIR: /app/outputs
+    CUDA_VISIBLE_DEVICES: ""
+    OMP_NUM_THREADS: "2"
+    MKL_NUM_THREADS: "2"
+
+services:
+  app:
+    <<: *runtime
+    build:
+      context: .
+      dockerfile: dockerfiles/python/Dockerfile.local
+    mem_limit: 3g
+    ports: ["127.0.0.1:${DRG_APP_PORT:-8000}:8000"]
+    volumes: ["outputs-data:/app/outputs"]
+    depends_on:
+      prefect-worker: {condition: service_started}
+      mlflow: {condition: service_healthy}
+      arangodb: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/', timeout=5)"]
+      interval: 10s
+      timeout: 8s
+      retries: 12
+
+  postgres:
+    image: postgres:15.3-bullseye@sha256:3e66d9cda90a2731880fc267a417937a9552df2a4ffacf1cb37e741e05447c0d
+    cpus: 0.5
+    mem_limit: 1g
+    environment:
+      POSTGRES_USER: drg
+      POSTGRES_DB: mlflow
+      POSTGRES_PASSWORD: ${DRG_DB_PASSWORD:?Generate .env.local}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U drg -d mlflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: deeprootgen-minio-local:2023-05-27
+    pull_policy: never
+    build:
+      context: .
+      dockerfile: dockerfiles/minio/Dockerfile.local
+    cpus: 0.5
+    mem_limit: 1g
+    environment:
+      MINIO_ROOT_USER: drgadmin
+      MINIO_ROOT_PASSWORD: ${DRG_STORAGE_PASSWORD:?Generate .env.local}
+    command: server --console-address :9001 /data
+    volumes: ["minio-data:/data"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  storage-init:
+    <<: *runtime
+    mem_limit: 256m
+    command: ["python", "/app/local/initialize.py", "storage"]
+    depends_on:
+      minio: {condition: service_healthy}
+
+  mlflow:
+    <<: *runtime
+    environment:
+      <<: *environment
+      MLFLOW_TRACKING_URI: http://127.0.0.1:5000
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--workers", "1", "--backend-store-uri", "postgresql://drg:${DRG_DB_PASSWORD}@postgres/mlflow", "--default-artifact-root", "s3://mlflow/", "--serve-artifacts"]
+    ports: ["127.0.0.1:${DRG_MLFLOW_PORT:-5000}:5000"]
+    depends_on:
+      postgres: {condition: service_healthy}
+      storage-init: {condition: service_completed_successfully}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5)"]
+      interval: 10s
+      timeout: 8s
+      retries: 20
+
+  prefect-server:
+    <<: *runtime
+    environment:
+      <<: *environment
+      PREFECT_API_DATABASE_CONNECTION_URL: postgresql+asyncpg://drg:${DRG_DB_PASSWORD}@postgres/prefect
+      PREFECT_SERVER_API_HOST: 0.0.0.0
+      PREFECT_UI_API_URL: http://127.0.0.1:${DRG_PREFECT_PORT:-4200}/api
+      PREFECT_UI_STATIC_DIRECTORY: /home/drg/.prefect/ui_build
+    command: ["prefect", "server", "start", "--host", "0.0.0.0"]
+    ports: ["127.0.0.1:${DRG_PREFECT_PORT:-4200}:4200"]
+    depends_on:
+      postgres: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:4200/api/health', timeout=5)"]
+      interval: 10s
+      timeout: 8s
+      retries: 20
+
+  prefect-deployments:
+    <<: *runtime
+    command: ["python", "/app/local/initialize.py", "prefect"]
+    depends_on:
+      prefect-server: {condition: service_healthy}
+
+  prefect-worker:
+    <<: *runtime
+    cpus: 2
+    mem_limit: 4g
+    command: ["prefect", "worker", "start", "-p", "default", "--limit", "1"]
+    volumes: ["outputs-data:/app/outputs"]
+    depends_on:
+      prefect-deployments: {condition: service_completed_successfully}
+      mlflow: {condition: service_healthy}
+      arangodb: {condition: service_healthy}
+
+  arangodb:
+    image: arangodb:3.11.3@sha256:cc7c3240ef734aae4dacb39d033b2a5b2314537538d433b632a2fe401639c6e2
+    cpus: 0.5
+    mem_limit: 2g
+    environment:
+      ARANGO_ROOT_PASSWORD: ${DRG_ARANGO_PASSWORD:?Generate .env.local}
+    volumes:
+      - arangodb-data:/var/lib/arangodb3
+      - arangodb-app-data:/var/lib/arangodb3-apps
+    healthcheck:
+      test: ["CMD-SHELL", 'arangosh --server.endpoint tcp://127.0.0.1:8529 --server.username root --server.password "$$ARANGO_ROOT_PASSWORD" --javascript.execute-string "db._version()" > /dev/null']
+      interval: 10s
+      timeout: 8s
+      retries: 20
+
+volumes:
+  outputs-data: {}
+  postgres-data: {}
+  minio-data: {}
+  arangodb-data: {}
+  arangodb-app-data: {}

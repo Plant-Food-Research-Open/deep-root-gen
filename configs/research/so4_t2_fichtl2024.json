@@ -1,0 +1,106 @@
+{
+  "version": "SO4-T2-diagnostic-v1",
+  "purpose": "User-authorized fixed paper-informed ensembles, optional research tropism and gap assessment; no observed-data fitting or physiological adoption",
+  "literature": {
+    "doi": "10.34133/plantphenomics.0280",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11633832/",
+    "table": "Table 2 SO4/T2; Table 4 spacing context",
+    "stage_months_after_planting": 6,
+    "sample_size_vines": 8,
+    "initial_count_mean": 9,
+    "initial_count_sd": 3,
+    "primary_length_mean_cm": 12.1,
+    "primary_length_sd_cm": 2.5,
+    "secondary_count_mean": 24,
+    "secondary_count_sd": 6,
+    "secondary_length_mean_cm": 40.3,
+    "secondary_length_sd_cm": 12.1,
+    "tertiary_count_mean": 94,
+    "tertiary_count_sd": 26,
+    "tertiary_length_mean_cm": 8.9,
+    "tertiary_length_sd_cm": 1.0,
+    "type2_spacing_mean_cm": 4.8,
+    "type2_spacing_sd_cm": 3.5,
+    "untransferred": [
+      "dynamic maximum length",
+      "elongation rate",
+      "ambiguous radius"
+    ],
+    "type2_insertion_angle_mean_deg": 51.8,
+    "type2_insertion_angle_sd_deg": 22.5,
+    "type3_insertion_angle_mean_deg": 50.4,
+    "type3_insertion_angle_sd_deg": 22.5,
+    "type2_downward_probability": 0.65,
+    "sigma_rad_per_sqrt_cm": 0.2,
+    "trials_type2": 2,
+    "trials_type3": 1
+  },
+  "rootstock": "SO4",
+  "timepoint": "T2",
+  "seeds": [
+    4101,
+    4102,
+    4103,
+    4104,
+    4105,
+    4106,
+    4107,
+    4108,
+    4109,
+    4110
+  ],
+  "scenarios": [
+    "upstream_example",
+    "paper_proxy",
+    "branching_capacity",
+    "fichtl_tropism"
+  ],
+  "base_depths_cm": [
+    20,
+    0
+  ],
+  "primary_base_depth_cm": 20,
+  "alignment_sensitivity_warning": "0 cm base is a nonphysiological alignment sensitivity, never a preferred fit or measured planting depth",
+  "expected_grid_sha256": "10e5b5332bd9bdf06cf73e1a64fb394c99ab174c822aa4744440fa7cd67fb4bf",
+  "observation": {
+    "voxel_cm": 10,
+    "x": "across row",
+    "y": "along row",
+    "depth": "base_depth_cm - simulator_z",
+    "length_source": "geometric",
+    "boundary_rule": "floor in positive-depth coordinates; half-open cubes",
+    "invalid": "exclude invalid child edges and report their length",
+    "outside_prism": "unobserved; report overflow, no exterior penalty",
+    "classes": "observed polyline labels versus generated integer orders are an unqualified operational proxy",
+    "biomass": "unconstrained; no diameter/density inference",
+    "soil_boundary": "legacy at model base; fichtl_tropism surface_z=20 above the base. Primary comparison depth=20-z_sim."
+  },
+  "mapping_assumptions": {
+    "uniform_length_bounds": "mean +/- sqrt(3)*between-vine SD used as per-organ proxy; not a verified organ distribution",
+    "length_reduction": "8.9/40.3; daughter nominal mean = 40.3/length_reduction, before parent-segment increments",
+    "root_counts": "4 outer + 5 inner; secondary requested cap 2..3; growth_sec_root .35 is a count-ratio engineering approximation",
+    "global_spacing": "paper_proxy 4.8 cm; branching_capacity .75 cm tests global-capacity limitation, with no claim it is a measured initial-root spacing",
+    "maximum_order": "3 for paper proxies; unrepresented higher labels remain a reported gap",
+    "gravity": ".1 diagnostic blend; never substituted from paper probability .65",
+    "diameter": "base .36 cm, apex .05 cm, reduction .2 are nuisance visual inputs; no mass validation",
+    "fichtl_tropism": "Same count/length/spacing inputs as branching_capacity; keep generated initial roots, use paper-angle truncated-normal proxies and per-segment gravity/plagiotropism search; surface20cm above base and no forced downward lateral apex. These mechanism changes are combined, not individually identified. Legacy gravitropism is explicitly zero; no post-tropism rotation is permitted. Only orders1-3 are supported.",
+    "angles": "Printed radians corrected to degrees following author estimator; clipped-by-rejection normal in[0,90] is an explicit distribution approximation"
+  },
+  "evaluation": {
+    "design": "All eight SO4/T2 vines are descriptive comparisons; no train/holdout or independent generalization claim",
+    "normalization": "pooled positive SO4/T2 RLD q75 with numpy method linear; physical RLD units",
+    "loss": ".5 occupied-cell MAE + .5 digitized-zero-cell MAE, divided by q75; also physical MAE and length coverage",
+    "representative": "median valid-soil length rank with seed or vine ID tie-break, never best observed fit",
+    "rotation_deg": 0,
+    "aggregate_validation": "Paper-informed quantities are setup checks, not independent validation"
+  },
+  "budget": {
+    "generator_calls": 40,
+    "wall_seconds": 900,
+    "per_call_seconds": 60,
+    "cpu_workers": 1,
+    "cpu_threads": 2,
+    "storage_bytes": 1073741824,
+    "automatic_retries": 0
+  }
+}

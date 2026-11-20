@@ -166,5 +166,22 @@ mlruns
 *.xml
 slurm-*.out
 .python-version
+# Local runtime qualification and private service configuration
+.runtime/
+.env.local
+.env.local.*
+!.env.local.example
 md_report.md
 coverage.json
+
+# Local observed root grids are excluded from public checkpoints
+/data/grapevine/
+
+# Local Calvin research results and root-architecture presentations.
+# Directory patterns apply at any depth and cover current and future dates.
+[Cc]alvin*/
+[Rr]oot_[Aa]rchitecture_[Pp]resentation*/
+
+# Locally generated printable documentation and PDF layout previews.
+/output/pdf/
+/tmp/pdfs/

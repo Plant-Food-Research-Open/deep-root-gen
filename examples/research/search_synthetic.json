@@ -1,0 +1,18 @@
+{
+  "version": "local-research-parameter-search-v1",
+  "parameters_file": "search_synthetic_parameters.json",
+  "reference_file": "search_synthetic_reference.json",
+  "simulation_route": "construction_steps_v1",
+  "objective_mode": "per_seed_mean",
+  "search_space": {"fichtl_sigma": {"kind": "float", "low": 0.05, "high": 0.15}},
+  "seeds": [101, 102],
+  "qualification_seeds": [201, 202],
+  "sampler_seed": 7,
+  "budget": {
+    "n_trials": 3,
+    "n_startup_trials": 1,
+    "timeout_seconds": 180,
+    "per_seed_timeout_seconds": 30,
+    "output_stop_bytes": 16777216
+  }
+}

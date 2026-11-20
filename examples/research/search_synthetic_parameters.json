@@ -1,0 +1,96 @@
+{
+  "schema_version": 4,
+  "random_seed": 42,
+  "simulation_tag": "invented-search-fixture",
+  "parameters": {
+    "max_order": 3,
+    "min_primary_length": 5.0,
+    "max_primary_length": 6.0,
+    "base_diameter": 0.11,
+    "diameter_reduction": 0.2,
+    "apex_diameter": 0.02,
+    "segments_per_root": 2,
+    "length_reduction": 0.5,
+    "root_vary": 2.0,
+    "interbranch_distance": 0.5,
+    "root_tissue_density": 0.05,
+    "gravitropism": 0.0,
+    "tropism_mode": "fichtl2024",
+    "soil_surface_z_cm": 20.0,
+    "fichtl_probability_down": 0.5,
+    "fichtl_sigma": 0.1,
+    "fichtl_trials_type2": 1.0,
+    "fichtl_trials_type3": 1.0,
+    "fichtl_theta2_deg": 50.0,
+    "fichtl_theta2_sd_deg": 10.0,
+    "fichtl_theta3_deg": 50.0,
+    "fichtl_theta3_sd_deg": 10.0,
+    "primary_root_count": 2,
+    "outer_primary_fraction": 0.5,
+    "min_branching_diameter_cm": 0.0,
+    "threshold_root_diameter_cm": 0.06,
+    "daughter_count_order_gain": 0.0,
+    "min_lateral_length": 2.0,
+    "max_lateral_length": 3.0,
+    "daughters_per_parent": 2
+  },
+  "features": {
+    "primary_placement": {
+      "enabled": true,
+      "settings": {
+        "yaw_mean_deg": 35.0,
+        "yaw_kappa": 2.0,
+        "inclination_bias": 0.3
+      }
+    },
+    "branch_sites": {
+      "enabled": true,
+      "settings": {
+        "placement": "redistribute_capped"
+      }
+    },
+    "lengths": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "2": {
+            "law": "discrete_cdf",
+            "lengths_cm": [
+              10.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          },
+          "3": {
+            "law": "discrete_cdf",
+            "lengths_cm": [
+              2.0
+            ],
+            "cumulative_probabilities": [
+              1.0
+            ]
+          }
+        }
+      }
+    },
+    "direction": {
+      "enabled": true,
+      "settings": {
+        "stationing": "construction_steps_v1",
+        "primary_correction": "frozen_surface_check",
+        "post_correction": "pure_surface_check"
+      }
+    },
+    "primary_origins": {
+      "enabled": true,
+      "settings": {
+        "layout": "point",
+        "x_cm": 1.0,
+        "y_cm": -2.0,
+        "depth_cm": 8.0
+      }
+    }
+  },
+  "limits": {}
+}

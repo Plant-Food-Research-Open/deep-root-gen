@@ -10,6 +10,7 @@ from dash import (
     Output,
     State,
     callback,
+    ctx,
     dcc,
     html,
     no_update,
@@ -17,6 +18,7 @@ from dash import (
 )
 
 from deeprootgen.form import build_calibration_parameters, get_common_layout
+from deeprootgen.form.optimisation import validate_optimisation_form
 from deeprootgen.io import load_data_from_file, s3_upload_file
 from deeprootgen.pipeline import (
     dispatch_new_run,
@@ -387,12 +389,12 @@ def update_summary_data_state(
     if summary_label is None:
         return button_contents, [True], [True]
 
-    if summary_stats is None or distances is None:
+    if not summary_stats or not distances:
         return [summary_label], [True], [False]
 
     summary_stats_list = summary_stats[0]
     distance_list = distances[0]
-    if len(summary_stats_list) == 0 or len(distance_list) == 0:
+    if not summary_stats_list or not distance_list:
         return [summary_label], [True], [False]
 
     if summary_stats_list[0] is None or distance_list[0] is None:
@@ -476,6 +478,7 @@ def clear_summary_data(n_clicks: int | list[int], summary_data: dict) -> tuple:
     Output(f"{PAGE_ID}-results-toast", "is_open"),
     Output(f"{PAGE_ID}-results-toast", "children"),
     Input({"index": f"{PAGE_ID}-run-sim-button", "type": ALL}, "n_clicks"),
+    Input(f"{PAGE_ID}-preview", "n_clicks"),
     State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
     State({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
     State({"index": f"{PAGE_ID}-stat-by-soil-layer-switch", "type": ALL}, "on"),
@@ -486,6 +489,7 @@ def clear_summary_data(n_clicks: int | list[int], summary_data: dict) -> tuple:
 )
 def run_root_model(
     n_clicks: list,
+    preview_clicks: int | None,
     parameter_values: list,
     calibration_values: list,
     stats_by_layer: list[bool],
@@ -498,6 +502,7 @@ def run_root_model(
     Args:
         n_clicks (list):
             Number of times the button has been clicked.
+        preview_clicks (int | None): Number of local setup checks requested.
         parameter_values (list):
             The parameter form input data.
         calibration_values (list):
@@ -515,18 +520,13 @@ def run_root_model(
         tuple:
             The updated form state.
     """
-    if n_clicks is None or len(n_clicks) == 0:
-        return no_update
+    preview = ctx.triggered_id == f"{PAGE_ID}-preview"
+    if not (preview_clicks if preview else n_clicks and n_clicks[0]):
+        return no_update, no_update, no_update
 
-    if n_clicks[0] is None or n_clicks[0] == 0:
-        return no_update
-
-    stat_by_layer = stats_by_layer[0]
-    stat_by_col = stats_by_col[0]
-
-    summary_statistics = summary_data.get("values", None)
+    summary_statistics = (summary_data or {}).get("values")
     if summary_statistics is None:
-        return no_update
+        return no_update, True, "Upload a CSV with statistic_name and statistic_value."
 
     form_inputs = build_calibration_parameters(
         FORM_NAME,
@@ -534,14 +534,33 @@ def run_root_model(
         parameter_values,
         calibration_values,
         summary_statistics=summary_statistics,
-        stat_by_layer=stat_by_layer,
-        stat_by_col=stat_by_col,
+        stat_by_layer=bool(stats_by_layer and stats_by_layer[0]),
+        stat_by_col=bool(stats_by_col and stats_by_col[0]),
     )
     if form_inputs is None:
-        return no_update
+        return no_update, True, "Select the uploaded statistics and a distance metric."
+    try:
+        model = validate_optimisation_form(form_inputs)
+    except ValueError as exc:
+        issues = exc.errors(include_input=False, include_url=False) if hasattr(exc, "errors") else None
+        detail = "; ".join(
+            f"{'.'.join(map(str, issue['loc']))} {issue['msg']}" for issue in issues
+        ) if issues else str(exc)
+        return no_update, True, detail
+
+    if preview:
+        intervals = model.parameter_intervals.model_dump()
+        varying = [key for key, value in intervals.items() if value["lower_bound"] != value["upper_bound"]]
+        compare = model.statistics_comparison
+        trial_count = model.calibration_parameters["n_trials"]
+        return no_update, True, html.Div([
+            html.P(f"{trial_count} whole-root optimisation trials"),
+            html.P("Search ranges for " + (", ".join(varying) if varying else "no parameters")),
+            html.P("Statistics and distance " + ", ".join(compare.summary_statistics + compare.distance_metrics)),
+        ])
 
     simulation_runs, toast_message = dispatch_new_run(
-        TASK, form_inputs, simulation_runs
+        TASK, model.model_dump(mode="json"), simulation_runs or []
     )
     return simulation_runs, True, toast_message
 
@@ -560,10 +579,12 @@ def layout() -> html.Div:
     Returns:
         html.Div: The page layout.
     """
-    title = "Run Optimisation"
-    page_description = """
-    Optimise the parameters of the root system architecture simulation against a target dataset
-    """
+    title = "Optimise whole-root statistics"
+    page_description = (
+        "Upload whole-root targets, select one distance metric and set the search ranges. "
+        "Start with primary root count, length and downward bias. Set equal bounds to fix a parameter. "
+        "Check the setup before running. A run needs the configured Prefect deployment."
+    )
 
     layout = get_common_layout(
         title=title,
@@ -574,4 +595,7 @@ def layout() -> html.Div:
         task=TASK,
         data_key=DATA_COMPONENT_KEY,
     )
-    return layout
+    return html.Div([
+        html.Button("Check setup", id=f"{PAGE_ID}-preview", className="btn btn-outline-primary m-2"),
+        layout,
+    ])

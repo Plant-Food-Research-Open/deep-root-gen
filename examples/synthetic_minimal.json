@@ -1,0 +1,32 @@
+{
+  "schema_version": 4,
+  "random_seed": 42,
+  "simulation_tag": "synthetic-smoke-seed42",
+  "parameters": {
+    "max_order": 1,
+    "min_primary_length": 20.0,
+    "max_primary_length": 30.0,
+    "base_diameter": 0.11,
+    "diameter_reduction": 0.2,
+    "apex_diameter": 0.02,
+    "segments_per_root": 5,
+    "length_reduction": 0.5,
+    "root_vary": 30.0,
+    "interbranch_distance": 0.0078,
+    "root_tissue_density": 0.05,
+    "gravitropism": 0.1,
+    "primary_root_count": 2,
+    "outer_primary_fraction": 0.5,
+    "min_branching_diameter_cm": 0.0,
+    "threshold_root_diameter_cm": 0.06,
+    "daughter_count_order_gain": 0.2,
+    "min_lateral_length": 10.0,
+    "max_lateral_length": 20.0,
+    "daughters_per_parent": {
+      "min": 1,
+      "max_exclusive": 2
+    }
+  },
+  "features": {},
+  "limits": {}
+}

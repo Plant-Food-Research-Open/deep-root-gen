@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.statistics.summary_statistics import RootNumber, TotalLength
 from deeprootgen.statistics.root_grid_aggregation import aggregate_root_grid
 

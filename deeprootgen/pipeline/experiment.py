@@ -25,12 +25,13 @@ from prefect import context, task
 from prefect.deployments import run_deployment
 from ydata_profiling import ProfileReport
 
-from ..data_model import RootSimulationModel
+from ..data_model.canonical import RootConfig
+from ..data_model.simulation_form import SoilDisplay
 from ..model import RootSystemSimulation
 from ..statistics import get_summary_statistic_func, get_summary_statistics
 from ..statistics.root_grid_aggregation import aggregate_root_grid
 
-OUT_DIR = osp.join("/app", "outputs")
+OUT_DIR = os.environ.get("DEEPROOTGEN_OUTPUT_DIR", osp.join("/app", "outputs"))
 
 
 def get_datetime_now() -> str:
@@ -50,6 +51,7 @@ def get_outdir() -> str:
         str:
             The output directory.
     """
+    os.makedirs(OUT_DIR, exist_ok=True)
     return OUT_DIR
 
 
@@ -183,18 +185,19 @@ def calculate_graph_metrics(G: nx.Graph, time_now: str, task: str) -> str:
 
 @task
 def log_simulation(
-    input_parameters: RootSimulationModel, simulation: RootSystemSimulation, task: str
+    input_parameters: RootConfig, simulation: RootSystemSimulation, task: str, soil_display: SoilDisplay | None = None
 ) -> None:
     """Log details for the current simulation.
 
     Args:
-        input_parameters (RootSimulationModel):
+        input_parameters (RootConfig):
             The root simulation data model.
         simulation (RootSystemSimulation):
             The root system simulation instance.
         task (str):
             The task name.
     """
+    soil_display = soil_display or SoilDisplay()
     node_df, edge_df = simulation.G.as_df()
     G = simulation.G.as_networkx()
     time_now = get_datetime_now()
@@ -208,7 +211,7 @@ def log_simulation(
     edge_df.to_csv(outfile, index=False)
     mlflow.log_artifact(outfile)
 
-    fig = simulation.init_fig(input_parameters)
+    fig = simulation.init_fig(soil_display)
     fig = simulation.plot_root_system(fig, node_df)
     outfile = osp.join(OUT_DIR, f"{time_now}-{task}_roots.html")
     fig.write_html(outfile)
@@ -224,16 +227,18 @@ def log_simulation(
     profile.to_file(outfile)
     mlflow.log_artifact(outfile)
 
+    mlflow.log_dict(simulation.result.metadata["root_summary"], "root_summary.json")
+
     # Calculate and log summary statistics.
     statistic_names = []
     statistic_values = []
 
     # Check whether soil dimensions are available.
     soil_dimensions = [
-        input_parameters.soil_layer_height,
-        input_parameters.soil_layer_width,
-        input_parameters.soil_n_layers,
-        input_parameters.soil_n_cols,
+        soil_display.soil_layer_height,
+        soil_display.soil_layer_width,
+        soil_display.soil_n_layers,
+        soil_display.soil_n_cols,
     ]
     has_soil_grid = all(value is not None and value > 0 for value in soil_dimensions)
 
@@ -241,10 +246,10 @@ def log_simulation(
 
     if has_soil_grid:
         soil_df = simulation.soil.create_soil_grid(
-            input_parameters.soil_layer_height,
-            input_parameters.soil_n_layers,
-            input_parameters.soil_layer_width,
-            input_parameters.soil_n_cols,
+            soil_display.soil_layer_height,
+            soil_display.soil_n_layers,
+            soil_display.soil_layer_width,
+            soil_display.soil_n_cols,
         )
 
         # Required for the original Soil implementation,
@@ -311,7 +316,7 @@ def log_simulation(
             statistic_func = get_summary_statistic_func(statistic_name)
 
             statistic_instance = statistic_func(
-                root_tissue_density=(input_parameters.root_tissue_density)
+                root_tissue_density=(input_parameters.parameters.root_tissue_density)
             )
 
             statistic_value = statistic_instance.calculate(node_df)
@@ -350,18 +355,18 @@ def log_simulation(
 
     # Export aggregated root architecture by soil voxel.
     soil_dimensions = [
-        input_parameters.soil_layer_height,
-        input_parameters.soil_layer_width,
-        input_parameters.soil_n_layers,
-        input_parameters.soil_n_cols,
+        soil_display.soil_layer_height,
+        soil_display.soil_layer_width,
+        soil_display.soil_n_layers,
+        soil_display.soil_n_cols,
     ]
 
     if all(v is not None and v > 0 for v in soil_dimensions):
         soil_df = simulation.soil.create_soil_grid(
-            input_parameters.soil_layer_height,
-            input_parameters.soil_n_layers,
-            input_parameters.soil_layer_width,
-            input_parameters.soil_n_cols,
+            soil_display.soil_layer_height,
+            soil_display.soil_n_layers,
+            soil_display.soil_layer_width,
+            soil_display.soil_n_cols,
         )
 
         # Remove if the Soil coordinate convention
@@ -483,12 +488,12 @@ def save_simulation_runs(simulation_runs: list) -> tuple:
     df = pd.DataFrame(simulation_runs)
     date_now = get_datetime_now()
     file_name = f"{date_now}-root-simulation-runs.csv"
-    outfile = osp.join("outputs", file_name)
+    outfile = osp.join(get_outdir(), file_name)
     df.to_csv(outfile, index=False)
     return outfile, file_name
 
 
-def dispatch_new_run(task: str, form_inputs: dict, simulation_runs: list) -> tuple:
+def dispatch_new_run(task: str, form_inputs: dict, simulation_runs: list, **flow_options) -> tuple:
     """Dispatch a new simulation run.
 
     Args:
@@ -506,7 +511,7 @@ def dispatch_new_run(task: str, form_inputs: dict, simulation_runs: list) -> tup
     simulation_uuid = get_simulation_uuid()
     flow_data = run_deployment(
         f"{task}/run_{task}_flow",
-        parameters=dict(input_parameters=form_inputs, simulation_uuid=simulation_uuid),
+        parameters=dict(input_parameters=form_inputs, simulation_uuid=simulation_uuid, **flow_options),
         flow_run_name=simulation_uuid,
         timeout=0,
     )

@@ -46,6 +46,7 @@ from sbi.inference import (
     simulate_for_sbi,
 )
 
+from deeprootgen.data_model.simulation_form import SoilDisplay
 from deeprootgen.calibration import (
     GraphFlowFeatureExtractor,
     PriorCollection,
@@ -628,7 +629,8 @@ def run_snpe(input_parameters: RootCalibrationModel, simulation_uuid: str) -> No
 
     config = input_parameters.dict()
     log_config(config, TASK)
-    log_simulation(simulation_parameters, simulation, TASK)
+    log_simulation(simulation_parameters, simulation, TASK,
+                   SoilDisplay(**input_parameters.model_dump(include=set(SoilDisplay.model_fields))))
     save_graph_to_db(simulation, TASK, simulation_uuid)
     mlflow.end_run()
 
