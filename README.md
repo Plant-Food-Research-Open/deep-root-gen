@@ -60,7 +60,7 @@ Root system architecture (RSA) plays an important role in plant growth and devel
 
 DeepRootGen provides a computational framework for generating synthetic three-dimensional root system architectures using a stochastic, parameterised root simulation model. The model represents individual root organs and segments within a hierarchical graph, allowing their geometry, topology and spatial distribution to be analysed.
 
-See [RUNNING.md](RUNNING.md) for current installation and runtime qualification status.
+Start with the [DeepRootGen handbook](docs/DEEPROOTGEN_HANDBOOK.md) and [web optimisation guide](docs/WEB_OPTIMISATION.md). See [RUNNING.md](RUNNING.md) for current installation and runtime qualification status.
 
 For current model routes, the complete input dictionary, units and a practical
 scientific review workflow, start with the
