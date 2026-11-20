@@ -56,6 +56,8 @@ The core surface, axial turning, mass-matched terminal exchange, proximal thicke
 
 ## Measure and compare the result
 
+Read [how candidate architectures are scored](ARCHITECTURE_SCORING.md) for the physical loss, hit and false-hit calculations, and asymmetric sensitivity.
+
 - **Whole-root summaries.** Counts, total and average lengths, volumes, diameters, dry weights, specific root length and convex hulls describe different properties. Specific root length has units of length per dry mass. A hull measures the envelope and can enclose empty space. Agree how to handle zero mass, invalid axes and the crown. Keep units consistent and specify whether averages are by organ, length or vine. [Statistic implementations](../deeprootgen/statistics/summary_statistics.py)
 - **Profiles.** A vertical, radial, diameter or branching-order distribution describes allocation, and may be reported in actual length or as a normalized share. A normalized profile can agree even if total length is wrong. For share vectors whose masses sum to one, total variation is half the sum of the absolute differences. Compare shared bins and retain overflow.
 - **Density.** Physical core RLD is root contour length intersecting a finite cylinder divided by the sampled soil volume in cm³. Specify radius, clipped interval, coordinate frame, live/vine sorting, diameter band and how neighbouring plants enter the comparison. A gridded average has its own volume and aggregation rule. Missing sections and measured zeroes carry different information. [Finite-cylinder observer](../deeprootgen/research/core_observation.py)
