@@ -20,6 +20,10 @@ Open **Architecture Search** and upload a schema-4 JSON saved by Simulation. For
 
 The bounded worker accepts 2–60 trials and at most four seeds. Adaptive Optuna TPE uses preceding results after startup. Latin-hypercube screening spreads candidates through the declared ranges independently of preceding results and ignores startup trials. Both methods score paired native simulations against the same targets. It respects stricter architecture limits supplied in the JSON. Early invalid trials remain in the trial table. Whole-root rows use `statistic_name,statistic_value` and may supply a positive `scale`. The interface is for whole-root targets. Local research tools handle physical-core fitting, tube partitions and empirical observations. [Architecture scoring](ARCHITECTURE_SCORING.md)
 
+## Compare physical core predictions
+
+Open **Core Comparison** and upload [the invented comparison CSV](../examples/research/core_comparison_synthetic.csv) to see the exact prediction and a missed hit. The page takes precomputed RLD for each candidate on the same held tubes. It checks alignment and tube-level separation, calculates the original spatial score, and displays conditional misses and false hits with separate over- and underprediction contributions. Set a presence threshold in cm/cm³ to test hit sensitivity while keeping the continuous loss fixed. Each row describes the uploaded prediction field. Use the offline presence workflow to count hits before averaging across seed and reflection realizations. [Scoring guide](ARCHITECTURE_SCORING.md)
+
 ## Which controls belong on the starting screen?
 
 | Control | Place in the interface | Explanation |
