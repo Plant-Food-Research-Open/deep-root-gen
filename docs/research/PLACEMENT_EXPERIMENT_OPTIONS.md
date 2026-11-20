@@ -62,3 +62,15 @@ Fit the spatial preference and its rates on whole training tubes, keeping all de
 Compute the physical loss from 50% normalized absolute RLD error, 25% total variation of the joint tube-by-depth RLD shares, and 25% total variation of the depth shares. Give each tube equal total weight across its retained depths. Normalize absolute error by the training tubes' weighted mean observed RLD and average fold losses in proportion to their held-tube counts. Report the relative reduction as `1 − candidate loss / paired reference loss` for each evaluation. A 10% reduction requires a candidate loss at or below 0.90 times its paired reference. For a seed interval, resample whole paired seeds with all their tubes and reflections together.
 
 Report deep empty-section frequency and RLD per occupied section alongside spatial loss. Report the mean underground dry mass per vine, including crown and rootstock, and the counts below, within and above the 6–8 kg target. When each held-tube fold has its own fitted rule, label pooled biomass counts as vine-by-fold realizations.
+
+### Combine shallow branching with deep placement
+
+A daughter born near the surface can still supply root length at depth. To test whether fewer shallow births produce a deeper root system, record the absolute length in the measured diameter band at 90–120 cm and 120–150 cm, the fraction of whole-vine length there, and the deepest point. Report the change against both the rainfed reference and the same deep-placement treatment with ordinary shallow branching.
+
+| Mechanism | Paired comparison |
+|---|---|
+| Reduce shallow terminal emergence | Thin only daughters born in the surface layer. Apply the same thinning draws with and without deep recruitment. Record how much deep length the removed daughters contributed. |
+| Replace terminal daughters at depth | Replace selected shallow daughters with the same number of eligible daughters on deeper parents. Also test deep recruitment alone. Record the realized counts and any shortage of eligible sites. Equal counts can yield different lengths and masses. |
+| Move an earlier branch and its descendants | Before growing the daughter, sample deeper, diameter-compatible contour on its own parent. Keep the first accepted anchor in count-based branching and leave the bud in place if no compatible site exists. Report how many buds were selected, moved and retained for lack of support. |
+
+Cross each relevant mechanism with the previous deep-recruitment, longer-primary or spatially guided treatment. Evaluate the fitted spatial preference at births throughout the vineyard cell, using only training tubes to estimate and normalize it. The original physical-core score and coverage on whole omitted tubes determine whether the combined change improves spatial prediction. Additional random cylinders measure coverage at new simulated positions. New field tubes are needed to verify transfer after repeated use of the historical comparison tubes.
