@@ -202,3 +202,33 @@ A root can also respond to expected crowding from other vines. Deposit the simul
 To target structural biomass directly, calculate the dry mass that lengthening each terminal can add, and the mass available from shortening it. Keep its attachment, structural diameter and crown fixed. Allocate the required change within the native length and soil bounds. Recompute the physical intersections for any fractionally extended or shortened terminal. Record the requested and attained mass of each vine, both diameter conventions, and the remaining deficit if all eligible terminals exhaust their capacity.
 
 A population can assign different complete rules to different vines. If testing mixtures, estimate their proportions using training tubes and training vines. Compare this selection with a prespecified equal-share population. On the assessment set, distinguish realized vine-by-vine counts from expected counts under a distribution. A retrospective upper bound over all common proportions can establish whether any mixture within the tested library could reach the target across every panel. Its scope is limited to that library and those measured positions.
+
+### Test which side of a parent a lateral emerges from
+
+A daughter can change the tissue it deposits across vineyard rows while retaining its original angle to the parent. Turn its **entire attached subtree** about the incoming tangent of its parent at the actual insertion. Evaluate the original orientation, ±60°, ±120° and 180°. Reject an angle if any descendant rises above the soil. All sections, reflections and neighbouring-vine translations of the same root share one angle. Recalculate the core intersections and any location-dependent diameter adjustment after rotation.
+
+The [lateral orientation module](../../deeprootgen/research/lateral_orientation.py) supplies the rotation, the normalized choice probabilities and the full parameter table. Each of two primary architectures and two lateral orders receives ten fixed controls and 1,240 jointly sampled settings. These 5,000 settings vary turn frequency, angular width, birth depth and where the subtree deposits tissue across three depth bands, relative crowding and the fitted 3D coring field. Every fifth sampled rule disables the coring term. The same fixed controls and random draws on each background allow direct comparisons.
+
+```python
+from deeprootgen.research.lateral_orientation import lateral_orientation_design, roll_options
+
+rules = lateral_orientation_design()
+# Synthetic points share an insertion at z = -20. Positive z is upwards.
+options, feasible = roll_options([[0, 0, -20], [5, 1, -22]], [0, 0, -20], [1, 0, -1])
+```
+
+For an exact check on stochastic simulations, average the physical RLD of each legal angle using its choice probability. To estimate empty cores, calculate each subtree's probability of missing the individual cylinder and multiply those probabilities across independently chosen subtrees. Include unchanged tissue as a potential hit. Average over reflections only after computing emptiness for each complete geometry. Compare the physical score of the expected field with scores from actual seeded whole vines. The loss is nonlinear, so these quantities can differ.
+
+### Add material where it can grow without changing the sampled fine roots
+
+The [proximal thickening module](../../deeprootgen/research/proximal_thickening.py) applies secondary growth to the basal portion of eligible exponential tapers. Increase the basal diameter and adjust the decay rate so the new taper rejoins the original at the specified coarse diameter, or reaches the original tip diameter if the entire root is coarse. Keep each attachment, contour, terminal diameter and fine distal profile. Use each axis's original receiving-parent diameter and its order- and maturity-specific limits to cap the treatment. Calculate the achievable dry-mass increment from the increased material using the supplied diameter-class tissue densities.
+
+Measure the original crown-inclusive dry mass once. Set a per-vine target and record the mass attained, the actual mass added by root order and any deficit when the eligible coarse roots reach their limits. Choose the coarse cutoff above the largest diameter included in the spatial assay when testing a mass-only change. Verify that the fine-class intersections, the eligible root length, and deep-empty indicators still agree with a complete geometric replay. Report the separate outcome of controlling mass alongside the original physical spatial loss.
+
+### Distinguish variation among vines from variation among field positions
+
+When assessments use different simulated vine groups at different field positions, cross the groups with **both sets of positions** using a fixed, training-selected treatment and its paired control. Reproject each whole vine through the same core cylinders under both arrangements. If the original folds used different scaffold settings, repeat with a common setting. Evaluate pooled loss from the mean physical field of all vines. Averaging percentage gains from small groups would give a different quantity. Preserve each vine across all its positions and folds when resampling. Report interval estimates conditional on the observed tubes and count distinct vines separately from vine-by-fold realizations.
+
+For a survey with multiple reflections, check the spatial symmetry of the observer as well as the empirical support available to fit a signed contrast. Report whether mirrored locations were sampled. A signed feature in a branching decision can change individual realized geometries even when its linear contribution cancels in a reflection-averaged field. Comparing signed and sign-deleted fields on the same root decisions and comparing fine, middle and coarse diameter classes by sector help distinguish directional effects from a persistent diameter-class mismatch.
+
+Core dry weight can supply another auxiliary field. Divide the independently recorded dry mass of the relevant sorted fraction by actual sampled soil volume, verify the recorded density and preserve true zero values. Fit the dry-matter field and its coupling to qualifying-RLD residuals using the nested whole-tube procedure above. Report its transfer against a depth-only auxiliary predictor, against the original vine-only placement rule, and against the physically matched reference architecture. Distinguish a sampled mass per soil volume from whole-vine dry mass and from root-tissue density.
