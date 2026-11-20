@@ -154,3 +154,41 @@ A change in a parent's contour can move a daughter along its taper, even when th
 
 
 When applying several mechanisms to one population, specify which biological unit draws a treatment. A whole vine can draw one common rule, a vine can choose a rule using its pre-existing size and depth distribution, or each primary can choose separately and carry all its descendants with it. For a whole-vine draw, average the empty-core indicator of each complete option under its probability. For independent primary-level draws, multiply the probabilities that each primary misses the same physical section. Use the original physical intersections for both calculations. Compare this expected population field with actual seeded trees, and verify one complete graph against the original core observer.
+
+### Allocate a fixed mass to terminal elongation
+
+Group three fifth-order roots of similar initial dry mass before consulting a spatial field. Keep their parent sites, initial bearings and basal diameters. Change their contour lengths by extending one or two terminals while shortening the others. A fractional length change scales the mass of a terminal with fixed taper on relative contour length. Choose a direction of exchange perpendicular to both triplets of masses, one calculated from native diameters and the other from the positional diameter adjustment used for comparison with the cores. Scale each direction separately to satisfy all three native length limits and keep the tips and intermediate points below ground. Recompute both mass sums after each change.
+
+| Part of the design | Settings |
+|---|---|
+| Early geometry | Native primary bearings or rigid rotation about the crown insertion |
+| Fixed comparisons per geometry | Original lengths, random exchange, local crowding, depth preference, continuous coring surface |
+| Sampled settings per geometry | 2,495 Latin-hypercube draws, shared across the two geometries |
+| Exchange log-odds intercept | −4 to +2 |
+| Seven preference coefficients | −3 to +3 for each of four depth contrasts, cross-row location, local root density and relative RLD from the fitted surface |
+
+This gives 5,000 prescriptions. Each group draws once among its unchanged length allocation and two feasible exchanges. Use common random draws across settings. The spatial predictors describe the length each option would deposit along all three paths. A negative crowding coefficient can shift length away from cells that already contain more roots than their layer average. Remove the surface term from the selected rule to measure what the coring data added.
+
+The [terminal elongation module](../../deeprootgen/research/terminal_elongation.py) implements this design. Call `elongation_design()` to obtain its 5,000 rows. Pass the two masses and the lower and upper length bounds of each terminal triplet to `exchange_scales`. The resulting three alternatives can be drawn with `choose_exchange` using a design row, standardized changes in deposition and fixed uniform random marks. Its module example shows a two-budget exchange on a synthetic triplet.
+
+Two other experiments distinguish elongation from lateral spread. Change the alignment of successive terminal segments while preserving every step length and the original first tangent. Count corrections at the soil surface because they can change local turning even when the overall course straightens. In a branching experiment, allow fine sisters to emerge at distinct legal sites on one parent, then compare with sisters at the same site and with the unsplit terminal. When splitting earlier root orders, retest diameter and daughter-count limits throughout the altered subtree. Record how many subtrees are actually eligible.
+
+### Test whether an auxiliary coring measurement predicts vine-root placement
+
+A second measurement in each training core can guide branching if its spatial pattern predicts where the vine model misses roots. Two candidates are the survey's non-vine root fraction and lengths from vine-sorted roots below the diameter band used for evaluation. Check the bin edges, units, missing measurements and whether the length in a subset exceeds the measured total for that fraction. Document how the field team separated material. Report how sensitive the result is to inconsistent sections.
+
+Fit the auxiliary RLD through depth within each training tube and smooth the profiles across both periodic soil coordinates. Shrink each horizontal prediction towards the depth profile. At a proposed daughter site use the log ratio of the predicted local auxiliary RLD to its depth baseline, with the same training-derived pseudocount in numerator and denominator. Fit the association between this contrast and the difference between observed vine RLD and the unchanged simulator. Estimate it on whole inner tubes omitted from map fitting, bandwidth selection and scale estimation. A signed, regularized slope allows either association and pulls weak effects toward zero. A depth-varying slope can borrow strength from the whole profile.
+
+Add this correction to the existing relative vine-RLD surface. Separate parameters multiply retention and branching odds by the exponential of their respective coefficients times the combined field. Keep the odds neutral beyond measured depth support. Compare a generic policy, the vine-only surface, the auxiliary-only surface and the combined surface against the same architecture and physical score. At omitted tubes, report how well the field predicted the auxiliary measurement, how well it predicted the vine model’s error, and how much it improved the score on fully realized vine graphs. Record below-, within- and above-target biomass counts. If native structural and positional diameter conventions give different mass totals, report both.
+
+The [relative core surface module](../../deeprootgen/research/relative_core_surface.py) accepts training sections and arbitrary query positions. Pass the row and vine periods, three bandwidths and sampled depth interval explicitly. Use the same field for both decisions when appropriate, with separate coefficients for retention and branching. For example, a local-to-layer ratio of two doubles the odds at unit strength. An original probability of 0.20 then becomes one third.
+
+```python
+import numpy as np
+from deeprootgen.research.relative_core_surface import adjust_branching_odds
+
+retention = adjust_branching_odds(0.20, np.log(2.0), strength=1.0)
+branching = adjust_branching_odds(0.20, np.log(2.0), strength=0.0)
+```
+
+Use `relative_core_surface` to estimate the log ratio from allowed training tubes and `compose_relative_surfaces` to add a fitted auxiliary correction. The caller supplies the whole-tube split, fits the coefficients and passes the probabilities to the growth experiment.
