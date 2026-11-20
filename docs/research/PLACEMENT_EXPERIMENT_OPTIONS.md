@@ -192,3 +192,13 @@ branching = adjust_branching_odds(0.20, np.log(2.0), strength=0.0)
 ```
 
 Use `relative_core_surface` to estimate the log ratio from allowed training tubes and `compose_relative_surfaces` to add a fitted auxiliary correction. The caller supplies the whole-tube split, fits the coefficients and passes the probabilities to the growth experiment.
+
+### Combine terminal allocation with primary inclination, neighbouring roots and a structural mass target
+
+A rigid inclination change rotates a complete primary and its descendants about their actual crown insertion. Evaluate shallower and steeper options and reject any that put tissue above ground. Cross the chosen inclination with terminal elongation on the resulting graph. Recompute its available length bounds, local crowding and positional assay before choosing which terminals extend. Compare each combination with the same inclined tree retaining its original terminal lengths.
+
+A root can also respond to expected crowding from other vines. Deposit the simulated roots of each training vine into soil voxels at their absolute positions around its own crown. Sum the mean distribution translated to the surrounding crown positions, excluding the focal crown and excluding the focal training vine from the donor mean. A daughter can then favour elongation along a less crowded course. Turn off only the neighbouring-root coefficient to measure its contribution while preserving the focal vine’s own crowding response. Use the original core observer for both treatments.
+
+To target structural biomass directly, calculate the dry mass that lengthening each terminal can add, and the mass available from shortening it. Keep its attachment, structural diameter and crown fixed. Allocate the required change within the native length and soil bounds. Recompute the physical intersections for any fractionally extended or shortened terminal. Record the requested and attained mass of each vine, both diameter conventions, and the remaining deficit if all eligible terminals exhaust their capacity.
+
+A population can assign different complete rules to different vines. If testing mixtures, estimate their proportions using training tubes and training vines. Compare this selection with a prespecified equal-share population. On the assessment set, distinguish realized vine-by-vine counts from expected counts under a distribution. A retrospective upper bound over all common proportions can establish whether any mixture within the tested library could reach the target across every panel. Its scope is limited to that library and those measured positions.
