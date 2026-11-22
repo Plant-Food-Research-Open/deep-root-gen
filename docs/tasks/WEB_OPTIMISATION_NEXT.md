@@ -1,0 +1,10 @@
+# Web optimisation engineering handoff
+
+Implement one additive Dash workflow that takes a saved schema-4 configuration from Simulation and evaluates opt-in parameter changes on synthetic whole-root data. Reuse the canonical resolver for the enabled feature and per-order owner checks. Reuse the local or configured optimization backend rather than duplicating the simulator in UI callbacks. Keep the current Optimisation page behaviour available.
+
+- Provide a base JSON upload, a table of active scalar controls with units, and an explicit range or fixed value for each selected control. Start with primary count, active primary length and active gravity or downward drift. Show the generation mode and list the relevant replacement laws. Adapt UI labels, units and constraints from the selected law.
+- Show target rows and selected metrics, limits, seed and trials in a preview. Preview should perform structural validation without launching a worker. Submit only on the explicit run action. Show queued/running/completed/failed states from the actual backend and expose a downloadable best configuration and trial table.
+- Start with one invented fixture, five trials and a known optimum. Add tests for saved input round-trip through the resolver, unavailable controls, invalid bounds, unsupported statistics, preview without dispatch, one mock dispatch, worker failure and current page compatibility. Use a configured local service stack for the synthetic integration check.
+- Leave imported field surveys and fitted configurations out of the branch and any external prompt. A subsequent physical-core workflow needs its own observation model, coordinate/diameter validation, whole-tube splits and protected local execution.
+
+Start with [form preflight](../../deeprootgen/form/optimisation.py), [Dash callbacks](../../app/pages/optimisation_root_system.py), [the Optuna task](../../app/flows/run_optimisation.py), [parameter ownership](../../deeprootgen/data_model/consumers.py), and [the existing local search](../../deeprootgen/research/parameter_search.py).

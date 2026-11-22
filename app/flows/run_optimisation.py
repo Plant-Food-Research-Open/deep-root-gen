@@ -79,6 +79,7 @@ def prepare_task(input_parameters: RootCalibrationModel) -> tuple:
     distances, statistics_list = get_calibration_summary_stats(input_parameters)
     calibration_parameters = input_parameters.calibration_parameters
     sampler = TPESampler(
+        seed=input_parameters.random_seed,
         n_startup_trials=calibration_parameters["n_startup_trials"],
         n_ei_candidates=calibration_parameters["n_ei_candidates"],
         consider_prior=True,
@@ -162,8 +163,10 @@ def objective(
                 parameter, lower_bound, upper_bound
             )
         else:
+            if int(lower_bound) != lower_bound or int(upper_bound) != upper_bound:
+                raise ValueError(f"Expected integer bounds for {parameter}")
             parameter_specs[parameter] = trial.suggest_int(
-                parameter, lower_bound, upper_bound
+                parameter, int(lower_bound), int(upper_bound)
             )
 
     discrepancy = calculate_summary_statistic_discrepancy(

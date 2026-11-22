@@ -1,0 +1,4 @@
+split,candidate,core_id,z_lower_cm,z_upper_cm,core_volume_cm3,rld_est,predicted_rld
+train,,training,-10,0,74.22,0.2,
+held,exact,held,-10,0,74.22,0.1,0.1
+held,miss,held,-10,0,74.22,0.1,0

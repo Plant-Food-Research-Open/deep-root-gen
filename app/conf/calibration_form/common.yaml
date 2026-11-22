@@ -71,7 +71,7 @@ components:
         class_name: dash.dcc.RangeSlider
         handler: range_slider
         min_value: 15
-        max_value: 30
+        max_value: 25
         kwargs:
           min: 1
           max: 50
@@ -276,15 +276,16 @@ components:
       - id: gravitropism-slider
         param: gravitropism
         label: Gravitropism factor
-        help: The gravitropism factor for root development
+        help: Downward bias of native root growth (fraction from 0 to 1)
         data_type: continuous
         class_name: dash.dcc.RangeSlider
         handler: range_slider
-        min_value: 4
-        max_value: 9
+        min_value: 0.05
+        max_value: 0.25
         kwargs:
-          min: 1
-          max: 10
+          min: 0
+          max: 1
+          step: 0.01
           persistence: true
           pushable: false
           allowCross: false
@@ -483,7 +484,7 @@ components:
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
-          min: 1
+          min: 2
           step: 1
           value: 10
           persistence: true
@@ -494,9 +495,9 @@ components:
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number
-          min: 1
+          min: 0
           step: 1
-          value: 10
+          value: 3
           persistence: true
       - id: n-candidates-ei-input
         param: n_ei_candidates  
@@ -512,11 +513,11 @@ components:
       - id: n-jobs-input
         param: n_jobs 
         label: Number of parallel trials
-        help: The number of trials to run in parallel. '-1' runs all trials in parallel.
+        help: Keep at 1 for reproducible trial order. Higher values run trials in parallel.
         class_name: dash_bootstrap_components.Input 
         kwargs:
           type: number 
-          min: -1
+          min: 1
           step: 1
           value: 1
           persistence: true
@@ -526,7 +527,7 @@ components:
         help: Select summary statistics for comparing simulated and observed data
         class_name: dash.dcc.Dropdown
         handler: dropdown
-        options_func: deeprootgen.statistics.get_summary_statistics
+        options_func: deeprootgen.form.optimisation.optimisation_statistics
         statistic_parameter: true
         kwargs:
           multi: true
@@ -537,21 +538,21 @@ components:
       - id: stat-by-soil-layer-switch
         param: stat_by_soil_layer
         label: Statistics by soil layer
-        help: Enable the calculation of summary statistics by soil layer within the voxel grid
+        help: This page compares whole-root statistics
         class_name: dash_daq.BooleanSwitch.BooleanSwitch 
         handler: boolean_switch
         statistic_parameter: true
-        kwargs: 
-          persistence: true
+        kwargs:
+          disabled: true
       - id: stat-by-soil-col-switch
         param: stat_by_soil_column
         label: Statistics by soil column
-        help: Enable the calculation of summary statistics by soil column within the voxel grid
+        help: This page compares whole-root statistics
         class_name: dash_daq.BooleanSwitch.BooleanSwitch 
         handler: boolean_switch
         statistic_parameter: true
-        kwargs: 
-          persistence: true
+        kwargs:
+          disabled: true
       - id: distance-dropdown
         param: distance_metrics
         label: Distance metrics
