@@ -1,5 +1,8 @@
 """Canonical owners for existing SO4 leaf kernels; old aliases stay at the boundary."""
 
+from typing import ClassVar
+
+from .consumers import fichtl_direction_orders
 from .simulation_data_models import CurrentLengthCDF, RootSimulationModel
 
 OWNERS = {
@@ -13,6 +16,11 @@ OWNERS = {
     "insertion": dict(row_axial_kappa_by_order="research_insertion_row_axial_kappa"),
     "direction": dict(sigma_by_order="research_fichtl_sigma_by_order", higher_order_tropism="research_higher_order_tropism"),
 }
+
+
+class _CanonicalKernelAliases(RootSimulationModel):
+    # Fichtl ownership was already checked against the canonical law table.
+    canonical_generation: ClassVar[bool] = True
 
 
 def _collect(features):
@@ -51,11 +59,20 @@ def _resolve_direction(features, p, laws, updates):
 
 
 def _check_placement(features, laws):
-    if not features.primary_placement.enabled or features.primary_placement.settings.explicit_design is None:
+    if not features.primary_placement.enabled:
+        return
+    settings = features.primary_placement.settings
+    origin = laws.origins or {}
+    if origin.get("measured_headings") and any(
+        getattr(settings, name) is not None
+        for name in ("yaw_mean_deg", "yaw_kappa", "yaw_reverse_probability", "inclination_bias")
+    ):
+        raise ValueError("Measured vine-origin headings conflict with primary yaw or inclination controls")
+    if settings.explicit_design is None:
         return
     if 1 in laws.lengths or 1 in laws.taper:
         raise ValueError("Explicit primary design owns primary dimensions/material; conflicts with lengths/taper order 1")
-    if laws.origins is not None and laws.origins["layout"] == "disk":
+    if origin.get("layout") == "disk" or any(entry["layout"] == "primary_layout" for entry in origin.get("entries", ())):
         raise ValueError("Explicit primary design currently requires common origins")
 
 
@@ -77,6 +94,18 @@ def _check_direction_consumers(updates, laws):
         for order in updates.get(field, {}) or {}:
             if int(order) in laws.direction and laws.direction[int(order)]["law"] != "construction_step_intervals":
                 raise ValueError(f"{field} has no Fichtl/insertion consumer on replaced order {order}")
+
+
+def _check_canonical_fichtl_orders(p, laws, updates):
+    if p.tropism_mode == "fichtl2024" and p.max_order > 5:
+        raise ValueError("fichtl2024 mode currently supports max_order <= 5")
+    required = {str(order) for order in fichtl_direction_orders(p, laws) if order >= 4}
+    supplied = {str(order) for order in updates.get("research_higher_order_tropism", {})}
+    if required != supplied:
+        raise ValueError(
+            "direction.higher_order_tropism requires entries for active Fichtl orders "
+            f"{sorted(required)}, got {sorted(supplied)}"
+        )
 
 
 def _assign_curved_insertion(updates, laws, max_order):
@@ -121,7 +150,8 @@ def _validated_aliases(p, updates):
     for field, value in defaults.items():
         if payload.get(field) is None:
             payload[field] = value
-    validated = RootSimulationModel(**payload)
+    validator = _CanonicalKernelAliases if getattr(p, "canonical_generation", False) else RootSimulationModel
+    validated = validator(**payload)
     result = {field: getattr(validated, field) for field in updates}
     if "research_primary_design" in result:
         result["t"] = 0
@@ -135,6 +165,8 @@ def resolve_native_options(features, p, laws):
     _check_placement(features, laws)
     _check_sites(features, laws)
     _check_direction_consumers(updates, laws)
+    if getattr(p, "canonical_generation", False):
+        _check_canonical_fichtl_orders(p, laws, updates)
     if laws.lengths:
         updates["research_current_length_cdfs_cm"] = {
             order: CurrentLengthCDF(lengths_cm=law["lengths_cm"], cumulative_probabilities=law["cumulative_probabilities"])

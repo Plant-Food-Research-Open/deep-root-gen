@@ -82,6 +82,11 @@ def _export(spec, outdir, resolve_config, canonical_input, simulation_class):
         result.organ_table.to_csv(target / "organs.csv", index=False)
         if "irrigation" in result.diagnostics:
             (target / "irrigation.json").write_text(json.dumps(result.diagnostics["irrigation"], allow_nan=False) + "\n")
+        if "branching" in result.diagnostics:
+            (target / "branching.json").write_text(
+                json.dumps(result.diagnostics["branching"], indent=2, allow_nan=False) + "\n"
+            )
+        _export_spatial_receipts(result.diagnostics, target)
         if not result.node_metadata.empty:
             result.node_metadata.to_csv(target / "node_metadata.csv", index=False)
         (target / "execution.json").write_text(
@@ -132,6 +137,19 @@ def _export(spec, outdir, resolve_config, canonical_input, simulation_class):
     manifest["repository"] = repository_state()
     (target / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
+
+
+def _export_spatial_receipts(diagnostics, target):
+    alignment = [
+        dict(organ_id=item["organ_id"], order=item["order"], **item["row_alignment"])
+        for item in diagnostics.get("curvature", ()) if "row_alignment" in item
+    ]
+    for name, value in (
+        ("row_alignment", alignment),
+        ("vine_origin_catalogue", diagnostics.get("vine_origin_catalogue")),
+    ):
+        if value:
+            (target / f"{name}.json").write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
 
 
 def main(argv=None) -> int:

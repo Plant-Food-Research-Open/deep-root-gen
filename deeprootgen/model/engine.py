@@ -42,6 +42,7 @@ class ForestState:
     interval_receipts: list = field(default_factory=list)
     budget: Any = None
     provenance: dict = field(default_factory=dict)
+    vine_origin: Optional[tuple] = None
     lifecycle_version: str = ENGINE_LIFECYCLE_VERSION
 
     @property
@@ -162,7 +163,15 @@ def prepare_forest(state):
     if replacements is None:
         sim.init_organs(p)
     else:
-        if state.laws.origins is not None and state.laws.origins["layout"] == "disk":
+        origin_law = state.laws.origins or {}
+        layout = origin_law.get("layout")
+        if layout == "vine_catalogue":
+            from .vine_origins import select_vine_origin
+
+            state.vine_origin = select_vine_origin(origin_law, state.streams)
+            layout = state.vine_origin[0]["layout"]
+        if layout in ("disk", "primary_layout"):
+            state.budget.check_nodes(primary_count)
             _per_primary_workspace(state)
         sim.init_organs(p, laws=replacements)
     bind_axis_states(state)
@@ -200,7 +209,7 @@ def _native_replacements(state):
 
 
 def _per_primary_workspace(state):
-    """Workspace with one provisional zero-material base per primary (disk origins)."""
+    """Workspace with one provisional zero-material base per primary."""
     from ..data_model import RootNodeModel
     from .hgraph import RootSystemGraph
 

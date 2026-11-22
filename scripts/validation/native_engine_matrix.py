@@ -8,12 +8,27 @@ output directories are never overwritten. These are software checks only.
 import argparse
 import copy
 import hashlib
+from itertools import product
 import json
 from pathlib import Path
 import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
+
+
+def spatial_cases():
+    base = json.loads((ROOT / "examples/design/spatial_construction_synthetic.json").read_text())
+    for alignment, origins, branching in product((False, True), repeat=3):
+        value = copy.deepcopy(base)
+        features = value["features"]
+        if not alignment:
+            features["curvature"]["settings"]["by_order"]["2"].pop("row_alignment_per_cm")
+        features["primary_origins"]["enabled"] = origins
+        if not branching:
+            law = features["branching"]["settings"]["by_order"]
+            law["2"] = copy.deepcopy(law["1"])
+        yield f"spatial-R{int(alignment)}-O{int(origins)}-B{int(branching)}", value
 
 
 def cases():
@@ -45,6 +60,7 @@ def cases():
     yield "common-origin-replaced-dimensions", value
     yield "paired-allocation-targets", json.loads((ROOT / "examples/design/native_allocation_targets.json").read_text())
     yield "buried-trunk-0-20cm", json.loads((ROOT / "examples/design/native_crown_0_20cm.json").read_text())
+    yield from spatial_cases()
 
 
 def main():
@@ -65,7 +81,11 @@ def main():
         for key in ("effective_model_sha256", "run_identity_sha256"):
             if record["model_identity"][key] != replay["model_identity"][key]:
                 raise AssertionError(f"{label}: {key} changed on reload")
-        for name in ("nodes.csv", "edges.csv", "root_summary.json"):
+        files = {"nodes.csv", "edges.csv", "root_summary.json", "organs.csv", "branching.json"}
+        files |= {"row_alignment.json", "vine_origin_catalogue.json"} & (
+            record["outputs"].keys() | replay["outputs"].keys()
+        )
+        for name in sorted(files):
             if record["outputs"][name] != replay["outputs"][name]:
                 raise AssertionError(f"{label}: {name} changed on reload")
         summary["cases"].append(dict(label=label, nodes=record["node_count"], edges=record["edge_count"],

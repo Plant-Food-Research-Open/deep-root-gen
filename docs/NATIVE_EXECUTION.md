@@ -17,6 +17,13 @@ physical lengths by order, length and dry biomass by diameter class, and
 achieved fractions. `execution.json` records allocation results when a target is
 supplied. The graph uses cm for lengths and diameters, and g for dry mass.
 Use the exported `parameters.json` to repeat a seeded run.
+The resolved integer crown split is in `execution.json`. Open
+`branching.json` for site proposals, placed sites, accepted daughters and
+invalid daughters by parent order. Replacement laws also record the first-site
+draw and branch decision for each parent. For native spacing, the proposal count
+starts at the sites placed by that calculation. Diameter rejections count
+sites, while Bernoulli rejections and first sites at or beyond the tip count
+parent decisions.
 
 ## Parameters for structural-root simulations
 
@@ -51,6 +58,15 @@ the distribution before truncation. Enable `cohort_maturity` only to give
 descendants a shared primary-tree factor affecting size or branch probability.
 Routing and publication use the same native axis state for these choices.
 
+For `features.branching.settings.by_order`, the bounded lognormal sets the
+first-site distance in cm, measured along the parent. Its mean and SD describe
+the underlying distribution. The branch probability applies per parent. When
+the draw succeeds and the first site lies before the tip, the conditional
+count probabilities control the family size. The remaining sites are uniform
+between the first site and the tip. The final diameter gate applies after any
+relocation. An entry supplied for the terminal order is retained as inactive
+input and creates no branch draws.
+
 For a measured thick-root taper, set the order's taper `law` to
 `exponential_above_diameter`. Set `rate_per_cm` to the nonnegative decay rate
 and `thick_min_cm` to the lower measurement limit. The diameter follows
@@ -69,6 +85,25 @@ Curved laterals with `initial_heading: "insertion_angle"` can also use
 `features.insertion.settings.row_axial_kappa_by_order`. A positive concentration
 biases insertion azimuth around the simulator's row axis (+y), preserving
 the sampled polar angle relative to the parent. Zero leaves the angle draw intact.
+
+In `fichtl2024` mode, Fichtl angle and trial settings apply only to orders using
+the Fichtl direction kernel or Fichtl construction-step directions.
+`features.direction.settings.higher_order_tropism` supplies the controls for
+the active Fichtl orders 4 and 5. Curvature-owned orders use their own parameters.
+When every active Fichtl order supplies `sigma_by_order`, the global
+`fichtl_sigma` can be omitted. Fichtl-mode primary and post-direction validation
+remain selected by the validation controls.
+
+Schema 4 can also hold an indexed crown in
+`features.primary_origins.settings` with `layout: vine_catalogue` and a persistent
+along-row heading adjustment in
+`features.curvature.settings.by_order.<order>.row_alignment_per_cm`.
+The catalogue sets each primary's position and, where supplied, heading.
+The curvature adjustment aligns the horizontal heading with the row axis
+during growth. The [synthetic five-order example](../examples/design/spatial_construction_synthetic.json)
+combines both controls with length-dependent branching and can be loaded in
+the Simulation page. The CLI writes `vine_origin_catalogue.json` and
+`row_alignment.json` when those controls are active.
 
 For an example with two adjustable dimensions, run the [paired allocation
 input](../examples/design/native_allocation_targets.json). It requests 50% of

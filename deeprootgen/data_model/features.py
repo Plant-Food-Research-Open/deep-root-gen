@@ -39,7 +39,7 @@ CURVATURE_BOUNDS = dict(
 )
 
 STRICT = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
-_ORDER_KEY = re.compile(r"^[1-9][0-9]*$")
+_ORDER_KEY = re.compile(r"[1-9][0-9]*")
 
 # Flat-schema fields that schema 3 does not accept in ``parameters``. Old-input
 # adapters still parse and serialize them; schema 3 gives each value one owner.
@@ -55,7 +55,7 @@ class _Strict(BaseModel):
 
 def _order_keys(mapping):
     for key in mapping:
-        if not isinstance(key, str) or not _ORDER_KEY.match(key):
+        if not isinstance(key, str) or not _ORDER_KEY.fullmatch(key):
             raise ValueError(f"by_order keys must be canonical positive order strings, got {key!r}")
     return mapping
 
