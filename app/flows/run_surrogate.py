@@ -192,7 +192,7 @@ def perform_summary_stat_task(
     n_epochs = calibration_parameters["n_epochs"]
     scheduler = StepLR(
         optimizer,
-        step_size=int(n_epochs * 0.7),
+        step_size=max(1, int(n_epochs * 0.7)),
         gamma=0.1,  # type: ignore[operator]
     )
 
@@ -254,9 +254,14 @@ def log_summary_stat_task(
 
     train_loader, val_loader, test_loader = loaders
     X_scaler, y_scaler = scalers
+    features = training_df.drop(
+        columns=["training_data_split", "sim_ids", "discrepancy"]
+    )
+    first_col = features.columns[0]
 
     def log_performance(loader: torch.utils.data.DataLoader, split_name: str) -> None:
         model.eval()
+        likelihood.eval()
         X_data = []
         y_data = []
 
@@ -306,7 +311,6 @@ def log_summary_stat_task(
         upper = y_scaler.inverse_transform(upper.reshape(-1, 1)).flatten()
         index = np.arange(len(mean))
 
-        first_col = sample_df.columns[0]
         X_data = X_scaler.inverse_transform(X_data.detach().cpu().numpy())
         x = X_data[:, 0]
         out_df = pd.DataFrame(
@@ -368,19 +372,16 @@ def log_summary_stat_task(
         artifacts[name] = outfile
         torch.save(obj, outfile)
 
-    drop_columns = ["training_data_split", "sim_ids", "discrepancy"]
-    column_names = training_df.drop(columns=drop_columns).columns
-
     for obj, name in [
         (X_scaler, "X_scaler"),
         (y_scaler, "Y_scaler"),
-        (column_names, "column_names"),
+        (features.columns, "column_names"),
     ]:
         outfile = osp.join(outdir, f"{time_now}-{TASK}_{name}.pkl")
         artifacts[name] = outfile
         calibrator_dump(obj, outfile)
 
-    signature_x = training_df.drop(columns=drop_columns).head(5).to_dict("records")
+    signature_x = features.head(5).to_dict("records")
     signature_y = pd.DataFrame(
         {"discrepancy": mean, "lower_bound": lower, "upper_bound": upper}
     )
@@ -409,32 +410,32 @@ def run_surrogate(input_parameters: RootCalibrationModel, simulation_uuid: str) 
         simulation_uuid (str):
             The simulation uuid.
     """
+    comparison = input_parameters.statistics_comparison
+    if comparison is None or not comparison.use_summary_statistics:
+        raise ValueError(
+            "Graph-mode Surrogate training is unavailable. "
+            "Turn on summary statistics for summary-statistic cost emulation."
+        )
+
     begin_experiment(TASK, simulation_uuid, input_parameters.simulation_tag)
     log_experiment_details(simulation_uuid)
-
     sample_df, distances, statistics_list = prepare_task(input_parameters)
-
-    use_summary_statistics: bool = (
-        input_parameters.statistics_comparison.use_summary_statistics  # type: ignore
+    model, likelihood, sample_df, loaders, scalers, training_df, inducing_points = (
+        perform_summary_stat_task(
+            input_parameters, sample_df, distances, statistics_list
+        )
     )
-    if use_summary_statistics:
-        model, likelihood, sample_df, loaders, scalers, training_df, inducing_points = (
-            perform_summary_stat_task(
-                input_parameters, sample_df, distances, statistics_list
-            )
-        )
-
-        log_summary_stat_task(
-            input_parameters,
-            model,
-            likelihood,
-            sample_df,
-            loaders,
-            scalers,
-            training_df,
-            inducing_points,
-            simulation_uuid,
-        )
+    log_summary_stat_task(
+        input_parameters,
+        model,
+        likelihood,
+        sample_df,
+        loaders,
+        scalers,
+        training_df,
+        inducing_points,
+        simulation_uuid,
+    )
 
     config = input_parameters.dict()
     log_config(config, TASK)
@@ -457,4 +458,4 @@ def run_surrogate_flow(
         simulation_uuid (str):
             The simulation uuid.
     """
-    run_surrogate.submit(input_parameters, simulation_uuid)
+    run_surrogate(input_parameters, simulation_uuid)

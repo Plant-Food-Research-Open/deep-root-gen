@@ -52,7 +52,13 @@ def model_info(task: str, timeout: float = 5.0) -> dict:
         raise ServiceError("unreachable", f"No {task} model service answered at {url}. {START_HINT}") from exc
     if response.status_code != 200:
         raise ServiceError("service_error", f"{url}/info returned HTTP {response.status_code}: {_detail(response)}")
-    return response.json()
+    try:
+        info = response.json()
+    except ValueError as exc:
+        raise ServiceError("service_error", f"The {task} service returned invalid model information.") from exc
+    if not isinstance(info, dict):
+        raise ServiceError("service_error", f"The {task} service returned invalid model information.")
+    return info
 
 
 def predict(task: str, body: dict, outdir: str, stamp: str, timeout: float = 120.0) -> tuple[str, int, dict]:
@@ -110,7 +116,9 @@ def service_status() -> list[tuple[str, str, str]]:
         except ServiceError as error:
             rows.append((label, "not running" if error.kind == "unreachable" else "error", str(error)))
             continue
-        if info.get("available"):
+        if info.get("available") and info.get("prediction_ready") is False:
+            rows.append((label, "prediction unavailable", info.get("prediction_detail", "")))
+        elif info.get("available"):
             rows.append((label, "serving", f"{info.get('tag')} from run {info.get('simulation_uuid')}"))
         else:
             rows.append((label, "no model", f"Running at {endpoint(task)} without a {task} model version."))

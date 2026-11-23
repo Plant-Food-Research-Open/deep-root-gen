@@ -8,6 +8,7 @@
 
 import os.path as osp
 
+import dash_bootstrap_components as dbc
 from dash import (
     ALL,
     Input,
@@ -21,6 +22,7 @@ from dash import (
     register_page,
 )
 
+from deeprootgen.data_model.snpe_targets import conditioning_rows
 from deeprootgen.data_model.surrogate_inputs import surrogate_form_row
 from deeprootgen.form import get_common_layout
 from deeprootgen.form import model_services
@@ -36,7 +38,17 @@ TASK = "deployments"
 PAGE_ID = f"{TASK}-root-system-page"
 FORM_NAME = "deployments_form"
 PROCEDURE = "Calibration"
-DATA_COMPONENT_KEY = "summary_data"
+SNPE_MODEL_INFO = f"{PAGE_ID}-snpe-model-info"
+SNPE_SOURCE = f"{PAGE_ID}-snpe-source"
+SNPE_UPLOAD = f"{PAGE_ID}-snpe-target-upload"
+SNPE_INPUTS = {"type": f"{PAGE_ID}-summary_statistics", "index": ALL}
+SNPE_PREDICT = {"index": f"{PAGE_ID}-call-snpe-button", "type": f"{PAGE_ID}-simulation"}
+UPLOAD_BUTTON = {
+    "index": f"{PAGE_ID}-upload-obs-data-file-button", "type": f"{PAGE_ID}-summary_data"
+}
+CLEAR_UPLOAD = {
+    "index": f"{PAGE_ID}-clear-obs-data-file-button", "type": f"{PAGE_ID}-summary_data"
+}
 
 ######################################
 # Callbacks
@@ -175,127 +187,174 @@ def toggle_calibration_collapse(n: int, is_open: bool) -> bool:
 
 
 @callback(
-    Output(f"{PAGE_ID}-summary-data-collapse", "is_open"),
-    [Input(f"{PAGE_ID}-summary-data-collapse-button", "n_clicks")],
-    [State(f"{PAGE_ID}-summary-data-collapse", "is_open")],
+    Output(SNPE_MODEL_INFO, "data"),
+    Input(f"{PAGE_ID}-check-services", "n_clicks"),
 )
-def toggle_data_collapse(n: int, is_open: bool) -> bool:
-    """Toggle the collapsible for statistics.
-
-    Args:
-        n (int):
-            The number of times that the button has been clicked.
-        is_open (bool):
-            Whether the collapsible is open.
-
-    Returns:
-        bool: The collapsible state.
-    """
-    if n:
-        return not is_open
-    return is_open
+def refresh_snpe_model(_: int | None) -> dict:
+    """Refresh the schema from the loaded SNPE model."""
+    try:
+        return model_services.model_info("snpe", timeout=3.0)
+    except model_services.ServiceError as error:
+        return {"prediction_detail": str(error)}
 
 
 @callback(
-    Output(
-        {"index": f"{PAGE_ID}-upload-obs-data-file-button", "type": ALL}, "children"
-    ),
-    Output({"index": f"{PAGE_ID}-clear-obs-data-file-button", "type": ALL}, "disabled"),
-    Input("store-summary-data", "data"),
-)
-def update_summary_data(summary_data: dict) -> tuple:
-    """Update the state of the summary data.
-
-    Args:
-        summary_data (dict | None):
-            The summary data.
-
-    Returns:
-        tuple:
-            The updated form state.
-    """
-    button_contents = "Load summary data"
-    if summary_data is None:
-        return [button_contents], [True]
-    summary_label = summary_data.get("label")
-    if summary_label is None:
-        return [button_contents], [True]
-
-    return [summary_label], [False]
-
-
-@callback(
-    Output("store-summary-data", "data", allow_duplicate=True),
+    Output(SNPE_UPLOAD, "data", allow_duplicate=True),
+    Output(UPLOAD_BUTTON, "contents", allow_duplicate=True),
     Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
     Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
-    Input({"index": f"{PAGE_ID}-upload-obs-data-file-button", "type": ALL}, "contents"),
-    State({"index": f"{PAGE_ID}-upload-obs-data-file-button", "type": ALL}, "filename"),
+    Input(UPLOAD_BUTTON, "contents"),
+    State(UPLOAD_BUTTON, "filename"),
     prevent_initial_call=True,
 )
-def load_summary_data(list_of_contents: list, list_of_names: list) -> tuple:
-    """Load statistics data from file.
-
-    Args:
-        list_of_contents (list):
-            The list of file contents.
-        list_of_names (list):
-            The list of file names.
-
-    Returns:
-        tuple:
-            The updated form state.
-    """
-    summary_data, toast_message = load_statistics_upload(list_of_contents, list_of_names)
-    if toast_message is no_update:
-        return no_update
-    return summary_data, True, toast_message
+def load_summary_data(contents: str | None, filename: str | None) -> tuple:
+    """Read the target CSV while retaining any earlier valid upload on error."""
+    summary_data, feedback = load_statistics_upload([contents], [filename or "upload"])
+    if feedback is no_update:
+        return no_update, no_update, no_update, no_update
+    return summary_data, None, True, feedback
 
 
 @callback(
-    Output("store-summary-data", "data", allow_duplicate=True),
-    Output(
-        {"index": f"{PAGE_ID}-upload-obs-data-file-button", "type": ALL}, "contents"
-    ),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
-    Input({"index": f"{PAGE_ID}-clear-obs-data-file-button", "type": ALL}, "n_clicks"),
-    State("store-summary-data", "data"),
+    Output(SNPE_UPLOAD, "data", allow_duplicate=True),
+    Input(CLEAR_UPLOAD, "n_clicks"),
     prevent_initial_call=True,
 )
-def clear_summary_data(n_clicks: int | list[int], summary_data: dict) -> tuple:
-    """Clear summary data from the page.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of form clicks.
-        summary_data (dict):
-            The exploratory data analysis data.
-
-    Returns:
-        tuple:
-            The updated form state.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    summary_label = summary_data.get("label")
-    if summary_data is None or summary_label is None:
-        return no_update
-
-    toast_message = f"Clearing: {summary_label}"
-    return {}, [None], True, toast_message
+def clear_summary_data(n_clicks: int | None) -> dict:
+    return {} if n_clicks else no_update
 
 
-def call_service(task: str, body: dict) -> tuple:
+@callback(
+    Output(f"{PAGE_ID}-snpe-upload-label", "children"),
+    Output(CLEAR_UPLOAD, "disabled"),
+    Input(SNPE_UPLOAD, "data"),
+)
+def describe_upload(upload: dict | None) -> tuple[str, bool]:
+    filename = (upload or {}).get("label")
+    return (f"Loaded {filename}", False) if filename else ("Choose a statistics CSV", True)
+
+
+def statistic_names(model_info: dict | None) -> list[str]:
+    info = model_info or {}
+    if not info.get("available") or not info.get("prediction_ready") or not info.get("tag"):
+        return []
+    schema = info.get("input_schema") or {}
+    names = schema.get("statistic_names") if isinstance(schema, dict) else None
+    if not isinstance(names, list) or not all(isinstance(name, str) and name for name in names):
+        return []
+    return list(dict.fromkeys(names))
+
+
+@callback(
+    Output(f"{PAGE_ID}-snpe-manual", "children"),
+    Input(SNPE_MODEL_INFO, "data"),
+    State(SNPE_INPUTS, "id"),
+    State(SNPE_INPUTS, "value"),
+)
+def render_manual_targets(model_info: dict, input_ids: list, values: list) -> list:
+    """Render the served model's inputs and retain entered values on refresh."""
+    previous = {item["index"]: value for item, value in zip(input_ids, values)}
+    names = statistic_names(model_info)
+    return [
+        html.Label(
+            [
+                html.Span(name.replace("_", " ").capitalize(), className="form-label mb-1"),
+                dcc.Input(
+                    id={"type": SNPE_INPUTS["type"], "index": name},
+                    type="number",
+                    step="any",
+                    value=previous.get(name),
+                    className="form-control",
+                ),
+            ],
+            className="col",
+        )
+        for name in names
+    ]
+
+
+@callback(
+    Output(f"{PAGE_ID}-snpe-manual", "hidden"),
+    Output(f"{PAGE_ID}-snpe-upload-panel", "hidden"),
+    Input(SNPE_SOURCE, "value"),
+)
+def show_target_source(source: str) -> tuple[bool, bool]:
+    return source != "manual", source != "upload"
+
+
+def snpe_request(
+    source: str,
+    upload: dict | None,
+    model_info: dict | None,
+    input_ids: list,
+    values: list,
+) -> dict:
+    """Resolve the chosen target source against the served model schema."""
+    info = model_info or {}
+    names = statistic_names(info)
+    if not names:
+        raise ValueError(
+            info.get("prediction_detail")
+            or "The SNPE service has not provided a model schema. Check model services."
+        )
+    if source == "upload":
+        rows = (upload or {}).get("values") or []
+        if not rows:
+            raise ValueError("Choose a CSV with statistic_name and statistic_value columns.")
+    elif source == "manual":
+        rows = [
+            {"statistic_name": item["index"], "statistic_value": value}
+            for item, value in zip(input_ids, values)
+        ]
+    else:
+        raise ValueError("Choose a source for the SNPE targets.")
+    return {"summary_statistics": conditioning_rows(names, rows), "model_tag": info["tag"]}
+
+
+@callback(
+    Output(f"{PAGE_ID}-snpe-preview", "children"),
+    Output(SNPE_PREDICT, "disabled"),
+    Input(SNPE_SOURCE, "value"),
+    Input(SNPE_UPLOAD, "data"),
+    Input(SNPE_MODEL_INFO, "data"),
+    Input(SNPE_INPUTS, "id"),
+    Input(SNPE_INPUTS, "value"),
+)
+def preview_snpe_targets(source, upload, model_info, input_ids, values) -> tuple:
+    """Show the exact values used by the prediction callback."""
+    try:
+        request = snpe_request(source, upload, model_info, input_ids, values)
+    except ValueError as error:
+        return html.P(str(error), className="mb-0"), True
+    source_label = f"CSV · {upload['label']}" if source == "upload" else "Manual values"
+    return [
+        html.P(f"{source_label} · {request['model_tag']}", className="mb-1"),
+        dbc.Table(
+            [
+                html.Thead(html.Tr([html.Th("Statistic", scope="col"), html.Th("Value", scope="col")])),
+                html.Tbody([
+                    html.Tr([
+                        html.Th(row["statistic_name"], scope="row"),
+                        html.Td(str(row["statistic_value"]).removesuffix(".0")),
+                    ])
+                    for row in request["summary_statistics"]
+                ]),
+            ],
+            size="sm",
+            responsive=True,
+            className="mb-0",
+        ),
+    ], False
+
+
+def call_service(task: str, body: dict, model_identity: dict | None = None) -> tuple:
     """Call one model service; return (download, toast open, message)."""
     try:
         outfile, rows, info = model_services.predict(task, body, get_outdir(), get_datetime_now())
     except model_services.ServiceError as error:
         tone = "warning" if error.kind == "unreachable" else "danger"
         return no_update, True, message(model_services.TITLES[error.kind], str(error), tone=tone)
+    info = model_identity if model_identity is not None else info
     source = (f"Served model {info.get('tag')} from run {info.get('simulation_uuid')}"
               if info.get("available") else "Served model identity unavailable")
     return dcc.send_file(outfile), True, message(
@@ -368,24 +427,23 @@ def call_abc(n_clicks: list, ts: list) -> tuple:
     Output(f"{PAGE_ID}-download-results", "data", allow_duplicate=True),
     Output(f"{PAGE_ID}-results-toast", "is_open", allow_duplicate=True),
     Output(f"{PAGE_ID}-results-toast", "children", allow_duplicate=True),
-    Input({"index": f"{PAGE_ID}-call-snpe-button", "type": ALL}, "n_clicks"),
-    State({"type": f"{PAGE_ID}-summary_statistics", "index": ALL}, "value"),
+    Input(SNPE_PREDICT, "n_clicks"),
+    State(SNPE_SOURCE, "value"),
+    State(SNPE_UPLOAD, "data"),
+    State(SNPE_MODEL_INFO, "data"),
+    State(SNPE_INPUTS, "id"),
+    State(SNPE_INPUTS, "value"),
     prevent_initial_call=True,
 )
-def call_snpe(n_clicks: list, statistics_inputs: list) -> tuple:
-    """Request posterior draws conditional on the entered statistics."""
-    if not clicked(n_clicks):
+def call_snpe(n_clicks, source, upload, model_info, input_ids, values) -> tuple:
+    """Request posterior draws from the model identified in the target preview."""
+    if not n_clicks:
         return no_update, no_update, no_update
-    children = get_app().settings[FORM_NAME].components["summary_statistics"]["children"]
-    summary_statistics = [
-        {"statistic_name": child["param"], "statistic_value": value}
-        for child, value in zip(children, statistics_inputs)
-        if value is not None
-    ]
-    if not summary_statistics:
-        return no_update, True, message(
-            "Invalid input", "Enter or load at least one summary statistic value.", tone="danger")
-    return call_service("snpe", {"summary_statistics": summary_statistics})
+    try:
+        body = snpe_request(source, upload, model_info, input_ids, values)
+    except ValueError as error:
+        return no_update, True, message("Invalid SNPE targets", str(error), tone="danger")
+    return call_service("snpe", body, model_identity=model_info)
 
 
 @callback(
@@ -430,32 +488,75 @@ def show_service_status(_: int | None) -> html.Div:
 register_page(__name__, name=TITLE, top_nav=True, path=f"/{TASK}")
 
 
+def snpe_target_card() -> dbc.Card:
+    """Group target source, preview and prediction together."""
+    return dbc.Card(
+        dbc.CardBody([
+            dcc.Store(id=SNPE_MODEL_INFO),
+            dcc.Store(id=SNPE_UPLOAD, storage_type="session", data={}),
+            html.H2("SNPE prediction", className="h5"),
+            html.Fieldset([
+                html.Legend("Target source", className="form-label fs-6 mb-1"),
+                dcc.RadioItems(
+                    id=SNPE_SOURCE,
+                    options=[
+                        {"label": "Manual entry", "value": "manual"},
+                        {"label": "Uploaded CSV", "value": "upload"},
+                    ],
+                    value="manual",
+                    labelClassName="me-3",
+                    inputClassName="me-1",
+                    inline=True,
+                ),
+            ], className="mb-3"),
+            html.Div(
+                id=f"{PAGE_ID}-snpe-manual",
+                className="row row-cols-1 row-cols-sm-2 row-cols-xl-3 g-2 mb-3",
+            ),
+            html.Div([
+                html.P("Use a CSV with statistic_name and statistic_value columns.", className="mb-2"),
+                html.Div([
+                    dcc.Upload(
+                        id=UPLOAD_BUTTON,
+                        accept=".csv,text/csv",
+                        children=html.Span(
+                            "Choose a statistics CSV", id=f"{PAGE_ID}-snpe-upload-label",
+                            className="btn btn-outline-primary",
+                        ),
+                    ),
+                    dbc.Button(
+                        "Clear CSV", id=CLEAR_UPLOAD, outline=True, color="secondary", disabled=True,
+                    ),
+                ], className="d-flex align-items-center flex-wrap gap-2"),
+            ], id=f"{PAGE_ID}-snpe-upload-panel", hidden=True, className="mb-3"),
+            html.H3("Conditioning values", className="h6"),
+            html.Div(
+                "Checking the served model…", id=f"{PAGE_ID}-snpe-preview",
+                role="status", className="mb-3",
+            ),
+            dbc.Button("Neural density calibrator", id=SNPE_PREDICT, disabled=True, color="primary"),
+        ]),
+        className="my-3",
+    )
+
+
 def layout() -> html.Div:
-    """Return the page layout.
-
-    Returns:
-        html.Div: The page layout.
-    """
-    page_description = """
-    Interact with model calibration deployments and download data
-    """
-
+    """Return the Deployments page."""
     layout = get_common_layout(
         title=TITLE,
         page_id=PAGE_ID,
-        page_description=page_description,
+        page_description="Retrieve predictions and calibration results from deployed models.",
         parameter_form_name=FORM_NAME,
         simulation_form_name=FORM_NAME,
         procedure=PROCEDURE,
         task=TASK,
-        data_key=DATA_COMPONENT_KEY,
     )
-
     return html.Div([
-        html.Div([
+        dbc.Container([
             html.Button("Check model services", id=f"{PAGE_ID}-check-services",
-                        className="btn btn-outline-primary m-2"),
-            html.Div(id=f"{PAGE_ID}-service-status", className="mx-2"),
-        ]),
+                        className="btn btn-outline-primary my-2"),
+            html.Div(id=f"{PAGE_ID}-service-status"),
+            snpe_target_card(),
+        ], fluid=True),
         layout,
     ])

@@ -50,14 +50,14 @@ def identity(task: str, model) -> dict:
     }
 
 
-def service(task: str, model):
+def service(task: str, model, *, prediction_info: dict | None = None):
     """Create the service and its ``info`` endpoint."""
     runners = [model.to_runner()] if model is not None else []
     svc = bentoml.Service(task, runners=runners)
 
     @svc.api(input=JSON(), output=JSON(), route="/info")
     def info(_: dict) -> dict:
-        return identity(task, model)
+        return {**identity(task, model), **(prediction_info or {})}
 
     return svc, (runners[0] if runners else None)
 

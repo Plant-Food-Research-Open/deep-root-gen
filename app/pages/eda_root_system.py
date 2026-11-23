@@ -4,8 +4,11 @@
 # Imports
 ######################################
 
+from html import escape
+
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 from dash import (
     ALL,
     Input,
@@ -19,7 +22,7 @@ from dash import (
 )
 
 from deeprootgen.form import get_common_layout
-from deeprootgen.io import load_data_from_file
+from deeprootgen.form.uploads import load_csv_upload
 from deeprootgen.statistics import get_summary_statistic_func
 
 px.defaults.template = "ggplot2"
@@ -157,7 +160,7 @@ def update_table(runs: list | None) -> list | None:
     Output({"index": f"{PAGE_ID}-select-group-by-dropdown", "type": ALL}, "options"),
     Input("store-simulation-data", "data"),
 )
-def update_eda_data_state(eda_data: dict) -> tuple:
+def update_eda_data_state(eda_data: dict | None) -> tuple:
     """Update the state of the exploratory data analysis data.
 
     Args:
@@ -168,15 +171,12 @@ def update_eda_data_state(eda_data: dict) -> tuple:
         tuple:
             The updated form state.
     """
-    button_contents = ["Load simulation data"]
-    if eda_data is None:
-        return button_contents, [True], [[]], [[]], [[]]
-
+    eda_data = eda_data or {}
     eda_label = eda_data.get("label")
-    if eda_label is None:
-        return button_contents, [True], [[]], [[]], [[]]
+    eda_values = eda_data.get("values")
+    if not eda_label or not eda_values:
+        return ["Load simulation data"], [True], [[]], [[]], [[]]
 
-    eda_values = eda_data["values"]
     df_columns = pd.DataFrame(eda_values).columns
     columns = []
     for df_column in df_columns:
@@ -200,7 +200,7 @@ def update_eda_data_state(eda_data: dict) -> tuple:
     ),
     prevent_initial_call=True,
 )
-def load_node_data(list_of_contents: list, list_of_names: list) -> tuple:
+def load_node_data(list_of_contents: list | None, list_of_names: list | None) -> tuple:
     """Load node data from file.
 
     Args:
@@ -213,17 +213,10 @@ def load_node_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
+    parsed, raw, message = load_csv_upload(list_of_contents, list_of_names)
+    if message is no_update:
         return no_update
-
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, content_string, toast_message = load_data_from_file(
-        list_of_contents, list_of_names
-    )
-    eda_data = {"label": list_of_names[0], "values": loaded_data}
-    return eda_data, {"value": content_string}, True, toast_message
+    return parsed, raw, True, message
 
 
 @callback(
@@ -241,11 +234,11 @@ def load_node_data(list_of_contents: list, list_of_names: list) -> tuple:
     State("store-simulation-data", "data"),
     prevent_initial_call=True,
 )
-def clear_observation_data(n_clicks: int | list[int], eda_data: dict) -> tuple:
+def clear_observation_data(n_clicks: list[int] | None, eda_data: dict | None) -> tuple:
     """Clear observation data from the page.
 
     Args:
-        n_clicks (int | list[int]):
+        n_clicks (list[int] | None):
             The number of form clicks.
         eda_data (dict | None):
             The exploratory data analysis data.
@@ -254,14 +247,11 @@ def clear_observation_data(n_clicks: int | list[int], eda_data: dict) -> tuple:
         tuple:
             The updated form state.
     """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
+    if not n_clicks or not n_clicks[0]:
         return no_update
 
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    eda_label = eda_data.get("label")
-    if eda_data is None or eda_label is None:
+    eda_label = (eda_data or {}).get("label")
+    if not eda_label:
         return no_update
 
     toast_message = f"Clearing: {eda_label}"
@@ -278,14 +268,13 @@ def clear_observation_data(n_clicks: int | list[int], eda_data: dict) -> tuple:
     Input({"index": f"{PAGE_ID}-select-x-axis-dropdown", "type": ALL}, "value"),
     Input({"index": f"{PAGE_ID}-select-y-axis-dropdown", "type": ALL}, "value"),
     Input({"index": f"{PAGE_ID}-select-group-by-dropdown", "type": ALL}, "value"),
-    State("store-simulation-data", "data"),
-    prevent_initial_call=True,
+    Input("store-simulation-data", "data"),
 )
 def update_xy_plots(
     x_axes: list | None,
     y_axes: list | None,
     group_bys: list | None,
-    eda_data: dict,
+    eda_data: dict | None,
 ) -> tuple | None:
     """Update the plot states.
 
@@ -303,27 +292,19 @@ def update_xy_plots(
         tuple | None:
             The updated plot states.
     """
-    eda_values = eda_data.get("values")
-    if eda_data is None or eda_values is None:
-        return [{}], [{}]
-    if x_axes is None or len(x_axes) == 0:
+    if not x_axes or not y_axes or not group_bys:
         return no_update
-    if y_axes is None or len(y_axes) == 0:
-        return no_update
-    if group_bys is None or len(group_bys) == 0:
-        return no_update
-
-    if x_axes[0] is None or y_axes[0] is None:
-        return [{}], [{}]
 
     x_axis = x_axes[0]
     y_axis = y_axes[0]
     group_by = group_bys[0]
-
-    df = pd.DataFrame(eda_values)
-
-    if group_by is not None:
+    df = pd.DataFrame((eda_data or {}).get("values"))
+    if x_axis not in df or y_axis not in df:
+        return [{}], [{}]
+    if group_by in df:
         df[group_by] = df[group_by].astype("category")
+    else:
+        group_by = None
 
     scatter_plot = px.scatter(
         title=f"{y_axis.title()} against {x_axis.title()}",
@@ -348,11 +329,10 @@ def update_xy_plots(
     Output({"index": f"{PAGE_ID}-box-x-plot", "type": ALL}, "figure"),
     Input({"index": f"{PAGE_ID}-select-x-axis-dropdown", "type": ALL}, "value"),
     Input({"index": f"{PAGE_ID}-select-group-by-dropdown", "type": ALL}, "value"),
-    State("store-simulation-data", "data"),
-    prevent_initial_call=True,
+    Input("store-simulation-data", "data"),
 )
 def update_x_plots(
-    x_axes: list | None, group_bys: list | None, eda_data: dict
+    x_axes: list | None, group_bys: list | None, eda_data: dict | None
 ) -> tuple | None:
     """Update the x axis plot states.
 
@@ -368,23 +348,18 @@ def update_x_plots(
         tuple | None:
             The updated plot states.
     """
-    eda_values = eda_data.get("values")
-    if eda_data is None or eda_values is None:
-        return [{}], [{}]
-    if x_axes is None or len(x_axes) == 0:
-        return [{}], [{}]
-    if group_bys is None or len(group_bys) == 0:
+    if not x_axes or not group_bys:
         return no_update
-
-    if x_axes[0] is None:
-        return [{}], [{}]
 
     x_axis = x_axes[0]
     group_by = group_bys[0]
-
-    df = pd.DataFrame(eda_values)
-    if group_by is not None:
+    df = pd.DataFrame((eda_data or {}).get("values"))
+    if x_axis not in df:
+        return [{}], [{}]
+    if group_by in df:
         df[group_by] = df[group_by].astype("category")
+    else:
+        group_by = None
 
     hist_x = px.histogram(
         title=x_axis.title(),
@@ -406,11 +381,10 @@ def update_x_plots(
     Output({"index": f"{PAGE_ID}-box-y-plot", "type": ALL}, "figure"),
     Input({"index": f"{PAGE_ID}-select-y-axis-dropdown", "type": ALL}, "value"),
     Input({"index": f"{PAGE_ID}-select-group-by-dropdown", "type": ALL}, "value"),
-    State("store-simulation-data", "data"),
-    prevent_initial_call=True,
+    Input("store-simulation-data", "data"),
 )
 def update_y_plots(
-    y_axes: list | None, group_bys: list | None, eda_data: dict
+    y_axes: list | None, group_bys: list | None, eda_data: dict | None
 ) -> tuple | None:
     """Update the x axis plot states.
 
@@ -426,23 +400,18 @@ def update_y_plots(
         tuple | None:
             The updated plot states.
     """
-    eda_values = eda_data.get("values")
-    if eda_data is None or eda_values is None:
-        return [{}], [{}]
-    if y_axes is None or len(y_axes) == 0:
-        return [{}], [{}]
-    if group_bys is None or len(group_bys) == 0:
+    if not y_axes or not group_bys:
         return no_update
-
-    if y_axes[0] is None:
-        return [{}], [{}]
 
     y_axis = y_axes[0]
     group_by = group_bys[0]
-
-    df = pd.DataFrame(eda_values)
-    if group_by is not None:
+    df = pd.DataFrame((eda_data or {}).get("values"))
+    if y_axis not in df:
+        return [{}], [{}]
+    if group_by in df:
         df[group_by] = df[group_by].astype("category")
+    else:
+        group_by = None
 
     hist_y = px.histogram(
         title=y_axis.title(),
@@ -459,46 +428,54 @@ def update_y_plots(
     return [hist_y], [box_y]
 
 
+def _make_statistic(name: str, nodes: pd.DataFrame):
+    statistic = get_summary_statistic_func(name)
+    if statistic is None:
+        raise ValueError(f"Unknown summary statistic {name}.")
+    density = (
+        nodes["root_tissue_density"].iloc[0] if "root_tissue_density" in nodes else None
+    )
+    return statistic(root_tissue_density=density)
+
+
+def _statistic_message(error: Exception) -> go.Figure:
+    return (
+        go.Figure()
+        .add_annotation(
+            text=f"Cannot plot this statistic for the current dataset.<br>{escape(str(error))}",
+            showarrow=False,
+            x=0.5,
+            y=0.5,
+            xref="paper",
+            yref="paper",
+        )
+        .update_xaxes(visible=False)
+        .update_yaxes(visible=False)
+    )
+
+
+def _statistic_figure(summary_stats: list | None, eda_data: dict | None):
+    if not summary_stats:
+        return no_update
+    df = pd.DataFrame((eda_data or {}).get("values"))
+    if not summary_stats[0] or df.empty:
+        return [{}]
+    try:
+        return [_make_statistic(summary_stats[0], df).visualise(df)]
+    except (KeyError, TypeError, ValueError) as exc:
+        return [_statistic_message(exc)]
+
+
 @callback(
     Output({"index": f"{PAGE_ID}-x-summary-statistic-plot", "type": ALL}, "figure"),
     Input(
         {"index": f"{PAGE_ID}-select-x-summary-stats-dropdown", "type": ALL}, "value"
     ),
-    State("store-simulation-data", "data"),
-    prevent_initial_call=True,
+    Input("store-simulation-data", "data"),
 )
-def update_x_statistic_plot(summary_stats: list | None, eda_data: dict) -> list | None:
-    """Update the x summary statistic plot state.
-
-    Args:
-        summary_stats (list | None):
-            The list of summary statistics.
-        eda_data (dict | None):
-            The list of observed data.
-
-    Returns:
-        list | None:
-            The updated plot state.
-    """
-    if eda_data is None or eda_data.get("values") is None:
-        return [{}]
-    if summary_stats is None or len(summary_stats) == 0:
-        return [{}]
-    if summary_stats[0] is None:
-        return [{}]
-
-    summary_stat = summary_stats[0]
-    eda_values = eda_data["values"]
-    df = pd.DataFrame(eda_values)
-
-    if len(df) == 0:
-        return no_update
-
-    kwargs = dict(root_tissue_density=df.root_tissue_density.iloc[0])
-    summary_statistic_func = get_summary_statistic_func(summary_stat)
-    summary_statistic_instance = summary_statistic_func(**kwargs)
-    summary_stat_plot = summary_statistic_instance.visualise(df)
-    return [summary_stat_plot]
+def update_x_statistic_plot(summary_stats: list | None, eda_data: dict | None):
+    """Update the x summary-statistic plot for the current dataset."""
+    return _statistic_figure(summary_stats, eda_data)
 
 
 @callback(
@@ -507,41 +484,11 @@ def update_x_statistic_plot(summary_stats: list | None, eda_data: dict) -> list 
         {"index": f"{PAGE_ID}-select-y-summary-stats-dropdown", "type": ALL},
         "value",
     ),
-    State("store-simulation-data", "data"),
-    prevent_initial_call=True,
+    Input("store-simulation-data", "data"),
 )
-def update_y_statistic_plot(summary_stats: list | None, eda_data: dict) -> list | None:
-    """Update the y summary statistic plot state.
-
-    Args:
-        summary_stats (list | None):
-            The list of summary statistics.
-        eda_data (dict | None):
-            The list of observed data.
-
-    Returns:
-        list | None:
-            The updated plot state.
-    """
-    if eda_data is None or eda_data.get("values") is None:
-        return [{}]
-    if summary_stats is None or len(summary_stats) == 0:
-        return [{}]
-    if summary_stats[0] is None:
-        return [{}]
-
-    summary_stat = summary_stats[0]
-    eda_values = eda_data["values"]
-    df = pd.DataFrame(eda_values)
-
-    if len(df) == 0:
-        return no_update
-
-    kwargs = dict(root_tissue_density=df.root_tissue_density.iloc[0])
-    summary_statistic_func = get_summary_statistic_func(summary_stat)
-    summary_statistic_instance = summary_statistic_func(**kwargs)
-    summary_stat_plot = summary_statistic_instance.visualise(df)
-    return [summary_stat_plot]
+def update_y_statistic_plot(summary_stats: list | None, eda_data: dict | None):
+    """Update the y summary-statistic plot for the current dataset."""
+    return _statistic_figure(summary_stats, eda_data)
 
 
 @callback(
@@ -555,11 +502,10 @@ def update_y_statistic_plot(summary_stats: list | None, eda_data: dict) -> list 
         {"index": f"{PAGE_ID}-select-y-summary-stats-dropdown", "type": ALL},
         "value",
     ),
-    State("store-simulation-data", "data"),
-    prevent_initial_call=True,
+    Input("store-simulation-data", "data"),
 )
 def update_xy_statistic_plot(
-    x_summary_stats: list | None, y_summary_stats: list | None, eda_data: dict
+    x_summary_stats: list | None, y_summary_stats: list | None, eda_data: dict | None
 ) -> tuple | None:
     """Update the y summary statistic plot state.
 
@@ -575,46 +521,29 @@ def update_xy_statistic_plot(
         tuple | None:
             The updated plot state.
     """
-    if eda_data is None or eda_data.get("values") is None:
+    if not x_summary_stats or not y_summary_stats:
+        return no_update
+    df = pd.DataFrame((eda_data or {}).get("values"))
+    x_summary_stat, y_summary_stat = x_summary_stats[0], y_summary_stats[0]
+    if df.empty or not x_summary_stat or not y_summary_stat:
         return [{}], [{}]
 
-    if x_summary_stats is None or len(x_summary_stats) == 0:
-        return [{}], [{}]
-    if x_summary_stats[0] is None:
-        return [{}], [{}]
-
-    if y_summary_stats is None or len(y_summary_stats) == 0:
-        return [{}], [{}]
-    if y_summary_stats[0] is None:
-        return [{}], [{}]
-
-    eda_values = eda_data["values"]
-    df = pd.DataFrame(eda_values)
-
-    if len(df) == 0:
-        return [{}], [{}]
-
-    kwargs = dict(root_tissue_density=df.root_tissue_density.iloc[0])
-    x_summary_stat = x_summary_stats[0]
-    y_summary_stat = y_summary_stats[0]
-    x_summary_statistic_func = get_summary_statistic_func(x_summary_stat)
-    x_summary_statistic_instance = x_summary_statistic_func(**kwargs)
-    y_summary_statistic_func = get_summary_statistic_func(y_summary_stat)
-    y_summary_statistic_instance = y_summary_statistic_func(**kwargs)
-
-    x_data = x_summary_statistic_instance.get_xy_comparison_data(df, 10)
-    y_data = y_summary_statistic_instance.get_xy_comparison_data(df, 10)
-    x_label = x_summary_stat.replace("_", " ").title()
-    y_label = y_summary_stat.replace("_", " ").title()
-    scatter_plot = px.scatter(
-        x=x_data,
-        y=y_data,
-    ).update_layout(xaxis_title=x_label, yaxis_title=y_label)
-
-    heatmap = px.density_heatmap(
-        x=x_data,
-        y=y_data,
-    ).update_layout(xaxis_title=x_label, yaxis_title=y_label)
+    try:
+        x_data = _make_statistic(x_summary_stat, df).get_xy_comparison_data(df, 10)
+        y_data = _make_statistic(y_summary_stat, df).get_xy_comparison_data(df, 10)
+        if len(x_data) != len(y_data):
+            raise ValueError("Choose two statistics with the same number of values.")
+        x_label = x_summary_stat.replace("_", " ").title()
+        y_label = y_summary_stat.replace("_", " ").title()
+        scatter_plot = px.scatter(x=x_data, y=y_data).update_layout(
+            xaxis_title=x_label, yaxis_title=y_label
+        )
+        heatmap = px.density_heatmap(x=x_data, y=y_data).update_layout(
+            xaxis_title=x_label, yaxis_title=y_label
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        invalid = _statistic_message(exc)
+        return [invalid], [invalid]
 
     return [scatter_plot], [heatmap]
 
@@ -633,9 +562,7 @@ def layout() -> html.Div:
     Returns:
         html.Div: The page layout.
     """
-    page_description = """
-    Optimise the parameters of the root system architecture simulation against a target dataset
-    """
+    page_description = "Upload a simulation CSV, then choose columns or root statistics to plot."
 
     layout = get_common_layout(
         title=TITLE,

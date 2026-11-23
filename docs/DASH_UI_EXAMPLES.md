@@ -124,21 +124,21 @@ Use the same target and prior bounds. Start with **Number of particles** 4, **Ma
 
 1. Load the total-length CSV, turn on **Use cost emulation** and select **Total Length** and **Mean Absolute Error**. Set the shared ranges. To sample a small feature subspace, choose **Primary root minimum length** and **Primary root maximum length** under **Include parameters**. Other sampled-model settings take interval midpoints when omitted by that filter.
 2. Set **Number of simulations** to 16, **Number of validation simulations** and **Number of holdout simulations** to 4 each, **Number of epochs** to 5, **Number of inducing points** to 8, and leave **Learning rate** at 0.01. Run with the small synthetic budget.
-3. Look for samples and the training, validation and holdout metric and prediction tables. Check that the model artifact has a feature signature before trying to serve it (here `min_primary_length`, `max_primary_length`). The implemented training branch emulates the discrepancy against the selected target. **Graph mode is not implemented for the surrogate:** with **Use cost emulation** off the flow would only log its configuration, so the page refuses with *Graph-mode surrogate training is not implemented*.
+3. Look for samples and the training, validation and holdout metric and prediction tables. Check that the model artifact has a feature signature before trying to serve it (here `min_primary_length`, `max_primary_length`). This training branch emulates the discrepancy against the selected target. The page and the worker require **Use cost emulation**.
 
 ## 10. Deployments
 
-This page calls optional BentoML services started with the `serving` profile ([RUNNING.md](../RUNNING.md#optional-model-serving)). Each completed calibration run imports its model into the shared store; restart a service after a new run to serve it. **Check model services** lists every service as *not running*, *no model* or *serving* with its model tag and the UUID of the run that produced it. Each call reports one of: *Model service not running*, *No model version to serve*, *Invalid input*, *Not supported by the served model* or *Model service error*; a success downloads a CSV and names the served model and its source run.
+This page calls optional BentoML services started with the `serving` profile ([RUNNING.md](../RUNNING.md#optional-model-serving)). Each completed calibration run imports its model into the shared store. Restart a service after a new run to serve it. **Check model services** refreshes service status and the SNPE input schema. A successful call downloads a CSV and displays the served model and source run when available. Update the dashboard and SNPE service together to enable model-specific conditioning controls.
 
 | Action | Example input | Check the downloaded CSV |
 |---|---|---|
 | **Optimisation calibrator** | Use the synthetic Optimisation result and set **Number of trials** to 1. | One requested best stored trial with its parameters and objective, when available. |
 | **Sensitivity calibrator** | Serve the synthetic Sobol result. Select **Primary count** in **Parameter names**. | The total-order index row for `primary_root_count`. |
 | **Bayesian calibrator** | Serve the ABC run with an accepted population. Set **Monte Carlo time step** to 0 if population 0 is present. | Particle rows for the selected population. |
-| **Neural density calibrator** | Serve a summary-statistic SNPE model trained on the total-length example. Use **Load statistics data** with `ui_total_length_synthetic.csv` and check **Total length** is 50. | Posterior draws conditional on that scalar, using the served model's statistic names and order. |
+| **Neural density calibrator** | Serve a summary-statistic SNPE model trained on the total-length example. Under **Target source**, select **Uploaded CSV** and choose `ui_total_length_synthetic.csv`, or enter 50 under **Manual entry**. Confirm `total_length` is 50 in **Conditioning values** before predicting. | Posterior draws conditional on the displayed values and model tag. |
 | **Emulation calibrator** | Serve the cost emulator and use a valid prediction row in **Explicit trained features (JSON)**. Start from a row in its exported sample table, retain exactly the fields in the model signature and use numeric values. | The model's prediction for that row. Compare it with the served signature and check a finite result. |
 
-**Deployment Links** opens each service's own page on its loopback port (5101–5105). All five calls above returned the described CSVs from models produced by the synthetic runs on 23 November 2026.
+**Deployment Links** opens each service's own page on its loopback port (5101–5105). **External Links**, at the bottom of the form, uses the configured browser URLs for Prefect and MLflow. Other consoles appear when the stack supplies their browser URLs.
 
 ## When a click leaves no result
 
