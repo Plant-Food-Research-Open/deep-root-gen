@@ -446,6 +446,9 @@ class RootOrgan:
         diameters = self.get_diameters()
         lengths = self.get_lengths()
         volume = np.pi * (diameters / 2) ** 2 * lengths
+        if getattr(self, "diameter_density_applied", False):
+            densities = [node.node_data.root_tissue_density for node in self.segments]
+            return float(np.dot(volume, densities))
         return float((volume * self.input_parameters.root_tissue_density).sum())
 
     def construct_root(
@@ -1409,6 +1412,20 @@ class RootSystemSimulation:
         for primary in self.organs[1]:
             if getattr(primary, "validation_reorientations", 0) or primary.invalid_root:
                 raise ValueError("Primary validation changed or invalidated optional yaw/origin/inclination initialization")
+
+    def diameter_material(self, density=None):
+        """Measure the finished vine by diameter, using a specified dry-density law.
+
+        Returns per-order tissue volume, length and dry mass in each band. With
+        no argument, uses the configured bands or the grapevine profile. Crown material
+        is accounted for separately by the field study.
+        """
+        from .tissue_density import GRAPEVINE_STEPPED, summarize_diameter_material
+
+        if getattr(self, "result", None) is None:
+            raise ValueError("Run the simulation before measuring diameter material")
+        profile = getattr(self, "diameter_density", GRAPEVINE_STEPPED) if density is None else density
+        return summarize_diameter_material(self, profile)
 
     def run(self, input_parameters, *, initial_recorder=None) -> None:
         """Generate a root system from a canonical configuration."""

@@ -1,58 +1,27 @@
-#!/usr/bin/env python
+"""Serve total-order Sobol indices from the latest sensitivity analysis."""
 
-######################################
-# Imports
-######################################
-
-import bentoml
 import pandas as pd
+from bentoml.exceptions import BadInput
 from bentoml.io import JSON, PandasDataFrame
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-######################################
-# Constants
-######################################
+from deeprootgen.serving import load, require, service
 
 TASK = "sensitivity_analysis"
-
-######################################
-# Main
-######################################
-
-runner = bentoml.mlflow.get(f"{TASK}:latest").to_runner()
-
-svc = bentoml.Service(TASK, runners=[runner])
+model, missing = load(TASK)
+svc, runner = service(TASK, model)
 
 
 class SensitivityAnalysisFeatures(BaseModel):
-    """The sensitivity analysis features data model."""
+    """Parameter names whose indices are requested."""
 
-    names: list[str]
-
-
-input_spec = JSON(pydantic_model=SensitivityAnalysisFeatures)
+    names: list[str] = Field(min_length=1)
 
 
-@svc.api(input=input_spec, output=PandasDataFrame())
-def predict(inputs: SensitivityAnalysisFeatures) -> dict:
-    """Get sensitivity analysis indices data.
-
-    Args:
-        inputs (SensitivityAnalysisFeatures):
-            The sensitivity analysis request data.
-
-    Returns:
-        dict:
-            The sensitivity analysis indices.
-    """
-    input_list = []
-    for name in inputs.names:
-        input_list.append({"name": name})
-
-    if len(input_list) == 1:
-        index = [0]
-    else:
-        index = None
-    input_df = pd.DataFrame(input_list, index=index)
-    result = runner.predict.run(input_df)
+@svc.api(input=JSON(pydantic_model=SensitivityAnalysisFeatures), output=PandasDataFrame())
+def predict(inputs: SensitivityAnalysisFeatures) -> pd.DataFrame:
+    """Return the total-order index rows for the requested parameter names."""
+    result = require(runner, missing).predict.run(pd.DataFrame({"name": inputs.names}))
+    if len(result) == 0:
+        raise BadInput(f"The served {TASK} model has no index for: {', '.join(inputs.names)}")
     return result

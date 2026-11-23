@@ -1,8 +1,6 @@
 """Synthetic checks for random angular and arclength stratification."""
 
-import json
 from copy import deepcopy
-from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -10,50 +8,13 @@ import pytest
 
 from deeprootgen.data_model import resolve_config
 from deeprootgen.model.sibling_placement import sector_bearings, transported_normals
-from deeprootgen.model import RootSystemSimulation
-
-EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
-
-
-def document(name):
-    return json.loads((EXAMPLES / f"{name}.json").read_text())
-
-
-def run(config):
-    model = RootSystemSimulation(random_seed=config["random_seed"])
-    model.run(config)
-    return model
-
-
-def three_orders():
-    value = document("design/native_features_fully_replaced")
-    parameters = value["parameters"]
-    parameters.update(
-        max_order=3, root_vary=0.0, primary_root_count=3, outer_primary_fraction=0.5
-    )
-    for key in [name for name in parameters if name.startswith("fichtl_")]:
-        parameters.pop(key)
-    features = value["features"]
-    features["cohort_maturity"]["enabled"] = False
-    features["lengths"]["settings"]["by_order"] = {
-        str(order): 5.0 for order in range(1, 4)
-    }
-    law = dict(
-        law="first_branch_and_daughter_count",
-        branch_probability=1.0,
-        first_branch_cm=dict(mean=1.0, sd=0.0, min=1.0, max=1.0),
-        daughter_probabilities=[1.0],
-    )
-    features["branching"]["settings"]["by_order"] = {
-        str(order): deepcopy(law) for order in range(1, 3)
-    }
-    return value
+from tests.test_schema4_branching_receipts import five_orders, run
 
 
 def siblings():
-    cfg = three_orders()
+    cfg = five_orders()
     cfg["parameters"]["min_branching_diameter_cm"] = 0.0
-    cfg["features"]["branching"]["settings"]["by_order"]["2"][
+    cfg["features"]["branching"]["settings"]["by_order"]["4"][
         "daughter_probabilities"
     ] = [0.0] * 5 + [1.0]
     return cfg
@@ -78,7 +39,7 @@ def test_random_phase_jitter_and_frame_transport():
 def test_daughter_bearings_change_on_fixed_scaffold_with_matched_polar_angle():
     cfg = siblings()
     ref = run(cfg)
-    law = cfg["features"]["curvature"]["settings"]["by_order"]["3"]
+    law = cfg["features"]["curvature"]["settings"]["by_order"]["5"]
     law["sibling_sectors"] = dict(window_cm=15.0, fraction=0.0)
     same = run(cfg)
     for a, b in zip(ref.G.as_df(), same.G.as_df()):
@@ -89,13 +50,13 @@ def test_daughter_bearings_change_on_fixed_scaffold_with_matched_polar_angle():
     repeat = run(cfg)
     for a, b in zip(alt.G.as_df(), repeat.G.as_df()):
         pd.testing.assert_frame_equal(a, b, check_exact=True)
-    for order in range(1, 3):
+    for order in range(1, 5):
         for a, b in zip(ref.organs[order], alt.organs[order]):
             np.testing.assert_array_equal(
                 a.axis_state.curve.points, b.axis_state.curve.points
             )
-    assert len(ref.organs[3]) == len(alt.organs[3]) > 6
-    for a, b in zip(ref.organs[3], alt.organs[3]):
+    assert len(ref.organs[5]) == len(alt.organs[5]) > 6
+    for a, b in zip(ref.organs[5], alt.organs[5]):
         left, right = a.axis_state.curve, b.axis_state.curve
         np.testing.assert_array_equal(left.points[0], right.points[0])
         np.testing.assert_array_equal(left.stations, right.stations)
@@ -115,10 +76,10 @@ def test_daughter_bearings_change_on_fixed_scaffold_with_matched_polar_angle():
 
 def test_stratified_attachment_retains_first_site_count_and_uses_each_interval():
     cfg = siblings()
-    law = cfg["features"]["branching"]["settings"]["by_order"]["2"]
+    law = cfg["features"]["branching"]["settings"]["by_order"]["4"]
     law["stratify_distal_sites"] = True
     model = run(cfg)
-    for parent in model.organs[2]:
+    for parent in model.organs[4]:
         first, *tail = parent.plan["sites"]
         assert first == 1.0 and len(tail) == 5
         length = parent.axis_state.curve.stations[-1]
@@ -148,13 +109,29 @@ def test_terminal_recruitment_preserves_parents_and_uses_birth_depth():
     assert retained_terminals(orders, ids, depths, 981, 1.0, 30.0).all()
 
 
+def test_birth_depth_filter_reports_only_eligible_groups():
+    for origin, expected in [(0.1, False), (110.0, True)]:
+        cfg = siblings()
+        cfg["features"]["primary_origins"]["settings"]["depth_range_cm"] = [
+            origin,
+            origin,
+        ]
+        law = cfg["features"]["curvature"]["settings"]["by_order"]["5"]
+        law["sibling_sectors"] = dict(
+            window_cm=15.0, fraction=1.0, min_birth_depth_cm=30.0
+        )
+        receipt = run(cfg).result.diagnostics["depth_sibling_sectors"][0]
+        assert bool(receipt["eligible_groups"]) == expected
+        assert receipt["selected_groups"] == receipt["eligible_groups"]
+
+
 def test_sector_and_row_bearing_controls_on_one_order():
     config = siblings()
-    curvature = config["features"]["curvature"]["settings"]["by_order"]["3"]
+    curvature = config["features"]["curvature"]["settings"]["by_order"]["5"]
     curvature["sibling_sectors"] = {"window_cm": 12.0, "fraction": 1.0}
     config["features"]["insertion"] = {
         "enabled": True,
-        "settings": {"row_axial_kappa_by_order": {"3": 4.0}},
+        "settings": {"row_axial_kappa_by_order": {"5": 4.0}},
     }
     with pytest.raises(ValueError, match="both set the bearing"):
         resolve_config(config)

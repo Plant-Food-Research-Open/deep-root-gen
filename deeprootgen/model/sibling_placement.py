@@ -29,10 +29,16 @@ def transported_normals(steps):
 def sibling_directions(state, daughters, settings):
     """Map daughter IDs to transverse unit vectors on the already realized parent."""
     families = defaultdict(list)
+    minimum_depth = settings.get("min_birth_depth_cm")
     for child in daughters:
+        if minimum_depth is not None:
+            depth = state.laws.surface_z_cm - child.parent_node.node_data.z
+            if depth <= minimum_depth:
+                continue
         if not child.invalid_root:
             families[child.parent_node.organ].append(child)
     directions = {}
+    eligible_groups = selected_groups = 0
     for parent, children in families.items():
         if len(children) < 2:
             continue
@@ -55,13 +61,20 @@ def sibling_directions(state, daughters, settings):
         for window, members in groups.items():
             if len(members) < 2:
                 continue
+            eligible_groups += 1
             rng = state.streams.keyed("feature.insertion.sibling_sectors", "v1", parent_id, window)
             if rng.random() >= settings["fraction"]:
                 continue
+            selected_groups += 1
             if frame is None:
                 frame = transported_normals(np.diff(points, axis=0))
             tangents, normals = frame
             for (arc, oid), phi in zip(sorted(members), sector_bearings(len(members), rng)):
                 j = np.clip(np.searchsorted(stations, arc, side="left") - 1, 0, len(normals) - 1)
                 directions[oid] = normals[j] * np.cos(phi) + np.cross(tangents[j], normals[j]) * np.sin(phi)
+    if minimum_depth is not None:
+        state.diagnostics.setdefault("depth_sibling_sectors", []).append(dict(
+            eligible_groups=eligible_groups, selected_groups=selected_groups,
+            daughters_steered=len(directions),
+        ))
     return directions

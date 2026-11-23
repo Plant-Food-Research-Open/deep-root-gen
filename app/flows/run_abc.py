@@ -290,7 +290,8 @@ def log_task(
     parameter_specs = {}
     best_parameters = distribution_dfs.sort_values("t", ascending=False).head(1)
     for parameter_name in distribution_dfs.drop(columns=["t", "w"]).columns:
-        best_parameter = best_parameters[parameter_name]
+        # The single best row's value as a scalar, not a one-row Series.
+        best_parameter = best_parameters[parameter_name].iloc[0]
         parameter_specs[parameter_name] = best_parameter
         mlflow.log_metric(parameter_name, best_parameter)
 

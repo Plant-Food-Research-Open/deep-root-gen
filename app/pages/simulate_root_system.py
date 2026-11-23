@@ -10,6 +10,7 @@ from dash import (
     Output,
     State,
     callback,
+    ctx,
     dcc,
     get_app,
     html,
@@ -24,9 +25,14 @@ import yaml
 
 from deeprootgen.data_model.simulation_form import SoilDisplay, simulation_controls, simulation_document
 from deeprootgen.form import get_common_layout
+from deeprootgen.form.run_feedback import (
+    message,
+    register_run_status_callback,
+    submit_from_page,
+    validation_message,
+)
 from deeprootgen.io import load_data_from_file, s3_upload_file
 from deeprootgen.pipeline import (
-    dispatch_new_run,
     save_simulation_runs,
 )
 
@@ -309,56 +315,73 @@ def load_params(list_of_contents: list, list_of_names: list) -> tuple:
     Output("store-simulation-run", "data", allow_duplicate=True),
     Output(f"{PAGE_ID}-results-toast", "is_open"),
     Output(f"{PAGE_ID}-results-toast", "children"),
+    Output(f"{PAGE_ID}-submission-nonce", "data"),
     Input({"index": f"{PAGE_ID}-run-sim-button", "type": ALL}, "n_clicks"),
+    Input(f"{PAGE_ID}-preview", "n_clicks"),
     State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
     State({"index": f"{PAGE_ID}-enable-soil-input", "type": ALL}, "on"),
     State("store-simulation-run", "data"),
+    State(f"{PAGE_ID}-submission-nonce", "data"),
     prevent_initial_call=True,
 )
 def run_root_model(
-    n_clicks: list, form_values: list, enable_soils: list, simulation_runs: list
+    n_clicks: list,
+    preview_clicks: int | None,
+    form_values: list,
+    enable_soils: list,
+    simulation_runs: list,
+    nonce: str | None,
 ) -> tuple:
-    """Run and plot the root model.
+    """Check the schema-4 form, or validate and queue one simulation.
 
     Args:
         n_clicks (list):
-            Number of times the button has been clicked.
+            Number of times Run procedure has been clicked.
+        preview_clicks (int | None):
+            Number of times Check setup has been clicked; never submits.
         form_values (list):
             The form input data.
         enable_soils (list):
             Enable visualisation of soil data.
         simulation_runs (list):
             A list of simulation run data.
+        nonce (str | None):
+            The page submission nonce (see deeprootgen.form.run_feedback).
 
     Returns:
         tuple:
-            The updated form state.
+            The run table, toast state and message, and submission nonce.
     """
-    if n_clicks is None or len(n_clicks) == 0:
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:
-        return no_update
+    preview = ctx.triggered_id == f"{PAGE_ID}-preview"
+    if not (preview_clicks if preview else n_clicks and n_clicks[0]):
+        return no_update, no_update, no_update, no_update
 
     form_inputs = {}
     app = get_app()
     form_model = app.settings[FORM_NAME]
     for i, input in enumerate(form_model.components["parameters"]["children"]):
-        k = input["param"]
-        form_inputs[k] = form_values[i]
-
-    enable_soil: bool = enable_soils[0]
-    form_inputs["enable_soil"] = enable_soil
+        form_inputs[input["param"]] = form_values[i]
+    form_inputs["enable_soil"] = bool(enable_soils and enable_soils[0])
 
     try:
         document = simulation_document(form_inputs)
         soil = SoilDisplay.model_validate({k: form_inputs[k] for k in SoilDisplay.model_fields})
     except (TypeError, ValueError) as error:
-        return no_update, True, str(error)
-    simulation_runs, toast_message = dispatch_new_run(
-        TASK, document, simulation_runs, soil_display=soil.model_dump()
+        return no_update, True, validation_message(error), no_update
+    if preview:
+        parameters = document["parameters"]
+        targets = [k for k in ("root_ratio_biomass", "root_ratio_length") if parameters.get(k) is not None]
+        return no_update, True, message(
+            "Setup is valid. Nothing was submitted.",
+            f"Schema 4 · seed {document.get('random_seed')} · tag {document.get('simulation_tag')}",
+            f"Maximum order {parameters.get('max_order')} · {parameters.get('primary_root_count')} primary roots",
+            "Fine-root targets: " + (", ".join(targets) if targets else "none (untargeted run)"),
+        ), no_update
+    runs, status, nonce = submit_from_page(
+        TASK, document, simulation_runs, nonce, document.get("simulation_tag"),
+        soil_display=soil.model_dump(),
     )
-    return simulation_runs, True, toast_message
+    return runs, True, status, nonce
 
 
 ######################################
@@ -388,4 +411,10 @@ def layout() -> html.Div:
         procedure=PROCEDURE.title(),
         task=TASK,
     )
-    return layout
+    return html.Div([
+        html.Button("Check setup", id=f"{PAGE_ID}-preview", className="btn btn-outline-primary m-2"),
+        layout,
+    ])
+
+
+register_run_status_callback(PAGE_ID)

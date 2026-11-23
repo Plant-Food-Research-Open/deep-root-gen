@@ -43,7 +43,7 @@ def simulation_controls(document, form_fields, current_soil=None):
     for key in form_fields:
         if key in params and not isinstance(params[key], (list, dict)):
             fields[key] = params.pop(key)
-    extra = {k: spec[k] for k in ("features", "limits", "irrigation") if k in spec}
+    extra = {k: v for k, v in spec.items() if k not in ("schema_version", "random_seed", "simulation_tag")}
     if params:
         extra["parameters"] = params
     fields["advanced_settings"] = json.dumps(extra, indent=2)

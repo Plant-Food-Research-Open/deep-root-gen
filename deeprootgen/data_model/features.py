@@ -133,13 +133,7 @@ class Distribution(_Strict):
     max: Optional[float] = None
 
 
-class SiblingSectors(_Strict):
-    window_cm: float = Field(gt=0, allow_inf_nan=False)
-    fraction: float = Field(ge=0, le=1)
-
-
 class CurvatureOrder(_Strict):
-    sibling_sectors: Optional[SiblingSectors] = None
     """Correlated (OU) curvature on physical arclength; units are explicit."""
 
     law: Optional[Literal["correlated_curvature"]] = None
@@ -248,7 +242,6 @@ class LengthsSettings(_Strict):
 
 
 class BranchingOrder(_Strict):
-    stratify_distal_sites: Optional[bool] = None
     law: Optional[Literal["first_branch_and_daughter_count"]] = None
     first_branch_cm: Optional[Distribution] = None
     branch_probability: Optional[float] = None

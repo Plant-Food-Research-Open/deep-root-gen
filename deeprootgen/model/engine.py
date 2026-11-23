@@ -99,7 +99,8 @@ def execute_canonical(simulation, resolved, *, initial_recorder=None):
 
     scales, receipt = allocate(params.root_ratio_biomass, params.root_ratio_length,
                                params.allocation_controls.model_dump(), evaluate,
-                               diameter_supports=allocation_diameter_supports(resolved))
+                               diameter_supports=allocation_diameter_supports(resolved),
+                               density_profile=getattr(params.root_tissue_density, "profile", lambda: None)())
     state = execute(simulation, scaled(*scales), initial_recorder=initial_recorder)
     summary = simulation.result.metadata["root_summary"]
     for name, target in receipt["targets"].items():
@@ -361,6 +362,45 @@ def _irrigated_directions(state, order, organs, law, transverse):
     return transverse
 
 
+def _realize_replaced_order(state, order, tangent_at, placement, transfer, bearing, receipts, skipped):
+    organs = state.simulation.organs.get(order, [])
+    transverse = {}
+    law = state.laws.direction[order]
+    if transfer is not None and transfer.transfer_probability and order - 1 in transfer.parent_orders:
+        from .birth_depth import transfer_birth_sites
+
+        transfer_birth_sites(state, order - 1, transfer)
+    if (placement is not None and placement.mode != "surface_bearing"
+            and (placement.strength or placement.mode == "retention")
+            and order == placement.parent_order + 1):
+        from .daughter_placement import apply_terminal_preference
+
+        apply_terminal_preference(state, placement)
+    if "sibling_sectors" in law:
+        from .sibling_placement import sibling_directions
+
+        transverse = sibling_directions(state, organs, law["sibling_sectors"])
+    transverse = _irrigated_directions(state, order, organs, law, transverse)
+    order_bearing = bearing if bearing is not None and order in bearing.bearing_orders else None
+    for organ in organs:
+        if organ.invalid_root:
+            # A scaffold invalidated by a native pre-direction correction
+            # stays native and invalid, exactly as the native laws treat it.
+            skipped.append(organ_id(organ))
+            continue
+        if law["law"] == "construction_step_intervals":
+            curve = _realize_construction_curve(state, organ, law)
+        else:
+            curve = _realize_native_curve(state, organ, law, tangent_at,
+                                          transverse.get(organ_id(organ)), order_bearing)
+        if law["law"] != "construction_step_intervals":
+            _place_construction_points(organ, curve)
+        state.curves[organ_id(organ)] = curve
+        if hasattr(organ, "axis_state"):
+            organ.axis_state.curve = curve
+        receipts.append(curve.receipt)
+
+
 def _realize_native(state):
     sim, p, laws = state.simulation, state.parameters, state.laws
     replaced = state.replaced_organs()
@@ -387,33 +427,18 @@ def _realize_native(state):
     def tangent_at(node, chord):
         return _tangent(state, node, chord)
 
+    placement = getattr(state.resolved.config, "daughter_placement", None)
+    transfer = getattr(state.resolved.config, "birth_depth_transfer", None)
+    bearing = placement if placement and placement.mode == "surface_bearing" and placement.strength else None
+    if bearing is not None:
+        from .daughter_placement import BEARING_GAIN, BEARING_PROBE_CM
+
+        state.diagnostics["daughter_placement"] = dict(settings=bearing.model_dump(exclude_none=True),
+                                                       max_probe_cm=BEARING_PROBE_CM, softmax_gain=BEARING_GAIN)
     first_native_lateral = True
     for order in range(1, int(p.max_order) + 1):
         if order in laws.direction:
-            organs = sim.organs.get(order, [])
-            transverse = {}
-            law = laws.direction[order]
-            if "sibling_sectors" in law:
-                from .sibling_placement import sibling_directions
-
-                transverse = sibling_directions(state, organs, law["sibling_sectors"])
-            transverse = _irrigated_directions(state, order, organs, law, transverse)
-            for organ in organs:
-                if organ.invalid_root:
-                    # A scaffold invalidated by a native pre-direction correction
-                    # stays native and invalid, exactly as the native laws treat it.
-                    skipped.append(organ_id(organ))
-                    continue
-                if law["law"] == "construction_step_intervals":
-                    curve = _realize_construction_curve(state, organ, law)
-                else:
-                    curve = _realize_native_curve(state, organ, law, tangent_at, transverse.get(organ_id(organ)))
-                if law["law"] != "construction_step_intervals":
-                    _place_construction_points(organ, curve)
-                state.curves[organ_id(organ)] = curve
-                if hasattr(organ, "axis_state"):
-                    organ.axis_state.curve = curve
-                receipts.append(curve.receipt)
+            _realize_replaced_order(state, order, tangent_at, placement, transfer, bearing, receipts, skipped)
         elif fichtl and order >= 2 and (lateral_orders is None or order in lateral_orders):
             sim.apply_fichtl_tropism(p, scaffold=state.scaffold, tangent_at=tangent_at, orders=[order],
                                      reset_diagnostics=first_native_lateral)
@@ -469,7 +494,7 @@ def _realize_construction_curve(state, organ, law):
     return AxisCurve(organ_id(organ), stations, points, arcs, dict(law), receipt)
 
 
-def _realize_native_curve(state, organ, law, tangent_at, transverse=None):
+def _realize_native_curve(state, organ, law, tangent_at, transverse=None, bearing=None):
     """Curvature on a natively constructed axis, from its realized attachment."""
     from ..utils.tropism import insertion_heading, row_axial_insertion_heading
     from .axis_laws import realize_correlated_curvature
@@ -489,10 +514,19 @@ def _realize_native_curve(state, organ, law, tangent_at, transverse=None):
             cosine = np.clip(heading @ axis, -1., 1.)
             heading = cosine * axis + np.sqrt(max(0., 1. - cosine**2)) * transverse
         axial_receipt = None
+        bearing_receipt = None
         if "row_axial_kappa" in law:
             order = int(parent.node_data.order) + 1
             heading, axial_receipt = row_axial_insertion_heading(
                 tangent, heading, law["row_axial_kappa"], state.resolved.seed, oid, order,
+            )
+        if bearing is not None:
+            from .daughter_placement import surface_bearing_heading
+
+            order = int(organ.segments[0].node_data.order)
+            length_cm = float(organ.get_lengths().sum())
+            heading, bearing_receipt = surface_bearing_heading(
+                state, bearing, tangent, heading, position, length_cm, order, oid,
             )
         curve = realize_correlated_curvature(organ, law, state.streams, start=position, heading=heading,
                                              reserve_stations=state.budget.reserve)
@@ -500,6 +534,8 @@ def _realize_native_curve(state, organ, law, tangent_at, transverse=None):
             curve.receipt["sibling_sector_applied"] = True
         if axial_receipt is not None:
             curve.receipt["row_axial_insertion"] = axial_receipt
+        if bearing_receipt is not None:
+            curve.receipt["surface_bearing"] = bearing_receipt
         return curve
     if law["initial_heading"] == "origin_heading":
         return realize_correlated_curvature(organ, law, state.streams, heading=organ.plan["initial_heading"],
@@ -576,6 +612,15 @@ def emit(state):
     organs = state.organs_in_birth_order()
     state.budget.check_nodes(len(sim.G.bases) + sum(len(v) for v in state.axes.values()))
     sim.G = publish_graph(sim.G, organs, axes=state.axes, first_node_id=laws.writer.get("first_node_id", 0))
+    if state.resolved.source_schema == "4":
+        settings = state.resolved.config.parameters.root_tissue_density
+        if hasattr(settings, "bounds_mm"):
+            from .segment_density import apply_diameter_density
+
+            sim.diameter_density = settings.profile()
+            for organ in organs:
+                apply_diameter_density(organ, sim.diameter_density)
+            return
     for organ in organs:
         if organ_id(organ) in state.curves or organ_id(organ) in state.material_laws:
             organ.mass = organ.calculate_mass()
@@ -609,6 +654,8 @@ def publish(state):
         state.simulation, state.parameters.max_order, state.parameters.fine_root_threshold,
         getattr(state, "tapers", None),
     )
+    if hasattr(state.simulation, "diameter_density"):
+        result.metadata["tissue_density_by_diameter"] = state.resolved.config.parameters.root_tissue_density.model_dump()
     state.simulation.result = result
 
 

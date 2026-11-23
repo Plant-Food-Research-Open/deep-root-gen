@@ -82,7 +82,7 @@ def equivalent_diameter(a, b):
     return np.sqrt((a * a + a * b + b * b) / 3.0)
 
 
-def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface_z=0.0, *, row_alignment_per_cm=0.0):
+def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface_z=0.0, *, row_alignment_per_cm=0.0, deep_carrier=None, carrier_receipt=None):
     """Integrate before inserting material/attachment nodes; z-positive up.
 
     ``surface_z`` is the declared soil surface of the caller's frame; the
@@ -115,11 +115,17 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface
     frame = np.column_stack(_basis(heading))
     state = np.zeros(2)
     reflections = 0
+    drift = downward
+    trigger = None
+    if deep_carrier is not None:
+        trigger = surface_z - deep_carrier["trigger_depth_cm"]
+        if carrier_receipt is not None:
+            carrier_receipt.update(born_below=bool(start[2] <= trigger), crossed=False, strengthened=False)
     for h in np.diff(stations):
         state, turn = ou_joint_step(state, h, q, ell, rng)
         previous_heading = heading.copy()
         heading = spherical_exp_heading(frame, turn)
-        heading = heading + h * downward * np.array([0.0, 0.0, -1.0])
+        heading = heading + h * drift * np.array([0.0, 0.0, -1.0])
         heading /= np.linalg.norm(heading)
         if row_alignment_per_cm:
             heading = align_heading(heading, ROW_AXIS, row_alignment_per_cm * h)
@@ -129,6 +135,12 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface
             state = np.zeros(2)
         frame = proper_rotation(previous_heading, heading) @ frame
         points.append(points[-1] + h * heading)
+        if trigger is not None and points[-2][2] > trigger >= points[-1][2]:
+            if carrier_receipt is not None:
+                carrier_receipt.update(crossed=True, strengthened=deep_carrier["selected"])
+            if deep_carrier["selected"]:
+                drift = downward * deep_carrier["drift_multiplier"]
+            trigger = None
     return stations, np.asarray(points), reflections
 
 

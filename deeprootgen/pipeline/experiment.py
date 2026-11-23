@@ -315,9 +315,8 @@ def log_simulation(
         else:
             statistic_func = get_summary_statistic_func(statistic_name)
 
-            statistic_instance = statistic_func(
-                root_tissue_density=(input_parameters.parameters.root_tissue_density)
-            )
+            density = input_parameters.parameters.root_tissue_density
+            statistic_instance = statistic_func(root_tissue_density=None if hasattr(density, "bounds_mm") else density)
 
             statistic_value = statistic_instance.calculate(node_df)
 

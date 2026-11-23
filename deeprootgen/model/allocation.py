@@ -80,7 +80,19 @@ def allocation_diameter_supports(resolved):
     }
 
 
-def _check_material_support(targets, supports, receipt):
+def _mass_per_length_bounds(interval, density):
+    """Conservative extrema of rho*d² over the attainable diameter interval."""
+    lo, hi = interval
+    if density is None:
+        return lo**2, hi**2
+    edges = [0., *(mm / 10 for mm in density.bounds_mm), float("inf")]
+    ranges = [(rho * max(lo, start)**2, rho * min(hi, end)**2)
+              for start, end, rho in zip(edges, edges[1:], density.density_g_cm3)
+              if max(lo, start) <= min(hi, end)]
+    return min(a for a, _ in ranges), max(b for _, b in ranges)
+
+
+def _check_material_support(targets, supports, receipt, density=None):
     if supports is None:
         return
     fine, coarse = supports["at_or_below"], supports["above"]
@@ -96,15 +108,17 @@ def _check_material_support(targets, supports, receipt):
     if len(targets) != 2:
         return
 
-    def mass_share(length, diameter_ratio):
+    def mass_share(length, linear_mass_ratio):
         if length == 1.0:  # Handles an arbitrarily small lower-class diameter.
             return 1.0
-        weighted = length * diameter_ratio**2
+        weighted = length * linear_mass_ratio
         return weighted / (weighted + (1.0 - length))
 
     length, mass = targets["root_ratio_length"], targets["root_ratio_biomass"]
-    lower = mass_share(max(length - TOLERANCE, 0.0), fine[0] / coarse[1])
-    upper = mass_share(min(length + TOLERANCE, 1.0), fine[1] / coarse[0])
+    fine_min, fine_max = _mass_per_length_bounds(fine, density)
+    coarse_min, coarse_max = _mass_per_length_bounds(coarse, density)
+    lower = mass_share(max(length - TOLERANCE, 0.0), fine_min / coarse_max)
+    upper = mass_share(min(length + TOLERANCE, 1.0), fine_max / coarse_min)
     receipt["possible_biomass_fraction_at_target_length"] = [lower, upper]
     if mass < np.nextafter(lower - TOLERANCE, -np.inf) or mass > np.nextafter(
         upper + TOLERANCE, np.inf
@@ -120,6 +134,7 @@ def allocate(
     evaluate,
     *,
     diameter_supports=None,
+    density_profile=None,
 ):
     """Evaluate full, seeded candidate forests and return (accepted candidate, receipt).
 
@@ -148,11 +163,11 @@ def allocate(
         status="search_exhausted",
         best=None,
     )
-    if root_ratio_biomass is not None and root_ratio_length is not None:
+    if density_profile is None and root_ratio_biomass is not None and root_ratio_length is not None:
         if root_ratio_biomass - root_ratio_length > 2 * TOLERANCE:
             receipt["status"] = "infeasible_uniform_density"
             raise AllocationFailure("infeasible for uniform tissue density", receipt)
-    _check_material_support(targets, diameter_supports, receipt)
+    _check_material_support(targets, diameter_supports, receipt, density_profile)
     controls = _controls(allocation_controls)
     if not controls:
         raise ValueError(

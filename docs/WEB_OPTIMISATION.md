@@ -1,5 +1,9 @@
 # Explore and optimise root systems in Dash
 
+Start with the [two-page quickstart](DEEPROOTGEN_QUICKSTART.md) and its
+[runnable notebook](../notebooks/grapevine_root_architecture/architecture_search_quickstart.ipynb)
+to try the same five-trial fit locally and in Dash.
+
 ## Start with a synthetic fit
 
 Use the Dash, Prefect and artifact services described in [RUNNING](../RUNNING.md#docker-installation-and-local-ui). The **Simulation** page explores one configuration. It accepts schema-4 settings through the advanced JSON field and can export an editable configuration. Match the plotted soil frame, actual root lengths, dry-biomass summary and branching report to what you expect before changing search bounds.
