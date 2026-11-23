@@ -168,3 +168,10 @@ slurm-*.out
 .python-version
 md_report.md
 coverage.json
+
+# Calvin's grapevine RLD/excavation workbook (Paper2_full_RLD_*.xlsx, formerly
+# committed as data/grapevine/wong_2026_rld.xlsx) and its CSV export stay local
+# and were removed from history. Match them anywhere in the tree.
+wong_2026_rld.csv
+wong_2026_rld.xlsx
+Paper2_full_RLD_*
