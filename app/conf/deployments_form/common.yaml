@@ -235,24 +235,6 @@ components:
         kwargs:
           rows: 4
           persistence: true
-  summary_data:
-    collapsible: true
-    children:
-      - id: upload-obs-data-file-button
-        label: Upload  
-        help: Upload summary statistics data from a csv file
-        class_name: dash.dcc.Upload
-        handler: file_upload
-        kwargs:
-          children: Load statistics data
-      - id: clear-obs-data-file-button
-        label: Clear
-        help: Clear the summary statistics data from the form
-        class_name: dash_bootstrap_components.Button 
-        kwargs:
-          children: Clear statistics data
-          color: primary
-          className: me-1
   deployments:
     collapsible: true
     children:
@@ -279,7 +261,7 @@ components:
           multi: true
           searchable: true
           clearable: true
-          placeholder: Select summary statistics
+          placeholder: Select parameter names
           persistence: true
       - id: t-input
         param: abc_t
@@ -292,119 +274,6 @@ components:
           step: 1
           value: 1
           persistence: true   
-  summary_statistics:
-    collapsible: true
-    children:
-      - id: total-volume-input
-        param: total_volume
-        label: Total volume
-        help: The total volume of the root system (cm)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true   
-      - id: average-volume-input
-        param: average_volume
-        label: Average volume
-        help: The average volume of the root system (cm)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true   
-      - id: total-length-input
-        param: total_length
-        label: Total length
-        help: The total length of the roots (cm)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true   
-      - id: average-length-input
-        param: average_length
-        label: Average length
-        help: The average length of the roots (cm)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true 
-      - id: total-diameter-input
-        param: total_diameter
-        label: Total diameter
-        help: The total diameter of the roots (cm)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true
-      - id: average-diameter-input
-        param: average_diameter
-        label: Average diameter
-        help: The average diameter of the roots (cm)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true
-      - id: total-weight-input
-        param: total_weight
-        label: Total weight
-        help: The total weight of the root system (g)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true 
-      - id: average-weight-input
-        param: average_weight
-        label: Average weight
-        help: The average weight of the root system (g)
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true 
-      - id: convex-hull-area-input
-        param: convex_hull_area
-        label: Convex hull area
-        help: The area of the convex hull of the root system
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true   
-      - id: convex-hull-volume-input
-        param: convex_hull_volume
-        label: Convex hull volume
-        help: The volume of the convex hull of the root system
-        class_name: dash_bootstrap_components.Input 
-        kwargs:
-          type: number
-          min: 0
-          step: 1
-          value: 1
-          persistence: true     
   simulation:
     collapsible: true
     children:
@@ -430,14 +299,6 @@ components:
         class_name: dash_bootstrap_components.Button 
         kwargs:
           children: Bayesian calibrator
-          color: primary
-          className: me-1
-      - id: call-snpe-button
-        label: Neural posterior estimation
-        help: Make a web request to the deployed sequential neural posterior estimation calibrator
-        class_name: dash_bootstrap_components.Button 
-        kwargs:
-          children: Neural density calibrator
           color: primary
           className: me-1
       - id: call-surrogate-button

@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 
@@ -138,12 +139,14 @@ def test_unselected_parameters_use_midpoints(
         assert sampled["elongation"].nunique() > 1
 
 
-def test_latin_hypercube_seed_controls_values(sampling_inputs):
+def test_latin_hypercube_seed_controls_values_and_splits(sampling_inputs):
+    sampling_inputs.random_seed = 0
     first = subject.lhc_sample(sampling_inputs)
     second = subject.lhc_sample(sampling_inputs)
-    # Pandas shuffles rows without a fixed random_state, and UUIDs are random.
-    for name in ["elongation", "branches", "diameter"]:
-        np.testing.assert_allclose(np.sort(first[name]), np.sort(second[name]))
+    pd.testing.assert_frame_equal(
+        first.drop(columns="sim_ids"), second.drop(columns="sim_ids")
+    )
+    assert set(first["sim_ids"]).isdisjoint(second["sim_ids"])
 
 
 def test_latin_hypercube_preserves_empty_validation_split(sampling_inputs):

@@ -9,9 +9,8 @@ result artifacts tied to that run. It reads no observation data or credentials.
         --dash http://127.0.0.1:18003 --prefect http://127.0.0.1:14203 \
         --mlflow http://127.0.0.1:15003 --receipt receipt.json
 
-``--check-only`` presses Check setup (or Run with an invalid form) without
-queuing work. This is an HTTP harness, not a browser: it shows the text a page
-would display, not its rendering.
+``--check-only`` presses Check setup without queuing work. This HTTP harness
+records callback responses and exits nonzero if any selected check fails.
 """
 
 import argparse
@@ -19,6 +18,7 @@ import base64
 import csv
 import io
 import json
+import math
 import re
 import time
 import urllib.parse
@@ -61,6 +61,21 @@ PARAMETER_OVERRIDES = {
 SWITCHES = {"stat-by-soil-layer-switch": False, "stat-by-soil-col-switch": False,
             "use-summary-statistics-switch": True, "use-cost-emulation-switch": True,
             "enable-soil-input": False}
+WORKER_ARTIFACTS = {
+    "simulation": ("_nodes.csv", "_edges.csv"),
+    "optimisation": ("_trials.csv",),
+    "sensitivity_analysis": ("_total_si.csv", "_sobol_samples.csv"),
+    "abc": ("_parameters.csv", "_populations.csv"),
+    "snpe": ("_diagnostics.csv",),
+    "surrogate": ("_samples.csv", "_test_metrics.csv", "_test_actual_predicted.csv"),
+}
+PREDICTION_COLUMNS = {
+    "optimisation": ("value",),
+    "sensitivity_analysis": ("ST", "ST_conf"),
+    "abc": ("t",),
+    "snpe": ("primary_root_count",),
+    "surrogate": ("discrepancy", "lower_bound", "upper_bound"),
+}
 
 
 def http(url, body=None, timeout=180):
@@ -72,7 +87,15 @@ def http(url, body=None, timeout=180):
 
 
 def data_url(path, kind):
-    return f"data:{kind};base64," + base64.b64encode(Path(path).read_bytes()).decode()
+    return encoded_upload(Path(path).read_bytes(), kind)
+
+
+def encoded_upload(content, kind):
+    return f"data:{kind};base64," + base64.b64encode(content).decode()
+
+
+def download_content(sent):
+    return base64.b64decode(sent["content"], validate=True).decode() if sent.get("base64") else sent.get("content", "")
 
 
 def text_of(node):
@@ -128,29 +151,37 @@ class Dash:
             outputs = []
             for part in dep["output"].strip(".").split("..."):
                 component, prop = part.rsplit(".", 1)
-                outputs.append({"id": component, "property": prop})
+                prop = prop.split("@", 1)[0]
+                outputs.append({"id": json.loads(component) if component.startswith("{") else component,
+                                "property": prop})
             outputs = outputs[0] if len(outputs) == 1 and not dep["output"].startswith("..") else outputs
         body["outputs"] = outputs
         status, data = http(f"{self.base}/_dash-update-component", body)
         return status, (data or {}).get("response", {})
 
 
-def children(form, section):
-    return yaml.safe_load((CONF / f"{form}/common.yaml").read_text())["components"][section]["children"]
+def children(form, section, prop=None):
+    specs = yaml.safe_load((CONF / f"{form}/common.yaml").read_text())["components"][section]["children"]
+    # The legacy Simulation .value vector includes the soil switch position.
+    if prop is None or form == "simulation_form":
+        return specs
+    return [spec for spec in specs if (spec.get("handler") == "boolean_switch") == (prop == "on")]
 
 
-def defaults(form, section):
+def defaults(form, section, prop="value"):
     """Layout values a browser keeps when a callback leaves a field unchanged."""
-    return [c.get("kwargs", {}).get("value") for c in children(form, section)]
+    return [spec.get("kwargs", {}).get(prop) for spec in children(form, section, prop)]
 
 
-def returned(response, component_ids, fallback):
-    return [response[key(i)]["value"] if key(i) in response else default
+def returned(response, component_ids, fallback, prop="value"):
+    return [response.get(key(i), {}).get(prop, default)
             for i, default in zip(component_ids, fallback)]
 
 
-def ids(page, form, section):
-    return [{"index": f"{page}-{c['id']}", "type": f"{page}-{section}"} for c in children(form, section)]
+def ids(page, form, section, prop="value"):
+    group = f"{section}-switch" if prop == "on" else section
+    return [{"index": f"{page}-{spec['id']}", "type": f"{page}-{group}"}
+            for spec in children(form, section, prop)]
 
 
 def entries(component_ids, prop, values):
@@ -162,19 +193,21 @@ def button(page, name, prop="n_clicks", value=1, section="simulation"):
     return [{"id": component, "property": prop, "value": value}], key(component) + "." + prop
 
 
-def upload(dash, page, name, path, kind, output_fragment, outputs=None, section="simulation"):
+def upload(dash, page, name, path, kind, output_fragment, outputs=None, section="simulation", reset=False):
     dep = dash.dep(f"{page}-{name}", output_fragment)
     contents, trigger = button(page, name, "contents", data_url(path, kind), section)
     filename, _ = button(page, name, "filename", Path(path).name, section)
-    return dash.call(dep, {(f"{page}-{name}", "contents"): contents, (f"{page}-{name}", "filename"): filename},
-                     outputs=outputs, trigger=trigger)
+    values = {(f"{page}-{name}", "contents"): contents, (f"{page}-{name}", "filename"): filename}
+    if reset:
+        values[(f"{page}-reset-params", "n_clicks")] = 0
+    return dash.call(dep, values, outputs=outputs, trigger=trigger)
 
 
 def wait_for_run(prefect, run_id, limit):
-    deadline = time.time() + limit
+    deadline = time.monotonic() + limit
     while True:
         _, data = http(f"{prefect}/api/flow_runs/{run_id}")
-        if data["state_type"] in {"COMPLETED", "FAILED", "CRASHED", "CANCELLED"} or time.time() > deadline:
+        if data["state_type"] in {"COMPLETED", "FAILED", "CRASHED", "CANCELLED"} or time.monotonic() >= deadline:
             return data
         time.sleep(5)
 
@@ -210,26 +243,31 @@ def load_page_inputs(dash, task):
         return {"parameters": values, "toast": text_of(response.get(f"{page}-load-toast", {}).get("children"))}
 
     task_ids = ids(page, form, task)
+    switch_ids = ids(page, form, task, "on")
     outputs = [[{"id": i, "property": "value"} for i in parameter_ids],
                [{"id": i, "property": "value"} for i in task_ids],
+               [{"id": i, "property": "on"} for i in switch_ids],
                {"id": f"{page}-load-toast", "property": "is_open"},
                {"id": f"{page}-load-toast", "property": "children"}]
-    _, response = upload(dash, page, "upload-param-file-button", RANGES, "application/x-yaml",
-                         "parameters", outputs)
+    _, response = upload(dash, page, "upload-param-file-button", RANGES, "application/x-yaml", "parameters",
+                         outputs, reset=True)
     parameters = returned(response, parameter_ids, defaults(form, "parameters"))
     calibration = returned(response, task_ids, defaults(form, task))
+    switches = returned(response, switch_ids, defaults(form, task, "on"), "on")
     toast = text_of(response.get(f"{page}-load-toast", {}).get("children"))
-    for spec, i in zip(children(form, "parameters"), range(len(parameters))):
+    for i, spec in enumerate(children(form, "parameters", "value")):
         if spec["param"] in PARAMETER_OVERRIDES.get(task, {}):
             parameters[i] = PARAMETER_OVERRIDES[task][spec["param"]]
-    for spec, i in zip(children(form, task), range(len(calibration))):
+    for i, spec in enumerate(children(form, task, "value")):
         if spec["param"] in OVERRIDES.get(task, {}):
             calibration[i] = OVERRIDES[task][spec["param"]]
     target = ROOT_NUMBER if task == "optimisation" else TOTAL_LENGTH
     name = "upload-summary-data-file-button" if task in {"snpe", "surrogate"} else "upload-obs-data-file-button"
     _, response = upload(dash, page, name, target, "text/csv", "store-summary-data", section="summary_data")
     summary = response.get("store-summary-data", {}).get("data")
-    return {"parameters": parameters, "calibration": calibration, "summary": summary, "toast": toast,
+    for i, spec in enumerate(children(form, task, "on")):
+        switches[i] = SWITCHES.get(spec["id"], switches[i])
+    return {"parameters": parameters, "calibration": calibration, "switches": switches, "summary": summary, "toast": toast,
             "summary_toast": text_of(response.get(f"{page}-load-toast", {}).get("children"))}
 
 
@@ -240,12 +278,13 @@ def page_values(dash, task, loaded, extra=None):
               ("store-simulation-run", "data"): [], ("submission-nonce", "data"): None}
     if task != "simulation":
         values[(f"{page}-{task}\"", "value")] = entries(ids(page, form, task), "value", loaded["calibration"])
+        values[(f"{page}-{task}-switch\"", "on")] = entries(ids(page, form, task, "on"), "on", loaded["switches"])
         values[("store-summary-data", "data")] = loaded["summary"]
         values[("store-raw-simulation-data", "data")] = {}
         values[("store-raw-edge-data", "data")] = {}
-    for name, value in SWITCHES.items():
-        component = {"index": f"{page}-{name}", "type": f"{page}-x"}
-        values[(f"{page}-{name}", "on")] = [{"id": component, "property": "on", "value": value}]
+    else:
+        component = {"index": f"{page}-enable-soil-input", "type": f"{page}-parameters"}
+        values[(f"{page}-enable-soil-input", "on")] = entries([component], "on", [False])
     values.update(extra or {})
     return values
 
@@ -293,11 +332,16 @@ def run_architecture(dash, args, targets="statistic_name,statistic_value\nroot_n
     status, response = dash.call(dep, values, trigger=f"{button_id}.n_clicks")
     record.update(http_status=status, feedback=text_of(response.get("architecture-message", {}).get("children")))
     run = (response.get("architecture-run") or {}).get("data")
-    if args.check_only or not run:
+    if args.check_only:
+        record["runs"] = run
+        return record
+    if not run:
         return record
     record.update(flow_run_id=run["run"], simulation_uuid=run["job"])
     final = wait_for_run(args.prefect, run["run"], args.timeout)
     record.update(state=final["state_type"], state_name=final["state"]["name"], duration_s=final.get("total_run_time"))
+    if final["state_type"] != "COMPLETED":
+        return record
     state_dep = dash.dep("architecture-poll", "architecture-state")
     _, response = dash.call(state_dep, {("architecture-run", "data"): run, ("architecture-poll", "n_intervals"): 1},
                             trigger="architecture-poll.n_intervals")
@@ -308,7 +352,7 @@ def run_architecture(dash, args, targets="statistic_name,statistic_value\nroot_n
         _, response = dash.call(download, {(name, "n_clicks"): 1, ("architecture-run", "data"): run},
                                 trigger=f"{name}.n_clicks")
         sent = (response.get("architecture-download") or {}).get("data") or {}
-        content = base64.b64decode(sent["content"]).decode() if sent.get("base64") else sent.get("content", "")
+        content = download_content(sent)
         record[name] = {"filename": sent.get("filename"), "bytes": len(content)}
         if name == "architecture-best" and content:
             best = json.loads(content)
@@ -318,6 +362,7 @@ def run_architecture(dash, args, targets="statistic_name,statistic_value\nroot_n
             rows = list(csv.DictReader(io.StringIO(content)))
             record["trial_rows"] = len(rows)
             record["trial_columns"] = list(rows[0]) if rows else []
+            record["trial_has_finite_loss"] = any(finite_number(row.get("loss")) for row in rows)
     return record
 
 
@@ -364,6 +409,46 @@ def run_eda(dash, args):
     return record
 
 
+def uploaded_snpe_values(dash, page, targets):
+    if not isinstance(targets, dict) or not targets or not all(
+        isinstance(value, (int, float)) and not isinstance(value, bool) and finite_number(value)
+        for value in targets.values()
+    ):
+        raise ValueError("Specify --snpe-targets as a JSON object mapping statistics to finite numbers")
+    model_dep = dash.dep(f"{page}-check-services", f"{page}-snpe-model-info")
+    _, response = dash.call(model_dep, {(f"{page}-check-services", "n_clicks"): 1},
+                            trigger=f"{page}-check-services.n_clicks")
+    model = response[f"{page}-snpe-model-info"]["data"]
+    names = model.get("input_schema", {}).get("statistic_names", [])
+    if not model.get("tag") or not model.get("prediction_ready") or set(names) != set(targets):
+        raise ValueError(f"SNPE needs a ready model and --snpe-targets for its statistics: {names}")
+    csv_buffer = io.StringIO()
+    writer = csv.writer(csv_buffer)
+    writer.writerow(["statistic_name", "statistic_value"])
+    writer.writerows(targets.items())
+    upload_id = {"index": f"{page}-upload-obs-data-file-button", "type": f"{page}-summary_data"}
+    upload_key = key(upload_id)
+    upload_dep = dash.dep(f"{page}-upload-obs-data-file-button", f"{page}-snpe-target-upload")
+    _, response = dash.call(upload_dep, {
+        (upload_key, "contents"): encoded_upload(csv_buffer.getvalue().encode(), "text/csv"),
+        (upload_key, "filename"): "snpe-acceptance-targets.csv",
+    }, trigger=f"{upload_key}.contents")
+    upload_data = response[f"{page}-snpe-target-upload"]["data"]
+    uploaded_values = {row["statistic_name"]: row["statistic_value"] for row in upload_data["values"]}
+    if uploaded_values != targets:
+        raise ValueError("SNPE upload callback did not preserve the synthetic target values")
+    group = f"{page}-summary_statistics"
+    input_ids = [{"index": name, "type": group} for name in names]
+    manual = [0 if targets[name] else 1 for name in names]
+    return {
+        (f"{page}-snpe-source", "value"): "upload",
+        (f"{page}-snpe-target-upload", "data"): upload_data,
+        (f"{page}-snpe-model-info", "data"): model,
+        (group, "id"): entries(input_ids, "id", input_ids),
+        (group, "value"): entries(input_ids, "value", manual),
+    }
+
+
 def run_deployments(dash, args):
     """Press each calibrator button on Deployments with the guide's inputs."""
     page = "deployments-root-system-page"
@@ -373,7 +458,6 @@ def run_deployments(dash, args):
     _, response = dash.call(status_dep, {(f"{page}-check-services", "n_clicks"): 1},
                             trigger=f"{page}-check-services.n_clicks")
     record["service_status"] = text_of(response.get(f"{page}-service-status", {}).get("children"))
-    statistics = [50 if c["param"] == "total_length" else None for c in children(form, "summary_statistics")]
     features = [json.dumps(args.surrogate_row) if c["param"] == "trained_features_json" else None
                 for c in children(form, "parameters")]
     calls = {
@@ -381,23 +465,47 @@ def run_deployments(dash, args):
         "sensitivity_analysis": ("call-sa-button", {(f"{page}-parameter-names-dropdown", "value"):
                                  button(page, "parameter-names-dropdown", "value", ["primary_root_count"])[0]}),
         "abc": ("call-abc-button", {(f"{page}-t-input", "value"): button(page, "t-input", "value", 0)[0]}),
-        "snpe": ("call-snpe-button", {(f"{page}-summary_statistics", "value"):
-                 entries(ids(page, form, "summary_statistics"), "value", statistics)}),
+        "snpe": ("call-snpe-button", None),
         "surrogate": ("call-surrogate-button", {(f"{page}-parameters", "value"):
                       entries(ids(page, form, "parameters"), "value", features)}),
     }
     for task, (name, values) in calls.items():
-        dep = dash.dep(f"{page}-{name}", "download-results")
-        entry, trigger = button(page, name)
-        values[(f"{page}-{name}", "n_clicks")] = entry
-        status, response = dash.call(dep, values, trigger=trigger)
-        sent = (response.get(f"{page}-download-results") or {}).get("data") or {}
-        content = base64.b64decode(sent["content"]).decode() if sent.get("base64") else sent.get("content", "")
-        rows = list(csv.DictReader(io.StringIO(content))) if content else []
-        record[task] = {"http_status": status, "feedback": text_of((response.get(f"{page}-results-toast") or {}).get("children")),
-                        "filename": sent.get("filename"), "rows": len(rows),
-                        "columns": list(rows[0]) if rows else [], "first_row": rows[0] if rows else None}
+        try:
+            dep = dash.dep(f"{page}-{name}", "download-results")
+            entry, trigger = button(page, name)
+            if task == "snpe":
+                values = uploaded_snpe_values(dash, page, args.snpe_targets)
+                entry = 1
+            values[(f"{page}-{name}", "n_clicks")] = entry
+            status, response = dash.call(dep, values, trigger=trigger)
+            sent = (response.get(f"{page}-download-results") or {}).get("data") or {}
+            reader = csv.DictReader(io.StringIO(download_content(sent)), strict=True)
+            rows = list(reader)
+            columns = reader.fieldnames or []
+            numeric_columns = PREDICTION_COLUMNS[task]
+            finite = bool(rows) and all(
+                None not in row and all(finite_number(row.get(col)) for col in numeric_columns)
+                for row in rows
+            )
+            expected_rows = prediction_matches(task, rows)
+            record[task] = {
+                "http_status": status, "feedback": text_of(response.get(f"{page}-results-toast", {}).get("children")),
+                "filename": sent.get("filename"), "rows": len(rows), "columns": columns,
+                "first_row": rows[0] if rows else None, "expected_values": finite and expected_rows,
+            }
+        except Exception as exc:  # keep other prediction results in the receipt
+            record[task] = {"error": f"{type(exc).__name__}: {exc}"}
     return record
+
+
+def prediction_matches(task, rows):
+    if task in {"optimisation", "surrogate"}:
+        return len(rows) == 1
+    if task == "sensitivity_analysis":
+        return [row.get("name") for row in rows] == ["primary_root_count"]
+    if task == "abc":
+        return all(finite_number(row.get("t")) and float(row["t"]) == 0 for row in rows)
+    return bool(rows)
 
 
 def run_task(dash, args, task):
@@ -445,10 +553,91 @@ def run_task(dash, args, task):
     return record
 
 
+def finite_number(value):
+    try:
+        return math.isfinite(float(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def check_deployment_predictions(record):
+    failed = [name for name in PREDICTION_COLUMNS if (
+        record[name].get("http_status") != 200
+        or not record[name].get("filename")
+        or not record[name].get("expected_values")
+        or f"Downloaded {record[name].get('rows')} rows from the {name} service"
+        not in record[name].get("feedback", "")
+    )]
+    if record.get("service_status", "").count(": serving ") != len(PREDICTION_COLUMNS):
+        failed.append("model service availability")
+    return [f"Prediction acceptance failed for {', '.join(failed)}."] if failed else []
+
+
+def check_eda_figures(record):
+    if not record["rows_loaded"]:
+        return ["EDA upload produced no rows."]
+    return [f"{name} did not render data." for name, result in record["figures"].items()
+            if result.get("http_status") != 200 or not any(result.get("traces", []))]
+
+
+def check_architecture_result(record):
+    errors = []
+    if not record.get("best_enabled") or record.get("best_primary_root_count") not in {2, 3, 4}:
+        errors.append("Best configuration did not contain a valid searched root count.")
+    if record.get("best_random_seed") not in {0, 1}:
+        errors.append("Best configuration did not preserve a requested seed.")
+    if (record.get("trial_rows") != 5 or not record.get("trial_has_finite_loss")
+            or not {"trial", "state", "loss"}.issubset(record.get("trial_columns", []))):
+        errors.append("Trial download did not contain five trial rows with a finite completed loss.")
+    return errors
+
+
+def check_record(record, args):
+    task = record["task"]
+    if task == "deployments":
+        return check_deployment_predictions(record)
+    if task == "eda":
+        return check_eda_figures(record)
+    if task == "core_comparison":
+        return [] if record.get("http_status") == 200 and record.get("rows") else ["Core Comparison returned no results."]
+    if record.get("http_status") != 200:
+        return [f"The setup/run callback returned HTTP {record.get('http_status')}."]
+    if task == "architecture_search":
+        if "Schema 4" not in record.get("load_feedback", ""):
+            return ["Architecture Search did not load the synthetic configuration."]
+    elif not all((feedback or "").startswith("Loaded") for feedback in (
+        record["load_feedback"][:1] if task == "simulation" else record["load_feedback"]
+    )):
+        return ["The synthetic parameter or target upload failed."]
+    if args.check_only:
+        if "Setup is valid. Nothing was submitted." not in record.get("feedback", ""):
+            return ["Check setup did not confirm a valid request."]
+        return ["Check setup created a run."] if record.get("runs") or record.get("flow_run_id") else []
+    if not record.get("flow_run_id"):
+        return ["Submission did not return a flow run ID."]
+    if record.get("state") != "COMPLETED":
+        return [f"Flow did not complete within the check: state={record.get('state')}."]
+    if task == "architecture_search":
+        return check_architecture_result(record)
+    if not args.mlflow:
+        return []
+    files = record.get("artifacts", [])
+    endings = (*WORKER_ARTIFACTS[task], "_config.yaml")
+    errors = [f"Missing MLflow artifact with suffix {suffix}."
+              for suffix in endings if not any(name.endswith(suffix) for name in files)]
+    if task != "simulation" and task not in files:
+        errors.append(f"Missing the {task} model artifact.")
+    if task == "simulation" and (not record.get("nodes") or not record.get("edges")):
+        errors.append("The simulation graph CSVs returned no nodes or edges.")
+    return errors
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("tasks", nargs="+", choices=sorted(PAGES) + ["architecture_search", "eda", "core_comparison", "deployments"])
     parser.add_argument("--surrogate-row", type=json.loads, default={"min_primary_length": 19.5, "max_primary_length": 28.5})
+    parser.add_argument("--snpe-targets", type=json.loads, default={"total_length": 50},
+                        help="JSON object containing synthetic targets for every statistic in the served SNPE schema")
     parser.add_argument("--nodes", type=Path, help="Simulation node CSV for the EDA check")
     parser.add_argument("--dash", default="http://127.0.0.1:8000")
     parser.add_argument("--prefect", default="http://127.0.0.1:4200")
@@ -460,18 +649,30 @@ def main():
     args = parser.parse_args()
     global CONFIG
     CONFIG = args.config
-    dash = Dash(args.dash)
     records = []
-    for task in args.tasks:
-        try:
-            record = run_task(dash, args, task)
-        except Exception as exc:  # report and continue with the next page
-            record = {"task": task, "error": f"{type(exc).__name__}: {exc}"}
-        print(json.dumps(record, indent=1, default=str), flush=True)
+    try:
+        dash = Dash(args.dash)
+    except Exception as exc:
+        record = {"task": "dashboard", "error": f"{type(exc).__name__}: {exc}"}
         records.append(record)
+        print(json.dumps(record, indent=1, default=str), flush=True)
+    else:
+        for task in args.tasks:
+            record = {"task": task}
+            try:
+                record = run_task(dash, args, task)
+                failures = check_record(record, args)
+                if failures:
+                    record["failed_checks"] = failures
+            except Exception as exc:  # report and continue with the next page
+                record["error"] = f"{type(exc).__name__}: {exc}"
+            records.append(record)
+            print(json.dumps(record, indent=1, default=str), flush=True)
     if args.receipt:
+        args.receipt.parent.mkdir(parents=True, exist_ok=True)
         args.receipt.write_text(json.dumps(records, indent=1, default=str))
+    return int(any(record.get("error") or record.get("failed_checks") for record in records))
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

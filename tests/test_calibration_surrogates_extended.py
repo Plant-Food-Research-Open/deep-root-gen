@@ -74,6 +74,22 @@ def test_prepare_surrogate_data_supports_multiple_outputs(sample_df):
     assert scalers[1].n_features_in_ == 2
 
 
+def test_prepare_surrogate_data_retains_single_rows_and_constant_target(sample_df):
+    tiny = sample_df.groupby("training_data_split").head(1).copy()
+    tiny["discrepancy"] = 9.5
+    loaders, (_, y_scaler), cleaned, num_data = subject.prepare_surrogate_data(tiny)
+
+    assert num_data == 1
+    assert "constant" not in cleaned
+    assert "discrepancy" in cleaned
+    for loader in loaders:
+        features, target = next(iter(loader))
+        assert features.shape == (1, 2)
+        assert target.shape == (1,)
+        torch.testing.assert_close(target, torch.zeros_like(target))
+    np.testing.assert_allclose(y_scaler.inverse_transform([[0.0]]), [[9.5]])
+
+
 @pytest.mark.parametrize(
     "patience,losses,expected",
     [
