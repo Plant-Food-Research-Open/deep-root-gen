@@ -2,7 +2,9 @@
 
 Start with the [schema-4 workflow](docs/source/usage/native_workflow.rst)
 and the [parameter reference](docs/NATIVE_EXECUTION.md). They cover the same
-input in the CLI, Python, notebooks and the Simulation page.
+input in the CLI, Python, notebooks and the Simulation page. The
+[model review guide](docs/MODEL_REVIEW_GUIDE.md) maps parameter ownership
+and scientific review.
 
 ## Offline runtime and optional local services
 
@@ -21,10 +23,12 @@ poetry build
 CICD_TESTING_ENV=true python -m pytest -p no:cacheprovider --run-integration
 flake8 --count --show-source --statistics
 python -m deeprootgen simulate --config examples/synthetic_minimal.json --explain-config
+python scripts/research/parameter_search.py --config examples/research/search_synthetic.json --outdir .runtime/search-new
 python -m deeprootgen simulate --config examples/synthetic_minimal.json --outdir .runtime/synthetic-new
 python -m sphinx -b html docs/source .runtime/sphinx-html
 ```
 
+The search example validates its input. Use `--execute` to start a search.
 Choose a new simulation output directory. Open `roots.html` to explore it in a
 browser. Read `root_summary.json` for valid axis counts and contour lengths by
 numeric order and for length and dry mass by diameter class. Use
@@ -334,7 +338,90 @@ child_id. Base parent sentinel is -1; classifications are strings. Labels in
 source use cm, g/cm³ and g, but CSVs do not contain a separate units column.
 This work does not validate or redefine units or treatment of base/invalid rows.
 
+## Dashboard stack (supported local startup)
+
+One Compose project serves Dash, Prefect (seven deployments, one process
+worker), MLflow, MinIO, Postgres and ArangoDB from **one image built from the
+current tree**. Use a separate Compose project and available loopback ports
+when testing a new build alongside an existing environment.
+
+```bash
+# once per checkout; refuses to overwrite an existing .env.local
+python3 scripts/local/configure.py
+export DRG_LOCAL_IMAGE=deeprootgen-local:dashboard \
+       DRG_APP_PORT=18003 DRG_PREFECT_PORT=14203 DRG_MLFLOW_PORT=15003
+P="docker compose --env-file .env.local -p drg-dash-repair -f docker-compose.local.yaml"
+$P build app minio          # rebuild after any source change
+$P up -d --wait --wait-timeout 400
+```
+
+Open **http://127.0.0.1:18003/** (Prefect UI 14203, MLflow 15003; all
+loopback). Ports and project name are examples; any unused values work, and
+shell exports override `.env.local`. The default image tag changed from
+`upstream-80315af` to `dashboard`; to restart the older `drg-upstream-check`
+project unchanged, export `DRG_LOCAL_IMAGE=deeprootgen-local:upstream-80315af`.
+
+**Status checks** (a page load, health check or listing is an intermediate
+check only; a run is verified by its terminal state and artifacts):
+
+```bash
+$P ps -a                                      # one-shot jobs exit 0; others healthy/up
+$P logs prefect-deployments | tail -1         # "Registered 7 dashboard deployments ..."
+curl -s -X POST http://127.0.0.1:14203/api/deployments/filter \
+  -H 'content-type: application/json' -d '{}' | python3 -c \
+  'import json,sys; [print(d["name"], d["work_pool_name"]) for d in json.load(sys.stdin)]'
+curl -s http://127.0.0.1:14203/api/work_pools/default | python3 -c \
+  'import json,sys; print(json.load(sys.stdin)["status"])'   # READY = a worker is polling
+```
+
+`app/flows/prefect.yaml` is the only deployment manifest (the root
+`prefect.yaml` is an unused scaffold). `prefect-deployments` upserts all seven
+on every start and then fails unless each name used by the pages exists, so it
+is safe to rerun: `$P up prefect-deployments`. Flows run with working directory
+`/app/outputs`, the volume shared by app, worker and model services. The worker
+imports calibrators into the Bento store at `/app/outputs/bento`.
+
+**Recovery without data loss.** `$P restart app prefect-worker` for a stuck
+page or worker; `$P up -d --wait` after a rebuild recreates containers on the
+same named volumes (verified: Prefect runs and MLflow experiments persisted
+across recreation). Re-register with `$P up prefect-deployments`. `$P stop` /
+`$P start` pauses everything. Never add `-v`, prune volumes or regenerate
+`.env.local` for an initialized project.
+
+**Page feedback.** Every worker-backed page has **Check setup** (validates,
+never submits) and **Run**. The results message stays until dismissed and
+names the failure class: invalid form (with field names), *Prefect is
+unreachable* and *Deployment missing* (nothing was submitted), *Submission
+result uncertain* (retry with the unchanged form returns the same run, because
+each send carries an idempotency key from a page nonce and the payload), or
+*Queued* / *Already queued* with the run UUID and Prefect link, plus a warning
+if no worker polls the pool. The run table's **State** column follows the run
+and, on completion, names the MLflow run and its artifact count, or reports
+missing artifacts; failed runs point to the worker log.
+
+`scripts/local/dash_workflow_check.py` replays the guide's examples through
+Dash's own callback endpoint (`--check-only` for Check setup) and
+`scripts/local/dash_browser_check.mjs` drives headless Chrome with Playwright.
+Verification results are in [the dashboard examples](docs/DASH_UI_EXAMPLES.md#verification-record-23-november-2026).
+
+### Optional model serving
+
+```bash
+$P --profile serving up -d --wait      # optimisation, sensitivity-analysis, abc, snpe, surrogate
+```
+
+Each service reads `/app/outputs/bento`, starts without a model and answers
+404 ("No 'abc:latest' model version ...") until a completed run of its method on
+this stack has imported one; restart that service after the run. **Deployments
+→ Check model services** lists each as *not running*, *no model* or *serving*
+with the model tag and source run. Loopback ports 5101–5105 are configurable
+(`DRG_SERVE_*_PORT`). The older `docker-compose.model-deploy.yaml` targets the
+published GHCR image and is not part of this local stack.
+
 ## Docker installation and local UI
+
+The section below is the historical October/November smoke setup; use
+[the dashboard stack](#dashboard-stack-supported-local-startup) above.
 
 Qualified engine **29.1.3**, Compose **2.40.3**. Docker must already be installed
 and accessible through its supported local configuration. Do not change socket
@@ -553,6 +640,7 @@ support and calibration seed propagation. This t=0 sample does not settle them.
 No calibration, optimisation, inference, measured-data compatibility or Calvin
 raw-data inspection/upload was performed. Those require a separately scoped
 scientific/data task. See [architecture](docs/ARCHITECTURE.md) for the code map.
+
 
 For a finite vineyard layout use `python -m deeprootgen neighbourhood --help`.
 The [neighbourhood example](docs/NATIVE_EXECUTION.md#growing-a-neighbourhood-of-vines)

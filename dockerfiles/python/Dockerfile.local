@@ -24,8 +24,10 @@ COPY app/flows ./flows
 COPY app/deployments ./deployments
 COPY bentoml_configuration.yaml ./bentoml_configuration.yaml
 COPY scripts/local ./local
+# sbi opens a TensorBoard writer at the relative path sbi-logs when an SNPE
+# inference object is created or unpickled (worker and model service).
 RUN useradd --create-home --uid 10001 drg \
-    && mkdir -p /app/outputs && chown drg:drg /app/outputs
+    && mkdir -p /app/outputs /app/sbi-logs && chown drg:drg /app/outputs /app/sbi-logs
 USER drg
 ENV HOME=/home/drg DEEPROOTGEN_OUTPUT_DIR=/app/outputs \
     CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=2 MKL_NUM_THREADS=2

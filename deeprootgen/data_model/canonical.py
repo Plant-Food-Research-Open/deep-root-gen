@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from .canonical_features import CanonicalFeatures as Features, CanonicalLimits, check_allocation_ownership
 from .features import NativeParameters, _order_keys
+from .daughter_placement import DaughterPlacement
 from .irrigation import Irrigation
 
 
@@ -18,6 +19,23 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
+class BirthDepthTransfer(StrictModel):
+    """Move eligible ordinary daughters along their own parent's contour."""
+
+    parent_orders: Annotated[list[Annotated[int, Field(ge=1)]], Field(min_length=1)]
+    shallow_depth_cm: Positive
+    deep_depth_cm: Positive
+    transfer_probability: Fraction
+
+    @model_validator(mode="after")
+    def check_support(self):
+        if self.deep_depth_cm < self.shallow_depth_cm:
+            raise ValueError("deep_depth_cm must be at least shallow_depth_cm")
+        if len(set(self.parent_orders)) != len(self.parent_orders):
+            raise ValueError("parent_orders must contain distinct orders")
+        return self
+
+
 class DaughterRange(StrictModel):
     min: Count
     max_exclusive: Count
@@ -27,6 +45,27 @@ class DaughterRange(StrictModel):
         if self.max_exclusive <= self.min:
             raise ValueError("max_exclusive must exceed min")
         return self
+
+
+class TissueDensityBands(StrictModel):
+    """Piecewise-constant dry mass per unit fresh root volume."""
+
+    bounds_mm: list[Positive]
+    density_g_cm3: list[Positive]
+    equality_to_finer: list[bool]
+
+    @model_validator(mode="after")
+    def validate_bands(self):
+        if any(b <= a for a, b in zip(self.bounds_mm, self.bounds_mm[1:])):
+            raise ValueError("Diameter bounds must increase")
+        if len(self.density_g_cm3) != len(self.bounds_mm) + 1 or len(self.equality_to_finer) != len(self.bounds_mm):
+            raise ValueError("Supply one density per band and one equality convention per boundary")
+        return self
+
+    def profile(self):
+        from ..model.tissue_density import DiameterDensity
+
+        return DiameterDensity(tuple(self.bounds_mm), tuple(self.density_g_cm3), tuple(self.equality_to_finer))
 
 
 class AllocationControls(StrictModel):
@@ -52,7 +91,7 @@ class RootParameters(StrictModel):
     root_ratio_biomass: Fraction | None = None
     root_ratio_length: Fraction | None = None
     allocation_controls: AllocationControls | None = None
-    root_tissue_density: Positive
+    root_tissue_density: Positive | TissueDensityBands
     daughters_per_parent: Count | DaughterRange | None = None
     daughters_by_parent_order: dict[str, Count] = Field(default_factory=dict)
     daughter_count_order_gain: Annotated[float, Field(ge=0, lt=1)] = 0.0
@@ -111,6 +150,9 @@ class RootParameters(StrictModel):
         upper = count.max_exclusive if isinstance(count, DaughterRange) else count
         shared_fields = RootParameters.model_fields.keys() & NativeParameters.model_fields.keys()
         values = self.model_dump(include=shared_fields)
+        if isinstance(self.root_tissue_density, TissueDensityBands):
+            # Construction creates provisional cylinders; final material uses physical point diameters.
+            values["root_tissue_density"] = self.root_tissue_density.density_g_cm3[-1]
         values.update(outer_root_num=outer, inner_root_num=self.primary_root_count - outer,
                       fine_root_threshold=self.threshold_root_diameter_cm,
                       min_sec_root_num=lower, max_sec_root_num=upper,
@@ -125,6 +167,9 @@ class RootParameters(StrictModel):
 
 class RootConfig(StrictModel):
     irrigation: Irrigation | None = None
+    daughter_placement: DaughterPlacement | None = None
+    birth_depth_transfer: BirthDepthTransfer | None = None
+    minimum_realized_primary_length_cm: Annotated[float, Field(gt=0)] | None = None
 
     @field_validator("irrigation", mode="before")
     @classmethod

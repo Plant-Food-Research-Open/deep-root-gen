@@ -119,8 +119,26 @@ class CanonicalLengths(LengthsFeature):
     settings: CanonicalLengthsSettings = Field(default_factory=CanonicalLengthsSettings)
 
 
+class SiblingSectors(BaseModel):
+    """Randomly rotated azimuth sectors within arclength windows of one parent."""
+
+    model_config = STRICT
+    window_cm: PositiveCm
+    fraction: Annotated[float, Field(ge=0, le=1)]
+    min_birth_depth_cm: PositiveCm | None = None
+
+
+class DeepCarrier(BaseModel):
+    model_config = STRICT
+    fraction: Annotated[float, Field(ge=0, le=1)]
+    trigger_depth_cm: PositiveCm
+    drift_multiplier: Annotated[float, Field(gt=1)]
+
+
 class CanonicalCurvatureOrder(CurvatureOrder):
     row_alignment_per_cm: Annotated[float, Field(ge=0)] = 0.0
+    sibling_sectors: SiblingSectors | None = None
+    deep_carrier: DeepCarrier | None = None
 
 
 class CanonicalCurvatureSettings(CurvatureSettings):
@@ -149,8 +167,12 @@ def _branching_law(value):
     return law if isinstance(law, str) else "invalid"
 
 
+class FirstBranchSites(BranchingOrder):
+    stratify_distal_sites: bool | None = None
+
+
 CanonicalBranchingOrder = Annotated[
-    Annotated[BranchingOrder, Tag("first_branch_and_daughter_count")]
+    Annotated[FirstBranchSites, Tag("first_branch_and_daughter_count")]
     | Annotated[LengthPoissonSites, Tag("length_poisson_sites_v1")],
     Discriminator(_branching_law),
 ]

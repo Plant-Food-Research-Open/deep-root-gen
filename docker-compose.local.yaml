@@ -1,5 +1,9 @@
+# Supported local dashboard stack. Build from the current tree, then start all
+# services; see RUNNING.md "Dashboard stack". The image carries pages, flows and
+# library code, so rebuild after source changes. Optional model serving is the
+# "serving" profile below.
 x-runtime: &runtime
-  image: ${DRG_LOCAL_IMAGE:-deeprootgen-local:upstream-80315af}
+  image: ${DRG_LOCAL_IMAGE:-deeprootgen-local:dashboard}
   pull_policy: never
   init: true
   restart: "no"
@@ -21,10 +25,28 @@ x-runtime: &runtime
     APP_PREFECT_USER_HOST: http://127.0.0.1:${DRG_PREFECT_PORT:-4200}
     APP_MLFLOW_USER_HOST: http://127.0.0.1:${DRG_MLFLOW_PORT:-5000}
     BENTOML_DO_NOT_TRACK: "True"
+    # Worker imports calibrators here; serving containers read the same volume.
+    BENTOML_HOME: /app/outputs/bento
     DEEPROOTGEN_OUTPUT_DIR: /app/outputs
     CUDA_VISIBLE_DEVICES: ""
     OMP_NUM_THREADS: "2"
     MKL_NUM_THREADS: "2"
+
+x-serving: &serving
+  <<: *runtime
+  profiles: ["serving"]
+  cpus: 0.5
+  mem_limit: 2g
+  environment:
+    <<: *environment
+    BENTOML_CONFIG: /app/bentoml_configuration.yaml
+    BENTOML_CONFIG_OPTIONS: api_server.workers=1
+  volumes: ["outputs-data:/app/outputs"]
+  healthcheck:
+    test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3000/livez', timeout=5)"]
+    interval: 10s
+    timeout: 8s
+    retries: 12
 
 services:
   app:
@@ -33,6 +55,18 @@ services:
       context: .
       dockerfile: dockerfiles/python/Dockerfile.local
     mem_limit: 3g
+    environment:
+      <<: *environment
+      DEPLOYMENT_OPTIMISATION_INTERNAL_LINK: http://optimisation:3000
+      DEPLOYMENT_SENSITIVITY_ANALYSIS_INTERNAL_LINK: http://sensitivity-analysis:3000
+      DEPLOYMENT_ABC_INTERNAL_LINK: http://abc:3000
+      DEPLOYMENT_SNPE_INTERNAL_LINK: http://snpe:3000
+      DEPLOYMENT_SURROGATE_INTERNAL_LINK: http://surrogate:3000
+      DEPLOYMENT_OPTIMISATION_EXTERNAL_LINK: http://127.0.0.1:${DRG_SERVE_OPTIMISATION_PORT:-5101}
+      DEPLOYMENT_SENSITIVITY_ANALYSIS_EXTERNAL_LINK: http://127.0.0.1:${DRG_SERVE_SENSITIVITY_PORT:-5102}
+      DEPLOYMENT_ABC_EXTERNAL_LINK: http://127.0.0.1:${DRG_SERVE_ABC_PORT:-5103}
+      DEPLOYMENT_SNPE_EXTERNAL_LINK: http://127.0.0.1:${DRG_SERVE_SNPE_PORT:-5104}
+      DEPLOYMENT_SURROGATE_EXTERNAL_LINK: http://127.0.0.1:${DRG_SERVE_SURROGATE_PORT:-5105}
     ports: ["127.0.0.1:${DRG_APP_PORT:-8000}:8000"]
     volumes: ["outputs-data:/app/outputs"]
     depends_on:
@@ -153,6 +187,34 @@ services:
       interval: 10s
       timeout: 8s
       retries: 20
+
+  # Optional model serving: docker compose ... --profile serving up -d
+  # Each service starts without a model and answers 404 until a completed run
+  # of its method has imported one into /app/outputs/bento.
+  optimisation:
+    <<: *serving
+    command: ["bentoml", "serve", "--host", "0.0.0.0", "-p", "3000", "deployments.optimisation_service:svc"]
+    ports: ["127.0.0.1:${DRG_SERVE_OPTIMISATION_PORT:-5101}:3000"]
+
+  sensitivity-analysis:
+    <<: *serving
+    command: ["bentoml", "serve", "--host", "0.0.0.0", "-p", "3000", "deployments.sensitivity_analysis_service:svc"]
+    ports: ["127.0.0.1:${DRG_SERVE_SENSITIVITY_PORT:-5102}:3000"]
+
+  abc:
+    <<: *serving
+    command: ["bentoml", "serve", "--host", "0.0.0.0", "-p", "3000", "deployments.abc_service:svc"]
+    ports: ["127.0.0.1:${DRG_SERVE_ABC_PORT:-5103}:3000"]
+
+  snpe:
+    <<: *serving
+    command: ["bentoml", "serve", "--host", "0.0.0.0", "-p", "3000", "deployments.snpe_service:svc"]
+    ports: ["127.0.0.1:${DRG_SERVE_SNPE_PORT:-5104}:3000"]
+
+  surrogate:
+    <<: *serving
+    command: ["bentoml", "serve", "--host", "0.0.0.0", "-p", "3000", "deployments.surrogate_service:svc"]
+    ports: ["127.0.0.1:${DRG_SERVE_SURROGATE_PORT:-5105}:3000"]
 
 volumes:
   outputs-data: {}

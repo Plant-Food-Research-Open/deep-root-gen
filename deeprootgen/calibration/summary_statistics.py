@@ -211,9 +211,8 @@ def calculate_summary_statistics(
         else:
             statistic_func = get_summary_statistic_func(statistic_name)
 
-            statistic_instance = statistic_func(
-                root_tissue_density=(simulation_parameters.parameters.root_tissue_density)
-            )
+            density = simulation_parameters.parameters.root_tissue_density
+            statistic_instance = statistic_func(root_tissue_density=None if hasattr(density, "bounds_mm") else density)
 
             statistic_value = statistic_instance.calculate(node_df)
 

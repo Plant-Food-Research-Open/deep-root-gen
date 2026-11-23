@@ -6,13 +6,8 @@
 
 # mypy: ignore-errors
 
-import os
 import os.path as osp
-from typing import Callable
 
-import pandas as pd
-import plotly.express as px
-import requests
 from dash import (
     ALL,
     Input,
@@ -26,10 +21,10 @@ from dash import (
     register_page,
 )
 
-from deeprootgen.calibration import get_simulation_parameters
 from deeprootgen.data_model.surrogate_inputs import surrogate_form_row
 from deeprootgen.form import get_common_layout
-from deeprootgen.io import load_data_from_file
+from deeprootgen.form import model_services
+from deeprootgen.form.run_feedback import load_statistics_upload, message
 from deeprootgen.pipeline import get_datetime_now, get_outdir
 
 ######################################
@@ -250,14 +245,9 @@ def load_summary_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
+    summary_data, toast_message = load_statistics_upload(list_of_contents, list_of_names)
+    if toast_message is no_update:
         return no_update
-
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, _, toast_message = load_data_from_file(list_of_contents, list_of_names)
-    summary_data = {"label": list_of_names[0], "values": loaded_data}
     return summary_data, True, toast_message
 
 
@@ -299,238 +289,137 @@ def clear_summary_data(n_clicks: int | list[int], summary_data: dict) -> tuple:
     return {}, [None], True, toast_message
 
 
-def endpoint_predict(task: str, endpoint: str, json: dict) -> str:
-    """Make a prediction to an endpoint.
+def call_service(task: str, body: dict) -> tuple:
+    """Call one model service; return (download, toast open, message)."""
+    try:
+        outfile, rows, info = model_services.predict(task, body, get_outdir(), get_datetime_now())
+    except model_services.ServiceError as error:
+        tone = "warning" if error.kind == "unreachable" else "danger"
+        return no_update, True, message(model_services.TITLES[error.kind], str(error), tone=tone)
+    source = (f"Served model {info.get('tag')} from run {info.get('simulation_uuid')}"
+              if info.get("available") else "Served model identity unavailable")
+    return dcc.send_file(outfile), True, message(
+        f"Downloaded {rows} rows from the {task} service", source, f"Saved as {osp.basename(outfile)}"
+    )
 
-    Args:
-        task (str):
-            The calibration task.
-        endpoint (str):
-            The endpoint url.
-        json (dict):
-            The JSON body.
 
-    Returns:
-        str:
-            The response dataframe file path.
-    """
-    res = requests.post(url=f"{endpoint}/predict", json=json)
-    res.raise_for_status()
-    json_data = res.json()
-    df = pd.DataFrame(json_data)
-    outdir = get_outdir()
-    date_now = get_datetime_now()
-    file_name = f"{date_now}-{task}-predict.csv"
-    outfile = osp.join(outdir, file_name)
-    df.to_csv(outfile, index=False)
-    return outfile
+def clicked(n_clicks) -> bool:
+    return bool(n_clicks) and bool(n_clicks[0])
 
 
 @callback(
     Output(f"{PAGE_ID}-download-results", "data", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "is_open", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "children", allow_duplicate=True),
     Input({"index": f"{PAGE_ID}-call-optimiser-button", "type": ALL}, "n_clicks"),
     State({"index": f"{PAGE_ID}-n-trials-input", "type": ALL}, "value"),
     prevent_initial_call=True,
 )
-def call_optimisation(n_clicks: int | list[int], n_trials_list: list) -> Callable:
-    """Call the optimisation endpoint.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of form clicks.
-        n_trials_list (list):
-            The number of trials for optimisation.
-
-    Returns:
-        Callable:
-            The form data.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    endpoint = os.environ.get(
-        "DEPLOYMENT_OPTIMISATION_INTERNAL_LINK", "http://optimisation:3000"
-    )
-
-    n_trials = n_trials_list[0]
-    json = {"n_trials": n_trials}
-    task = "optimisation"
-    outfile = endpoint_predict(task, endpoint, json)
-    return dcc.send_file(outfile), True, f"Calling {task} calibrator"
+def call_optimisation(n_clicks: list, n_trials_list: list) -> tuple:
+    """Request the best stored optimisation trials."""
+    if not clicked(n_clicks):
+        return no_update, no_update, no_update
+    n_trials = n_trials_list[0] if n_trials_list else None
+    if not isinstance(n_trials, int) or isinstance(n_trials, bool) or n_trials < 1:
+        return no_update, True, message("Invalid input", "Number of trials must be a whole number of at least 1.",
+                                        tone="danger")
+    return call_service("optimisation", {"n_trials": n_trials})
 
 
 @callback(
     Output(f"{PAGE_ID}-download-results", "data", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "is_open", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "children", allow_duplicate=True),
     Input({"index": f"{PAGE_ID}-call-sa-button", "type": ALL}, "n_clicks"),
     State({"index": f"{PAGE_ID}-parameter-names-dropdown", "type": ALL}, "value"),
     prevent_initial_call=True,
 )
-def call_sensitivity_analysis(
-    n_clicks: int | list[int], parameter_names_list: list[str]
-) -> Callable:
-    """Call the sensitivity analysis endpoint.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of form clicks.
-        ts (list):
-            The list of Sequential Monte Carlo time steps.
-
-    Returns:
-        Callable:
-            The form data.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    endpoint = os.environ.get(
-        "DEPLOYMENT_SENSITIVITY_ANALYSIS_INTERNAL_LINK",
-        "http://sensitivity_analysis:3000",
-    )
-
-    parameter_names = parameter_names_list[0]
-    json = {"names": parameter_names}
-    task = "sensitivity_analysis"
-    outfile = endpoint_predict(task, endpoint, json)
-    return dcc.send_file(outfile), True, "Calling sensitivity analysis calibrator"
+def call_sensitivity_analysis(n_clicks: list, parameter_names_list: list) -> tuple:
+    """Request total-order indices for the selected parameters."""
+    if not clicked(n_clicks):
+        return no_update, no_update, no_update
+    names = parameter_names_list[0] if parameter_names_list else None
+    names = [names] if isinstance(names, str) else list(names or [])
+    if not names:
+        return no_update, True, message("Invalid input", "Select at least one parameter name.", tone="danger")
+    return call_service("sensitivity_analysis", {"names": names})
 
 
 @callback(
     Output(f"{PAGE_ID}-download-results", "data", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "is_open", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "children", allow_duplicate=True),
     Input({"index": f"{PAGE_ID}-call-abc-button", "type": ALL}, "n_clicks"),
     State({"index": f"{PAGE_ID}-t-input", "type": ALL}, "value"),
     prevent_initial_call=True,
 )
-def call_abc(n_clicks: int | list[int], ts: list[int]) -> Callable:
-    """Call the Approximate Bayesian Computation endpoint.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of form clicks.
-        ts (list):
-            The list of Sequential Monte Carlo time steps.
-
-    Returns:
-        Callable:
-            The form data.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    endpoint = os.environ.get("DEPLOYMENT_ABC_INTERNAL_LINK", "http://abc:3000")
-
-    t = ts[0]
-    json = {"t": [t]}
-    task = "abc"
-    outfile = endpoint_predict(task, endpoint, json)
-    return dcc.send_file(outfile), True, f"Calling {task} calibrator"
+def call_abc(n_clicks: list, ts: list) -> tuple:
+    """Request ABC particles for one population (-1 for all)."""
+    if not clicked(n_clicks):
+        return no_update, no_update, no_update
+    t = ts[0] if ts else None
+    if not isinstance(t, int) or isinstance(t, bool) or t < -1:
+        return no_update, True, message("Invalid input", "Enter a population index of 0 or more, or -1 for all.",
+                                        tone="danger")
+    return call_service("abc", {"t": [t]})
 
 
 @callback(
     Output(f"{PAGE_ID}-download-results", "data", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "is_open", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "children", allow_duplicate=True),
     Input({"index": f"{PAGE_ID}-call-snpe-button", "type": ALL}, "n_clicks"),
     State({"type": f"{PAGE_ID}-summary_statistics", "index": ALL}, "value"),
     prevent_initial_call=True,
 )
-def call_snpe(n_clicks: int | list[int], statistics_inputs: list[float]) -> Callable:
-    """Call the Sequential neural posterior estimation endpoint.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of form clicks.
-        statistics_inputs (list[float]):
-            The list of summary statistic values.
-
-    Returns:
-        Callable:
-            The form data.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    endpoint = os.environ.get("DEPLOYMENT_SNPE_INTERNAL_LINK", "http://snpe:3000")
-
-    app = get_app()
-    statistics_form = app.settings[FORM_NAME]
-    summary_statistics = []
-    for i, child in enumerate(
-        statistics_form.components["summary_statistics"]["children"]
-    ):
-        statistic_name = child["param"]
-        statistic_value = statistics_inputs[i]
-        summary_statistics.append(
-            {"statistic_name": statistic_name, "statistic_value": statistic_value}
-        )
-
-    json = {"summary_statistics": summary_statistics}
-    task = "snpe"
-    outfile = endpoint_predict(task, endpoint, json)
-    return dcc.send_file(outfile), True, f"Calling {task} calibrator"
+def call_snpe(n_clicks: list, statistics_inputs: list) -> tuple:
+    """Request posterior draws conditional on the entered statistics."""
+    if not clicked(n_clicks):
+        return no_update, no_update, no_update
+    children = get_app().settings[FORM_NAME].components["summary_statistics"]["children"]
+    summary_statistics = [
+        {"statistic_name": child["param"], "statistic_value": value}
+        for child, value in zip(children, statistics_inputs)
+        if value is not None
+    ]
+    if not summary_statistics:
+        return no_update, True, message(
+            "Invalid input", "Enter or load at least one summary statistic value.", tone="danger")
+    return call_service("snpe", {"summary_statistics": summary_statistics})
 
 
 @callback(
     Output(f"{PAGE_ID}-download-results", "data", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "is_open", allow_duplicate=True),
+    Output(f"{PAGE_ID}-results-toast", "children", allow_duplicate=True),
     Input({"index": f"{PAGE_ID}-call-surrogate-button", "type": ALL}, "n_clicks"),
     State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
     prevent_initial_call=True,
 )
-def call_surrogate(
-    n_clicks: int | list[int], feature_inputs: list
-) -> Callable:
-    """Call the surrogate model endpoint.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of form clicks.
-        feature_inputs (list):
-            The numeric feature values and optional explicit JSON row.
-
-    Returns:
-        Callable:
-            The form data.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    endpoint = os.environ.get(
-        "DEPLOYMENT_SURROGATE_INTERNAL_LINK", "http://surrogate:3000"
-    )
-
-    app = get_app()
-    children = app.settings[FORM_NAME].components["parameters"]["children"]
+def call_surrogate(n_clicks: list, feature_inputs: list) -> tuple:
+    """Request a surrogate prediction for one feature row."""
+    if not clicked(n_clicks):
+        return no_update, no_update, no_update
+    children = get_app().settings[FORM_NAME].components["parameters"]["children"]
     try:
         row = surrogate_form_row(children, feature_inputs)
-        outfile = endpoint_predict("surrogate", endpoint, {"data": [row]})
     except ValueError as exc:
-        return no_update, True, str(exc)
-    except requests.HTTPError as exc:
-        return no_update, True, f"Surrogate rejected these inputs: {exc.response.text}"
-    return dcc.send_file(outfile), True, "Surrogate predictions downloaded"
+        return no_update, True, message("Invalid input", str(exc), tone="danger")
+    return call_service("surrogate", {"data": [row]})
+
+
+@callback(
+    Output(f"{PAGE_ID}-service-status", "children"),
+    Input(f"{PAGE_ID}-check-services", "n_clicks"),
+)
+def show_service_status(_: int | None) -> html.Div:
+    """List which optional model services are reachable and what they serve."""
+    rows = model_services.service_status()
+    return html.Div([
+        html.P("Optional model services. Each needs a completed run of its method on this stack and the "
+               "serving profile; until then its calls report why they are unavailable.", className="mb-1"),
+        html.Ul([html.Li(f"{label}: {state} — {detail}") for label, state, detail in rows]),
+    ], role="status")
 
 
 ######################################
@@ -562,4 +451,11 @@ def layout() -> html.Div:
         data_key=DATA_COMPONENT_KEY,
     )
 
-    return layout
+    return html.Div([
+        html.Div([
+            html.Button("Check model services", id=f"{PAGE_ID}-check-services",
+                        className="btn btn-outline-primary m-2"),
+            html.Div(id=f"{PAGE_ID}-service-status", className="mx-2"),
+        ]),
+        layout,
+    ])

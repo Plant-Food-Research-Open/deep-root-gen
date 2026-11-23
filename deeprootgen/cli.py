@@ -80,13 +80,13 @@ def _export(spec, outdir, resolve_config, canonical_input, simulation_class):
                 json.dumps(result.metadata["root_summary"], indent=2, allow_nan=False) + "\n"
             )
         result.organ_table.to_csv(target / "organs.csv", index=False)
-        if "irrigation" in result.diagnostics:
-            (target / "irrigation.json").write_text(json.dumps(result.diagnostics["irrigation"], allow_nan=False) + "\n")
         if "branching" in result.diagnostics:
             (target / "branching.json").write_text(
                 json.dumps(result.diagnostics["branching"], indent=2, allow_nan=False) + "\n"
             )
         _export_spatial_receipts(result.diagnostics, target)
+        if "irrigation" in result.diagnostics:
+            (target / "irrigation.json").write_text(json.dumps(result.diagnostics["irrigation"], allow_nan=False) + "\n")
         if not result.node_metadata.empty:
             result.node_metadata.to_csv(target / "node_metadata.csv", index=False)
         (target / "execution.json").write_text(

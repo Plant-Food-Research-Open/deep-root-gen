@@ -12,10 +12,12 @@ build: null
 # push section allows you to manage if and how this project is uploaded to remote locations
 push: null
 
-# pull section allows you to provide instructions for cloning this project in remote locations
+# The single deployment manifest for the dashboard (seven deployments below).
+# Entrypoints are absolute; flows run from the shared writable output volume so
+# libraries that write relative paths (for example sbi's sbi-logs) can do so.
 pull:
 - prefect.deployments.steps.set_working_directory:
-    directory: /
+    directory: /app/outputs
 
 # the deployments section allows you to provide configuration for deploying flows
 deployments:

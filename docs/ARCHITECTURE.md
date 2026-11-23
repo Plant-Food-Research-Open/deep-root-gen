@@ -1,5 +1,7 @@
 # Architecture and code map
 
+For an illustrated walkthrough from crown emergence to field comparison, read [How DeepRootGen builds and fits grapevine root systems](ROOT_ARCHITECTURE_AND_SPATIAL_FITTING.md).
+
 Fresh generation uses one [schema-4 input](NATIVE_EXECUTION.md).
 [`RootConfig`](../deeprootgen/data_model/canonical.py) validates the document.
 The [resolver](../deeprootgen/data_model/resolution.py) identifies the active
@@ -57,7 +59,7 @@ the checkout or editing central configuration as a side effect.
 | `app/pages/*_root_system.py`, `deeprootgen/form/components.py:597` | Dashboard form validation/configuration, uploads, EDA and dispatch. Dispatch calls Prefect deployments through `pipeline/experiment.py:357`. |
 | `app/flows/run_simulation.py:78` | `run_simulation_flow(input_parameters, simulation_uuid)`; constructs simulator, logs to MLflow, saves graph to ArangoDB. This is not a side-effect-free smoke entrypoint. |
 | `app/flows/run_optimisation.py:295`, `run_sensitivity_analysis.py:320`, `run_abc.py:372`, `run_snpe.py:641`, `run_surrogate.py:449` | Prefect flow entrypoints for Optuna, sensitivity analysis, ABC, SNPE and surrogate training. All unexecuted during this review. |
-| `app/flows/prefect.yaml` | Six actual deployment entrypoints with container `/app/flows/…` paths. Root `prefect.yaml` is an older scaffold referring to absent `app/flows/test_flow.py`; do not use it as the working deployment manifest. |
+| `app/flows/prefect.yaml` | The single dashboard deployment manifest: seven deployment entrypoints (including Architecture Search) with container `/app/flows/…` paths. Root `prefect.yaml` is an older scaffold referring to absent `app/flows/test_flow.py`; do not use it as the working deployment manifest. |
 | `deeprootgen/pipeline/experiment.py:29`, `:180`; `io/simulation_data.py` | Output directory hard-coded to `/app/outputs`; node/edge CSVs, plots/profile and summary CSVs logged to MLflow. Explicit S3 upload helper and ArangoDB persistence exist. |
 | `app/deployments/*_service.py`, `docker-compose.model-deploy.yaml` | BentoML inference services; import can load latest stored models. These consume existing artifacts and are not a setup test. |
 | `docker-compose.yaml`, `dockerfiles/`, `apptainer/` | Full application/service infrastructure: Dash, MLflow, Prefect server/worker/deployment bootstrap, Postgres, MinIO and bucket bootstrap, ArangoDB, plus CloudBeaver and Metabase. Not started. |

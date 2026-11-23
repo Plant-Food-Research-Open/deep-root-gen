@@ -9,4 +9,5 @@ extends = ":workspace"
 ".agents" = "write"
 
 [permissions.fruitcropxl-maintainer.network]
-enabled = false
+# Permit network-backed tools, including user-authorized Claude Code calls.
+enabled = true

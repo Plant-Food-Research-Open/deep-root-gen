@@ -102,7 +102,22 @@ class NativeFeatureLaws:
         if law is None or law["law"] != "bounded_lognormal":
             return None
         expected = int(organ.parent_node.G.organ_id)
-        total = bounded_draw(law, self.dimension_stream("length", expected, law))
+        rng = self.dimension_stream("length", expected, law)
+        floor = law.get("realized_floor_cm")
+        if floor is None:
+            total = bounded_draw(law, rng)
+        else:
+            from scipy.stats import truncnorm
+
+            maturity = 1. if self.laws.maturity is None else organ.plan["maturity"] ** self.laws.maturity["length_power"]
+            minimum = max(law["min"], floor / maturity)
+            if minimum >= law["max"]:
+                raise ValueError("Realized primary length floor leaves no probability mass after maturity scaling")
+            variance = np.log1p((law["sd"] / law["mean"]) ** 2)
+            sigma = np.sqrt(variance)
+            mu = np.log(law["mean"]) - 0.5 * variance
+            a, b = (np.log([minimum, law["max"]]) - mu) / sigma
+            total = float(np.exp(mu + sigma * truncnorm.ppf(rng.random(), a, b)))
         proportions = np.asarray(lengths, float) / float(np.sum(lengths))
         return proportions * total
 

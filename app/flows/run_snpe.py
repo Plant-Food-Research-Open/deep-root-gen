@@ -558,7 +558,9 @@ def log_summary_stat_task(
         artifacts[name] = outfile
         calibrator_dump(obj, outfile)
 
-    signature_x = pd.DataFrame(observed_values)
+    # MLflow cannot type an all-empty optional column (sample_id, x, ...); the
+    # signature keeps the statistic fields that carry values.
+    signature_x = pd.DataFrame(observed_values).dropna(axis=1, how="all")
     signature_y = pd.DataFrame(posterior_samples, columns=names)
     calibration_model = SnpeModel()
 

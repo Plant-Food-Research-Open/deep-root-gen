@@ -54,6 +54,11 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
 
         reserve_stations("stations", math.ceil(total / law["step_cm"]) + 1)
     alignment = law.get("row_alignment")
+    carrier = law.get("deep_carrier")
+    carrier_receipt = {}
+    if carrier is not None:
+        selected = streams.keyed("feature.curvature.deep_carrier", "1", identity).random() < carrier["fraction"]
+        carrier = dict(carrier, selected=bool(selected))
     stations, points, reflections = integrate_curve(
         total,
         start,
@@ -65,6 +70,7 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         rng,
         surface_z=law["surface_z_cm"],
         row_alignment_per_cm=alignment["row_alignment_per_cm"] if alignment else 0.0,
+        deep_carrier=carrier, carrier_receipt=carrier_receipt,
     )
     unit_heading = np.asarray(heading, dtype=float)
     receipt = dict(
@@ -79,6 +85,8 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         surface_reflections=int(reflections),
         initial_heading_unit=(unit_heading / np.linalg.norm(unit_heading)).tolist(),
     )
+    if carrier is not None:
+        receipt["deep_carrier"] = carrier_receipt
     if alignment is not None:
         widths = np.diff(stations)
         along_row = np.diff(points[:, 1]) / widths

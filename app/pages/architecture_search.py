@@ -1,17 +1,14 @@
 """Configure a canonical architecture search and retrieve its local outputs."""
 import base64
-import csv
-from io import StringIO
 import json
-import os
 from pathlib import Path
 from uuid import UUID
 
 from dash import Input, Output, State, callback, ctx, dash_table, dcc, html, no_update, register_page
 import dash_bootstrap_components as dbc
-from prefect import get_client
-
+from deeprootgen.form.architecture_targets import parse_seeds, parse_targets
 from deeprootgen.form.optimisation import optimisation_statistics
+from deeprootgen.pipeline.submission import FINAL_STATES, SubmissionError, flow_run_url, new_nonce, read_run_state, submit
 from deeprootgen.pipeline import get_outdir
 from deeprootgen.research.architecture_search import describe_controls, validate_architecture_search
 
@@ -25,6 +22,7 @@ def layout():
         html.P("Fit a saved schema-4 architecture to whole-root targets with adaptive Optuna or a Latin-hypercube screen."),
         dcc.Store(id="architecture-base"),
         dcc.Store(id="architecture-run"),
+        dcc.Store(id="architecture-nonce"),
         dcc.Interval(id="architecture-poll", interval=3000, disabled=True),
         dcc.Upload(id="architecture-upload", children=dbc.Button("Load architecture JSON", outline=True)),
         html.P(id="architecture-model-status", className="mt-2"),
@@ -37,7 +35,8 @@ def layout():
             {"name": "Upper", "id": "upper", "type": "numeric", "editable": True},
         ], style_cell={"textAlign": "left"}, style_table={"overflowX": "auto"}),
         html.H2("Targets and trials", className="h4 mt-4"),
-        html.P("Paste CSV with statistic_name,statistic_value and an optional scale column."),
+        html.P("Paste a header row statistic_name,statistic_value (optional scale) and one row per target. "
+               "Commas, tabs (spreadsheet copy), semicolons or spaces separate the columns."),
         html.Details([html.Summary("Supported statistics"),
                       html.P(", ".join(option["value"] for option in optimisation_statistics()))],
                      className="mb-2"),
@@ -98,16 +97,11 @@ def load_architecture(contents):
 def form_request(base, rows, targets, metric, trials, startup, seeds, method="tpe"):
     if not base:
         raise ValueError("Load a schema-4 configuration first.")
-    reader = csv.DictReader(StringIO(targets or ""))
-    allowed = {"statistic_name", "statistic_value", "scale"}
-    names = set(reader.fieldnames or [])
-    if names not in (allowed, allowed - {"scale"}):
-        raise ValueError("Supply CSV columns statistic_name,statistic_value and optional scale.")
-    observations = [{k: v for k, v in row.items() if k != "scale" or v} for row in reader]
+    observations = parse_targets(targets)
     ranges = [dict(control=r["id"], lower=r.get("lower"), upper=r.get("upper"))
               for r in rows or [] if r.get("lower") is not None or r.get("upper") is not None]
     request = dict(base=base, ranges=ranges, targets=observations, metric=metric, method=method,
-                   trials=trials, startup=startup, seeds=[int(v.strip()) for v in (seeds or "").split(",")])
+                   trials=trials, startup=startup, seeds=parse_seeds(seeds))
     job, _, _, _, _ = validate_architecture_search(request)
     request = job.model_dump(mode="json", exclude_unset=True)
     return request, f"{len(job.ranges)} controls · {len(job.targets)} targets · {job.trials} trials × {len(job.seeds)} seeds"
@@ -119,28 +113,30 @@ def startup_disabled(method):
 
 
 @callback(Output("architecture-message", "children"), Output("architecture-run", "data"),
-          Output("architecture-poll", "disabled"),
+          Output("architecture-poll", "disabled"), Output("architecture-nonce", "data"),
           Input("architecture-preview", "n_clicks"), Input("architecture-launch", "n_clicks"),
           State("architecture-base", "data"), State("architecture-controls", "data"),
           State("architecture-targets", "value"), State("architecture-metric", "value"),
           State("architecture-trials", "value"), State("architecture-startup", "value"),
-          State("architecture-seeds", "value"), State("architecture-method", "value"), prevent_initial_call=True)
-def submit_search(_preview, _launch, base, rows, targets, metric, trials, startup, seeds, method="tpe"):
+          State("architecture-seeds", "value"), State("architecture-method", "value"),
+          State("architecture-nonce", "data"), prevent_initial_call=True)
+def submit_search(_preview, _launch, base, rows, targets, metric, trials, startup, seeds, method="tpe", nonce=None):
     try:
         request, message = form_request(base, rows, targets, metric, trials, startup, seeds, method)
     except (TypeError, ValueError) as error:
-        return str(error), no_update, no_update
+        return f"Check the setup. Nothing was submitted. {error}", no_update, no_update, no_update
     if ctx.triggered_id == "architecture-preview":
-        return message, no_update, no_update
+        return f"Setup is valid. Nothing was submitted. {message}", no_update, no_update, no_update
+    nonce = nonce or new_nonce()
     try:
-        from deeprootgen.pipeline.experiment import run_deployment, get_simulation_uuid
-
-        job_id = get_simulation_uuid()
-        flow_run = run_deployment("architecture_search/run_architecture_search_flow", parameters={
-            "input_parameters": request, "simulation_uuid": job_id}, flow_run_name=job_id, timeout=0)
-    except Exception:
-        return "Could not queue the search. Check the Architecture Search worker deployment.", no_update, no_update
-    return f"Queued. {message}", dict(job=job_id, run=str(flow_run.id)), False
+        result = submit("architecture_search", {"input_parameters": request}, nonce)
+    except SubmissionError as error:
+        return str(error), no_update, no_update, nonce
+    prefix = "Queued" if result.created else "Already queued (same request)"
+    text = html.Span([f"{prefix}: run {result.simulation_uuid}. {message}. ",
+                      html.A("Open the Prefect run", href=result.url, target="_blank", rel="noopener noreferrer"),
+                      *[html.Span(f" {note}") for note in result.notes]])
+    return text, dict(job=result.simulation_uuid, run=result.flow_run_id), False, new_nonce()
 
 
 def output_folder(run):
@@ -156,22 +152,31 @@ def show_search(run, _):
         return "", True, True, True
     try:
         folder = output_folder(run)
-        result = folder / "summary.json"
-        if result.is_file():
-            data = json.loads(result.read_text())
-            completed, failed = data["completed_trials"], data["failed_trials"]
-            value = data["best_loss"]
-            loss = f" · best loss {value:.5g}" if value is not None else ""
-            return (f"{completed} completed · {failed} failed{loss}",
-                    not (folder / "best-configuration.json").is_file(), False, True)
-        with get_client(sync_client=True, httpx_settings={"timeout": 3}) as client:
-            state = client.read_flow_run(UUID(run["run"])).state
-        origin = os.environ.get("APP_PREFECT_USER_HOST", "http://localhost:4200").rstrip("/")
-        link = f"{origin}/flow-runs/flow-run/{UUID(run['run'])}"
-        text = html.A(state.name if state else "Queued", href=link, target="_blank", rel="noopener noreferrer")
-        return text, True, True, bool(state and state.is_final())
+    except (KeyError, TypeError, ValueError):
+        return "This run record is not readable; queue the search again.", True, True, True
+    result = folder / "summary.json"
+    if result.is_file():
+        data = json.loads(result.read_text())
+        completed, failed = data["completed_trials"], data["failed_trials"]
+        value = data["best_loss"]
+        loss = f" · best loss {value:.5g}" if value is not None else ""
+        return (f"Completed · {completed} trials completed · {failed} failed{loss}",
+                not (folder / "best-configuration.json").is_file(), False, True)
+    link = html.A("Prefect run", href=flow_run_url(run["run"]), target="_blank", rel="noopener noreferrer")
+    try:
+        state_type, state_name = read_run_state(run["run"])
+    except SubmissionError as error:
+        if error.kind == "missing_run":
+            return "This run is not on the current Prefect server.", True, True, True
+        return "Prefect is unreachable; the run state is unknown. Retrying.", True, True, False
     except Exception:
-        return "Worker state is currently unavailable.", True, True, False
+        return "Worker state is currently unavailable. Retrying.", True, True, False
+    if state_type == "COMPLETED":
+        return (html.Span(["Completed, but the result files are missing from the shared output folder. "
+                           "Check that the app and worker mount the same /app/outputs. ", link]), True, True, True)
+    if state_type in {"FAILED", "CRASHED"}:
+        return html.Span([f"{state_name}. Open the worker log: ", link]), True, True, True
+    return html.Span([f"{state_name} · ", link]), True, True, state_type in FINAL_STATES
 
 
 @callback(Output("architecture-download", "data"), Input("architecture-best", "n_clicks"),
