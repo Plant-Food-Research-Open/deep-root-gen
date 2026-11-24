@@ -61,7 +61,10 @@
 <li class="toctree-l2"><a class="reference internal" href="statistics.html">Statistics</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">Utils</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#module-deeprootgen.utils.branching">Branching</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.utils.branching.parent2_zone_sites"><code class="docutils literal notranslate"><span class="pre">parent2_zone_sites()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.utils.branching.redistribute_capped_sites"><code class="docutils literal notranslate"><span class="pre">redistribute_capped_sites()</span></code></a></li>
 <li class="toctree-l4"><a class="reference internal" href="#deeprootgen.utils.branching.sample_branch_sites"><code class="docutils literal notranslate"><span class="pre">sample_branch_sites()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="#deeprootgen.utils.branching.validate_parent2_branch_zone"><code class="docutils literal notranslate"><span class="pre">validate_parent2_branch_zone()</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -104,6 +107,28 @@
 <span id="branching"></span><h2>Branching<a class="headerlink" href="#module-deeprootgen.utils.branching" title="Link to this heading"></a></h2>
 <p>Utilities for sampling lateral-root branching locations.</p>
 <dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.utils.branching.parent2_zone_sites">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.utils.branching.</span></span><span class="sig-name descname"><span class="pre">parent2_zone_sites</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">length_cm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">basal_cm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">apical_cm</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">spacing_cm</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/utils/branching.html#parent2_zone_sites"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.utils.branching.parent2_zone_sites" title="Link to this definition"></a></dt>
+<dd><p>Deterministic zone on CURRENT length, no tolerance band or truncation.</p>
+<p>Convert numeric inputs to binary64, then interpret their shortest roundtrip
+decimal spellings str(float(value)) as exact rationals. Count and sites use
+that exact arithmetic, so adjacent floats remain distinct. At most 10,000
+sites may be allocated; larger counts fail before allocation. Final sites
+must remain strictly interior/increasing when represented as binary64.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.utils.branching.redistribute_capped_sites">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.utils.branching.</span></span><span class="sig-name descname"><span class="pre">redistribute_capped_sites</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent_xyz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">retained_count</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">floor_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ceiling_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.9</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/deeprootgen/utils/branching.html#redistribute_capped_sites"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.utils.branching.redistribute_capped_sites" title="Link to this definition"></a></dt>
+<dd><p>Place a legacy-retained count at midpoint quantiles of its eligible window.</p>
+<p>Research assumption: retain n from the unchanged stochastic sampler, then
+use f*L+(j+.5)*(c-f)*L/n, j=0,…,n-1. L is the geometric parent contour
+length in cm. This pure function consumes no randomness and does not change
+the existing sampler. It does not preserve downstream daughter lengths:
+those use parent subsegment lengths in the unchanged construction formula.</p>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="deeprootgen.utils.branching.sample_branch_sites">
 <span class="sig-prename descclassname"><span class="pre">deeprootgen.utils.branching.</span></span><span class="sig-name descname"><span class="pre">sample_branch_sites</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parent_xyz</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interbranch_distance</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rng</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Generator</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">floor_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.4</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ceiling_threshold</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_branches</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">log_sd</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0.2</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../_modules/deeprootgen/utils/branching.html#sample_branch_sites"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.utils.branching.sample_branch_sites" title="Link to this definition"></a></dt>
 <dd><p>Sample lateral-root insertion positions along a parent root.</p>
@@ -137,6 +162,12 @@ the parent root’s cumulative arc length.</p>
 </dd>
 </dl>
 </section>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="deeprootgen.utils.branching.validate_parent2_branch_zone">
+<span class="sig-prename descclassname"><span class="pre">deeprootgen.utils.branching.</span></span><span class="sig-name descname"><span class="pre">validate_parent2_branch_zone</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">zone</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/deeprootgen/utils/branching.html#validate_parent2_branch_zone"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#deeprootgen.utils.branching.validate_parent2_branch_zone" title="Link to this definition"></a></dt>
+<dd><p>Explicit finite positive numeric cm inputs; bools/strings are rejected.</p>
 </dd></dl>
 
 </section>

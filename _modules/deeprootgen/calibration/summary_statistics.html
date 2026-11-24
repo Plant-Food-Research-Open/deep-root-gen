@@ -89,9 +89,9 @@
 
 <span class="kn">from</span> <span class="nn">..data_model</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">RootCalibrationModel</span><span class="p">,</span>
-    <span class="n">RootSimulationModel</span><span class="p">,</span>
     <span class="n">SummaryStatisticsModel</span><span class="p">,</span>
 <span class="p">)</span>
+<span class="kn">from</span> <span class="nn">..data_model.canonical</span> <span class="kn">import</span> <span class="n">RootConfig</span>
 <span class="kn">from</span> <span class="nn">..model</span> <span class="kn">import</span> <span class="n">RootSystemSimulation</span>
 <span class="kn">from</span> <span class="nn">..statistics</span> <span class="kn">import</span> <span class="p">(</span>
     <span class="n">DistanceMetricBase</span><span class="p">,</span>
@@ -173,8 +173,22 @@
 <span class="sd">        tuple:</span>
 <span class="sd">            The simulation and its parameters.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">parameter_specs</span><span class="p">[</span><span class="s2">&quot;random_seed&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">input_parameters</span><span class="o">.</span><span class="n">random_seed</span>
-    <span class="n">simulation_parameters</span> <span class="o">=</span> <span class="n">RootSimulationModel</span><span class="o">.</span><span class="n">parse_obj</span><span class="p">(</span><span class="n">parameter_specs</span><span class="p">)</span>
+    <span class="n">settings</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">parameter_specs</span><span class="p">)</span>
+    <span class="c1"># Inference libraries may produce NumPy scalars or integral-valued floats.</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;segments_per_root&quot;</span><span class="p">,</span> <span class="s2">&quot;max_order&quot;</span><span class="p">,</span> <span class="s2">&quot;primary_root_count&quot;</span><span class="p">,</span> <span class="s2">&quot;daughters_per_parent&quot;</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">settings</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">settings</span><span class="p">[</span><span class="n">key</span><span class="p">]</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">))</span> <span class="ow">or</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">!=</span> <span class="n">value</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Expected an integer for </span><span class="si">{</span><span class="n">key</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">settings</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;floor_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;ceiling_threshold&quot;</span><span class="p">,</span> <span class="s2">&quot;no_root_zone&quot;</span><span class="p">,</span> <span class="s2">&quot;max_val_attempts&quot;</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">input_parameters</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">settings</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
+    <span class="n">simulation_parameters</span> <span class="o">=</span> <span class="n">RootConfig</span><span class="p">(</span>
+        <span class="n">schema_version</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">parameters</span><span class="o">=</span><span class="n">settings</span><span class="p">,</span> <span class="n">random_seed</span><span class="o">=</span><span class="n">input_parameters</span><span class="o">.</span><span class="n">random_seed</span><span class="p">,</span>
+        <span class="n">simulation_tag</span><span class="o">=</span><span class="n">input_parameters</span><span class="o">.</span><span class="n">simulation_tag</span> <span class="ow">or</span> <span class="s2">&quot;default&quot;</span><span class="p">,</span>
+    <span class="p">)</span>
     <span class="n">simulation</span> <span class="o">=</span> <span class="n">RootSystemSimulation</span><span class="p">(</span>
         <span class="n">simulation_tag</span><span class="o">=</span><span class="n">input_parameters</span><span class="o">.</span><span class="n">simulation_tag</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
         <span class="n">random_seed</span><span class="o">=</span><span class="n">input_parameters</span><span class="o">.</span><span class="n">random_seed</span><span class="p">,</span>  <span class="c1"># type: ignore</span>
@@ -285,9 +299,8 @@
         <span class="k">else</span><span class="p">:</span>
             <span class="n">statistic_func</span> <span class="o">=</span> <span class="n">get_summary_statistic_func</span><span class="p">(</span><span class="n">statistic_name</span><span class="p">)</span>
 
-            <span class="n">statistic_instance</span> <span class="o">=</span> <span class="n">statistic_func</span><span class="p">(</span>
-                <span class="n">root_tissue_density</span><span class="o">=</span><span class="p">(</span><span class="n">simulation_parameters</span><span class="o">.</span><span class="n">root_tissue_density</span><span class="p">)</span>
-            <span class="p">)</span>
+            <span class="n">density</span> <span class="o">=</span> <span class="n">simulation_parameters</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">root_tissue_density</span>
+            <span class="n">statistic_instance</span> <span class="o">=</span> <span class="n">statistic_func</span><span class="p">(</span><span class="n">root_tissue_density</span><span class="o">=</span><span class="kc">None</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">density</span><span class="p">,</span> <span class="s2">&quot;bounds_mm&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">density</span><span class="p">)</span>
 
             <span class="n">statistic_value</span> <span class="o">=</span> <span class="n">statistic_instance</span><span class="o">.</span><span class="n">calculate</span><span class="p">(</span><span class="n">node_df</span><span class="p">)</span>
 

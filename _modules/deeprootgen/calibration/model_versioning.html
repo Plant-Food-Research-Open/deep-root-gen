@@ -169,10 +169,15 @@
         <span class="n">description</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;A root model calibrator for performing the following task: </span><span class="si">{</span><span class="n">task</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
     <span class="p">)</span>
 
+    <span class="c1"># active_run() holds the tags present when the run started, so name the</span>
+    <span class="c1"># producing run explicitly; the serving page reports these labels.</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mlflow</span><span class="o">.</span><span class="n">active_run</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">tags</span><span class="p">)</span>
+    <span class="n">labels</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">task</span><span class="o">=</span><span class="n">task</span><span class="p">,</span> <span class="n">simulation_uuid</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">simulation_uuid</span><span class="p">),</span>
+                  <span class="n">simulation_tag</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">input_parameters</span><span class="o">.</span><span class="n">simulation_tag</span><span class="p">))</span>
     <span class="n">bentoml</span><span class="o">.</span><span class="n">mlflow</span><span class="o">.</span><span class="n">import_model</span><span class="p">(</span>
         <span class="n">task</span><span class="p">,</span>
         <span class="n">model_uri</span><span class="p">,</span>
-        <span class="n">labels</span><span class="o">=</span><span class="n">mlflow</span><span class="o">.</span><span class="n">active_run</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">tags</span><span class="p">,</span>
+        <span class="n">labels</span><span class="o">=</span><span class="n">labels</span><span class="p">,</span>
         <span class="n">metadata</span><span class="o">=</span><span class="p">{</span>
             <span class="s2">&quot;metrics&quot;</span><span class="p">:</span> <span class="n">mlflow</span><span class="o">.</span><span class="n">active_run</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">metrics</span><span class="p">,</span>
             <span class="s2">&quot;params&quot;</span><span class="p">:</span> <span class="n">mlflow</span><span class="o">.</span><span class="n">active_run</span><span class="p">()</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">params</span><span class="p">,</span>

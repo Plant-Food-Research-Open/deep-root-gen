@@ -85,14 +85,79 @@
 
 <span class="sd">&quot;&quot;&quot;</span>
 
+<span class="kn">import</span> <span class="nn">math</span>
 <span class="kn">from</span> <span class="nn">enum</span> <span class="kn">import</span> <span class="n">Enum</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">Literal</span><span class="p">,</span> <span class="n">Optional</span>
 
-<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span>
+<span class="kn">from</span> <span class="nn">pydantic</span> <span class="kn">import</span> <span class="n">BaseModel</span><span class="p">,</span> <span class="n">Field</span><span class="p">,</span> <span class="n">field_validator</span><span class="p">,</span> <span class="n">model_validator</span>
+
+<span class="kn">from</span> <span class="nn">..utils.order_controls</span> <span class="kn">import</span> <span class="n">validate_higher_order_tropism</span><span class="p">,</span> <span class="n">validate_count_mapping</span><span class="p">,</span> <span class="n">validate_order_scope</span>
+<span class="kn">from</span> <span class="nn">..utils.current_length</span> <span class="kn">import</span> <span class="n">validate_current_length_cdf</span>
+<span class="kn">from</span> <span class="nn">..utils.primary_attachment</span> <span class="kn">import</span> <span class="n">validate_distal_fraction</span><span class="p">,</span> <span class="n">validate_distal_scope</span>
+<span class="kn">from</span> <span class="nn">..utils.tertiary_length_rank</span> <span class="kn">import</span> <span class="n">validate_rank_scope</span><span class="p">,</span> <span class="n">validate_rank_strength</span>
+<span class="kn">from</span> <span class="nn">..utils.branching</span> <span class="kn">import</span> <span class="n">validate_parent2_branch_zone</span>
+<span class="kn">from</span> <span class="nn">..utils.primary_design</span> <span class="kn">import</span> <span class="n">validate_primary_design_scope</span>
+<span class="kn">from</span> <span class="nn">..utils.primary_branch_zone</span> <span class="kn">import</span> <span class="n">validate_primary_branch_zone</span><span class="p">,</span> <span class="n">validate_primary_branch_zone_scope</span>
+<span class="kn">from</span> <span class="nn">..utils.primary_branch_fractions</span> <span class="kn">import</span> <span class="n">validate_primary_branch_fractions</span><span class="p">,</span> <span class="n">validate_primary_branch_fractions_scope</span>
+<span class="kn">from</span> <span class="nn">..utils.tropism</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">row_axial_controls_active</span><span class="p">,</span> <span class="n">validate_fichtl_sigma_by_order</span><span class="p">,</span> <span class="n">validate_row_axial_kappas</span><span class="p">,</span>
+    <span class="n">validate_primary_yaw_reverse_probability</span><span class="p">,</span>
+<span class="p">)</span>
 
 
 <span class="k">class</span> <span class="nc">Config</span><span class="p">:</span>
     <span class="n">arbitrary_types_allowed</span> <span class="o">=</span> <span class="kc">True</span>
+
+
+<span class="c1"># Top-level keys of versioned (schema 2/3) inputs and schema-3 feature names.</span>
+<span class="c1"># Flat parsing rejects them, and close misspellings of them, rather than</span>
+<span class="c1"># silently discarding a requested option block.</span>
+<span class="n">VERSIONED_INPUT_KEYS</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;schema_version&quot;</span><span class="p">,</span> <span class="s2">&quot;construction&quot;</span><span class="p">,</span> <span class="s2">&quot;trajectory&quot;</span><span class="p">,</span> <span class="s2">&quot;parameters&quot;</span><span class="p">,</span> <span class="s2">&quot;features&quot;</span><span class="p">,</span> <span class="s2">&quot;limits&quot;</span><span class="p">)</span>
+<span class="n">FEATURE_NAMES</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;curvature&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;taper&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;primary_origins&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;cohort_maturity&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lengths&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;branching&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;parent_diameter_cap&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;attachment_relocation&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;primary_placement&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;branch_sites&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;sibling_lengths&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;insertion&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;direction&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;materialization&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">RESERVED_INPUT_KEYS</span> <span class="o">=</span> <span class="n">VERSIONED_INPUT_KEYS</span> <span class="o">+</span> <span class="n">FEATURE_NAMES</span>
+
+
+<span class="k">def</span> <span class="nf">_reserved_variants</span><span class="p">():</span>
+    <span class="n">variants</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">RESERVED_INPUT_KEYS</span><span class="p">:</span>
+        <span class="n">stem</span> <span class="o">=</span> <span class="n">name</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="n">name</span><span class="o">.</span><span class="n">endswith</span><span class="p">(</span><span class="s2">&quot;s&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="n">name</span>
+        <span class="n">variants</span><span class="o">.</span><span class="n">update</span><span class="p">({</span><span class="n">name</span><span class="p">,</span> <span class="n">stem</span><span class="p">,</span> <span class="n">stem</span> <span class="o">+</span> <span class="s2">&quot;s&quot;</span><span class="p">})</span>
+    <span class="k">return</span> <span class="n">variants</span>
+
+
+<div class="viewcode-block" id="reserved_key_conflicts">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.reserved_key_conflicts">[docs]</a>
+<span class="k">def</span> <span class="nf">reserved_key_conflicts</span><span class="p">(</span><span class="n">keys</span><span class="p">,</span> <span class="n">fields</span><span class="o">=</span><span class="p">()):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Unknown keys naming a reserved block: case, separators and plural ignored.</span>
+
+<span class="sd">    Deterministic variants only (no fuzzy matching), so unrelated historical</span>
+<span class="sd">    keys keep their behaviour while ``Features``/``feature``/``limit`` fail.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">variants</span> <span class="o">=</span> <span class="n">_reserved_variants</span><span class="p">()</span>
+    <span class="n">conflicts</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">keys</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">in</span> <span class="n">fields</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">continue</span>
+        <span class="n">normalized</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">normalized</span> <span class="ow">in</span> <span class="n">variants</span><span class="p">:</span>
+            <span class="n">conflicts</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">conflicts</span><span class="p">)</span></div>
+
 
 
 <div class="viewcode-block" id="RootType">
@@ -168,6 +233,77 @@
 
 
 
+<div class="viewcode-block" id="CurrentLengthCDF">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.CurrentLengthCDF">[docs]</a>
+<span class="k">class</span> <span class="nc">CurrentLengthCDF</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Explicit discrete current organ-length CDF; support is in cm.&quot;&quot;&quot;</span>
+
+    <span class="n">lengths_cm</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+    <span class="n">cumulative_probabilities</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">validate_discrete_cdf</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">validate_current_length_cdf</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">lengths_cm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">cumulative_probabilities</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+
+<div class="viewcode-block" id="Parent2BranchZone">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.Parent2BranchZone">[docs]</a>
+<span class="k">class</span> <span class="nc">Parent2BranchZone</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">basal_cm</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">apical_cm</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="n">spacing_cm</span><span class="p">:</span> <span class="nb">float</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_zone</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_parent2_branch_zone</span><span class="p">(</span><span class="n">values</span><span class="p">)</span></div>
+
+
+
+<div class="viewcode-block" id="ResearchPrimaryDesignEntry">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.ResearchPrimaryDesignEntry">[docs]</a>
+<span class="k">class</span> <span class="nc">ResearchPrimaryDesignEntry</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Explicit construction assumptions; category never determines geometry.</span>
+
+<span class="sd">    Diameters describe the first/last incoming construction cylinders. Linear</span>
+<span class="sd">    rank taper is applied before branch subdivision, whose cuts inherit the</span>
+<span class="sd">    original cylinder diameter. Angles specify the initial base-to-apex chord,</span>
+<span class="sd">    not every local tangent or a measured trajectory.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">model_config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;extra&quot;</span><span class="p">:</span> <span class="s2">&quot;forbid&quot;</span><span class="p">}</span>
+    <span class="n">primary_id</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">category</span><span class="p">:</span> <span class="nb">str</span>
+    <span class="n">length_cm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">diameter_base_cm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">diameter_apex_cm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">inclination_deg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">ge</span><span class="o">=-</span><span class="mi">89</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">90</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">azimuth_deg</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">ge</span><span class="o">=-</span><span class="mi">180</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">180</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;primary_id&quot;</span><span class="p">,</span> <span class="s2">&quot;category&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">require_explicit_labels</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">value</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Explicit primary labels must be nonempty strings&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;length_cm&quot;</span><span class="p">,</span> <span class="s2">&quot;diameter_base_cm&quot;</span><span class="p">,</span> <span class="s2">&quot;diameter_apex_cm&quot;</span><span class="p">,</span> <span class="s2">&quot;inclination_deg&quot;</span><span class="p">,</span> <span class="s2">&quot;azimuth_deg&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">require_numeric_dimensions</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Explicit primary dimensions/angles must be numeric&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_taper</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">diameter_base_cm</span> <span class="o">&lt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">diameter_apex_cm</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Explicit primary diameter_base_cm must be &gt;= diameter_apex_cm&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
+
+
+
 <div class="viewcode-block" id="RootSimulationModel">
 <a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootSimulationModel">[docs]</a>
 <span class="k">class</span> <span class="nc">RootSimulationModel</span><span class="p">(</span><span class="n">BaseModel</span><span class="p">):</span>
@@ -214,7 +350,281 @@
     <span class="n">simulation_tag</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;default&quot;</span>
     <span class="n">no_root_zone</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">1e-4</span>
     <span class="n">floor_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.4</span>
-    <span class="n">ceiling_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.9</span></div>
+    <span class="n">ceiling_threshold</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.9</span>
+    <span class="n">research_branch_placement</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;legacy_spacing&quot;</span><span class="p">,</span> <span class="s2">&quot;redistribute_capped&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;legacy_spacing&quot;</span>
+    <span class="n">research_current_length_cdfs_cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">CurrentLengthCDF</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_current_length_grid</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;construction_steps_v1&quot;</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_tertiary_length_rank_strength</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_parent2_branch_zone_cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Parent2BranchZone</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_insertion_row_axial_kappa</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_primary_yaw_mean_deg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=-</span><span class="mi">180</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">180</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">research_primary_yaw_reverse_probability</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_primary_yaw_kappa</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">research_primary_attachment_distal_fraction</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_primary_inclination_bias</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">research_primary_design</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="n">ResearchPrimaryDesignEntry</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_primary_branch_zone_cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_primary_branch_fractions</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_base_origin_x_cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">research_base_origin_y_cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">research_base_depth_cm</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">gt</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">tropism_mode</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;legacy&quot;</span><span class="p">,</span> <span class="s2">&quot;fichtl2024&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;legacy&quot;</span>
+    <span class="n">soil_surface_z_cm</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">allow_inf_nan</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="n">fichtl_probability_down</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">fichtl_sigma</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">research_fichtl_sigma_by_order</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">]]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_higher_order_tropism</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">research_root_counts_by_order</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">fichtl_trials_type2</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">fichtl_trials_type3</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+    <span class="n">fichtl_theta2_deg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+    <span class="n">fichtl_theta2_sd_deg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">fichtl_theta3_deg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">le</span><span class="o">=</span><span class="mi">90</span><span class="p">)</span>
+    <span class="n">fichtl_theta3_sd_deg</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">float</span><span class="p">]</span> <span class="o">=</span> <span class="n">Field</span><span class="p">(</span><span class="n">default</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">ge</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+
+<div class="viewcode-block" id="RootSimulationModel.reject_versioned_input_keys">
+<a class="viewcode-back" href="../../../api_reference/data_model.html#deeprootgen.data_model.simulation_data_models.RootSimulationModel.reject_versioned_input_keys">[docs]</a>
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">reject_versioned_input_keys</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Flat parsing ignores unknown keys, so it must never see versioned ones.</span>
+
+<span class="sd">        Otherwise a requested option block (for example ``features``) would be</span>
+<span class="sd">        accepted and silently discarded. Other unknown keys keep their</span>
+<span class="sd">        historical behaviour.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">reserved</span> <span class="o">=</span> <span class="n">reserved_key_conflicts</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="n">model_fields</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">reserved</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;Flat simulation parameters cannot contain </span><span class="si">{</span><span class="n">reserved</span><span class="si">}</span><span class="s2">; versioned inputs &quot;</span>
+                    <span class="s2">&quot;and feature blocks require parse_config with an explicit schema_version&quot;</span>
+                <span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span></div>
+
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">require_uncoerced_primary_design_inputs</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;research_primary_design&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">key</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;random_seed&quot;</span><span class="p">,</span> <span class="s2">&quot;outer_root_num&quot;</span><span class="p">,</span> <span class="s2">&quot;inner_root_num&quot;</span><span class="p">,</span> <span class="s2">&quot;segments_per_root&quot;</span><span class="p">):</span>
+                <span class="n">value</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Explicit primary design requires integer seed/count/segment inputs&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_primary_design_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">validate_primary_design_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_primary_branch_zone_cm&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_primary_physical_branch_zone</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_primary_branch_zone</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_primary_branch_zone_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">validate_primary_branch_zone_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_primary_branch_fractions&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_supplied_primary_fractions</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_primary_branch_fractions</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_primary_fraction_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">validate_primary_branch_fractions_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_current_length_cdfs_cm&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_current_length_keys</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">value</span>
+        <span class="kn">from</span> <span class="nn">..utils.order_controls</span> <span class="kn">import</span> <span class="n">_order_map</span>
+        <span class="k">return</span> <span class="n">_order_map</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">6</span><span class="p">),</span> <span class="s2">&quot;Current-length CDFs&quot;</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">require_uncoerced_count_seed</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;research_root_counts_by_order&quot;</span><span class="p">)</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;random_seed&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">seed</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Count conditioning requires an explicit nonnegative integer seed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_higher_order_tropism&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_higher_orders</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_higher_order_tropism</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_root_counts_by_order&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_root_count_map</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_count_mapping</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">validate_optional_order_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">validate_order_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_primary_attachment_distal_fraction&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_primary_distal_fraction</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_distal_fraction</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">require_explicit_primary_distal_seed</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">validate_distal_fraction</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;research_primary_attachment_distal_fraction&quot;</span><span class="p">)):</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;random_seed&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">seed</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Primary attachment placement requires explicit nonnegative integer seed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_primary_distal_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">validate_distal_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_tertiary_length_rank_strength&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_tertiary_rank_strength</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_rank_strength</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">require_explicit_tertiary_rank_seed</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">validate_rank_strength</span><span class="p">(</span><span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;research_tertiary_length_rank_strength&quot;</span><span class="p">)):</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;random_seed&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">seed</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Tertiary length rank requires explicit nonnegative integer seed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_tertiary_rank_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">validate_rank_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_fichtl_order_sigmas</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_fichtl_sigma_by_order</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tropism_mode</span> <span class="o">!=</span> <span class="s2">&quot;fichtl2024&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Order sigma overrides require fichtl2024 mode&quot;</span><span class="p">)</span>
+            <span class="n">validate_fichtl_sigma_by_order</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">research_fichtl_sigma_by_order</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_fichtl_sigma_by_order&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_order_sigma_mapping</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_fichtl_sigma_by_order</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">validate_construction_step_scope</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_parent2_branch_zone_cm</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_current_length_grid</span> <span class="o">!=</span> <span class="s2">&quot;construction_steps_v1&quot;</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent2 branch zone requires construction_steps_v1&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_current_length_grid</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tropism_mode</span> <span class="o">!=</span> <span class="s2">&quot;fichtl2024&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_seed</span> <span class="ow">is</span> <span class="kc">None</span>
+                    <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_current_length_cdfs_cm</span> <span class="ow">is</span> <span class="kc">None</span>
+                    <span class="ow">or</span> <span class="nb">set</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">research_current_length_cdfs_cm</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">set</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span> <span class="o">+</span> <span class="mi">1</span><span class="p">))):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Construction-step grid requires Fichtl/max_order3..5/explicit seed/exact CDFs2..max&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_seeded_primary_inclination</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_primary_inclination_bias</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_seed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Positive research primary inclination requires an explicit random_seed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">validate_insertion_row_axial</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">research_insertion_row_axial_kappa</span> <span class="o">=</span> <span class="n">validate_row_axial_kappas</span><span class="p">(</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">research_insertion_row_axial_kappa</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="k">if</span> <span class="n">row_axial_controls_active</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">research_insertion_row_axial_kappa</span><span class="p">):</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tropism_mode</span> <span class="o">!=</span> <span class="s2">&quot;fichtl2024&quot;</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_seed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Active row-axial insertion requires Fichtl mode and explicit random_seed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">validate_current_length_orders</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">cdfs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_current_length_cdfs_cm</span>
+        <span class="k">if</span> <span class="n">cdfs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span> <span class="o">&gt;</span> <span class="mi">5</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">cdfs</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">order</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">)</span> <span class="ow">or</span> <span class="n">order</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span> <span class="k">for</span> <span class="n">order</span> <span class="ow">in</span> <span class="n">cdfs</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Current-length CDFs require a nonempty selection of supported orders 2..5&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_seed</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="bp">self</span><span class="o">.</span><span class="n">segments_per_root</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Current-length CDFs require an explicit random_seed and positive segments_per_root&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_explicit_root_origin</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="n">values</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">research_base_origin_x_cm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_base_origin_y_cm</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_base_depth_cm</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">values</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Research base origin x/y/depth must be supplied together&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="s2">&quot;soil_surface_z_cm&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">model_fields_set</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Research base origin requires an explicit soil_surface_z_cm&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tropism_mode</span> <span class="o">!=</span> <span class="s2">&quot;fichtl2024&quot;</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Research base origin currently requires fichtl2024 mode&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">require_explicit_reversal_seed</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">values</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">values</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="n">validate_primary_yaw_reverse_probability</span><span class="p">(</span>
+                <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;research_primary_yaw_reverse_probability&quot;</span><span class="p">)):</span>
+            <span class="n">seed</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;random_seed&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">seed</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">seed</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Active primary yaw reversal requires explicit nonnegative integer seed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">values</span>
+
+    <span class="nd">@field_validator</span><span class="p">(</span><span class="s2">&quot;research_primary_yaw_reverse_probability&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;before&quot;</span><span class="p">)</span>
+    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validate_yaw_reverse_probability</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">validate_primary_yaw_reverse_probability</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_paired_primary_yaw_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">research_primary_yaw_mean_deg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">)</span> <span class="o">!=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">research_primary_yaw_kappa</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Research primary yaw mean and kappa must be supplied together&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_primary_yaw_reverse_probability</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_primary_yaw_mean_deg</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Active primary yaw reversal requires explicit yaw mean/kappa&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">research_primary_yaw_mean_deg</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">random_seed</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Research primary yaw requires an explicit random_seed&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span>
+
+    <span class="nd">@model_validator</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;after&quot;</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">require_explicit_fichtl_parameters</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">soil_surface_z_cm</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">enable_soil</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                <span class="s2">&quot;Offset soil surface requires the offline aligned observation route&quot;</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">tropism_mode</span> <span class="o">==</span> <span class="s2">&quot;fichtl2024&quot;</span><span class="p">:</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gravitropism</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Set legacy gravitropism to zero in fichtl2024 mode&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">max_order</span> <span class="o">&gt;</span> <span class="mi">5</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;fichtl2024 mode currently supports orders 1 through 5&quot;</span>
+                <span class="p">)</span>
+            <span class="n">names</span> <span class="o">=</span> <span class="p">(</span>
+                <span class="s2">&quot;fichtl_probability_down&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;fichtl_sigma&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;fichtl_trials_type2&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;fichtl_trials_type3&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;fichtl_theta2_deg&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;fichtl_theta2_sd_deg&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;fichtl_theta3_deg&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;fichtl_theta3_sd_deg&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;fichtl2024 mode requires explicit tropism/angle parameters&quot;</span>
+                <span class="p">)</span>
+            <span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="n">math</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;fichtl2024 parameters must be finite&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span></div>
 
 
 
@@ -296,28 +706,24 @@
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">max_order</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">root_ratio</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">fine_root_threshold</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">outer_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">inner_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">threshold_root_diameter_cm</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">primary_root_count</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">outer_primary_fraction</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">min_primary_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">max_primary_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">base_diameter</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">diameter_reduction</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">apex_diameter</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">min_sec_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">max_sec_root_num</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">growth_sec_root</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">min_sec_root_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">max_sec_root_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">daughters_per_parent</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">daughter_count_order_gain</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">min_lateral_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
+    <span class="n">max_lateral_length</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">segments_per_root</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">length_reduction</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">root_vary</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">interbranch_distance</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">mechanical_constraints</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
     <span class="n">root_tissue_density</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">gravitropism</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span>
-    <span class="n">t</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span></div>
+    <span class="n">gravitropism</span><span class="p">:</span> <span class="n">ParameterIntervalModel</span></div>
 
 
 

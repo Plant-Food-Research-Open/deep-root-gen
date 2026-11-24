@@ -81,6 +81,69 @@
 <span></span><span class="sd">&quot;&quot;&quot;Utilities for sampling lateral-root branching locations.&quot;&quot;&quot;</span>
 
 <span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">from</span> <span class="nn">decimal</span> <span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">from</span> <span class="nn">fractions</span> <span class="kn">import</span> <span class="n">Fraction</span>
+
+<span class="n">MAX_PARENT2_BRANCH_SITES</span> <span class="o">=</span> <span class="mi">10000</span>
+<span class="n">PARENT2_DECIMAL_POLICY</span> <span class="o">=</span> <span class="s2">&quot;exact_rationals_of_str_binary64_v1&quot;</span>
+
+
+<div class="viewcode-block" id="validate_parent2_branch_zone">
+<a class="viewcode-back" href="../../../api_reference/utils.html#deeprootgen.utils.branching.validate_parent2_branch_zone">[docs]</a>
+<span class="k">def</span> <span class="nf">validate_parent2_branch_zone</span><span class="p">(</span><span class="n">zone</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Explicit finite positive numeric cm inputs; bools/strings are rejected.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="s2">&quot;model_dump&quot;</span><span class="p">):</span>
+        <span class="n">zone</span> <span class="o">=</span> <span class="n">zone</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+    <span class="n">keys</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;basal_cm&quot;</span><span class="p">,</span> <span class="s2">&quot;apical_cm&quot;</span><span class="p">,</span> <span class="s2">&quot;spacing_cm&quot;</span><span class="p">}</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">zone</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">set</span><span class="p">(</span><span class="n">zone</span><span class="p">)</span> <span class="o">!=</span> <span class="n">keys</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent2 zone requires exactly basal_cm/apical_cm/spacing_cm&quot;</span><span class="p">)</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">zone</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">))</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)):</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent2 zone inputs must be explicit positive finite numbers&quot;</span><span class="p">)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent2 zone inputs must be finite&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">error</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">or</span> <span class="n">value</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent2 zone inputs must be explicit positive finite numbers&quot;</span><span class="p">)</span>
+        <span class="n">result</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">result</span></div>
+
+
+
+<div class="viewcode-block" id="parent2_zone_sites">
+<a class="viewcode-back" href="../../../api_reference/utils.html#deeprootgen.utils.branching.parent2_zone_sites">[docs]</a>
+<span class="k">def</span> <span class="nf">parent2_zone_sites</span><span class="p">(</span><span class="n">length_cm</span><span class="p">,</span> <span class="n">basal_cm</span><span class="p">,</span> <span class="n">apical_cm</span><span class="p">,</span> <span class="n">spacing_cm</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Deterministic zone on CURRENT length, no tolerance band or truncation.</span>
+
+<span class="sd">    Convert numeric inputs to binary64, then interpret their shortest roundtrip</span>
+<span class="sd">    decimal spellings str(float(value)) as exact rationals. Count and sites use</span>
+<span class="sd">    that exact arithmetic, so adjacent floats remain distinct. At most 10,000</span>
+<span class="sd">    sites may be allocated; larger counts fail before allocation. Final sites</span>
+<span class="sd">    must remain strictly interior/increasing when represented as binary64.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">zone</span> <span class="o">=</span> <span class="n">validate_parent2_branch_zone</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">basal_cm</span><span class="o">=</span><span class="n">basal_cm</span><span class="p">,</span> <span class="n">apical_cm</span><span class="o">=</span><span class="n">apical_cm</span><span class="p">,</span> <span class="n">spacing_cm</span><span class="o">=</span><span class="n">spacing_cm</span><span class="p">))</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">length_cm</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">))</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">length_cm</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">floating</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Current parent length must be positive and finite&quot;</span><span class="p">)</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">length_cm</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">length_cm</span><span class="p">)</span>
+    <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="ne">OverflowError</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Current parent length must be positive and finite&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">error</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">length_cm</span><span class="p">)</span> <span class="ow">or</span> <span class="n">length_cm</span> <span class="o">&lt;=</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Current parent length must be positive and finite&quot;</span><span class="p">)</span>
+    <span class="n">length</span><span class="p">,</span> <span class="n">basal</span><span class="p">,</span> <span class="n">apical</span><span class="p">,</span> <span class="n">spacing</span> <span class="o">=</span> <span class="p">[</span><span class="n">Fraction</span><span class="p">(</span><span class="n">Decimal</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">value</span><span class="p">)))</span>
+                                      <span class="k">for</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">length_cm</span><span class="p">,</span> <span class="n">zone</span><span class="p">[</span><span class="s2">&quot;basal_cm&quot;</span><span class="p">],</span> <span class="n">zone</span><span class="p">[</span><span class="s2">&quot;apical_cm&quot;</span><span class="p">],</span> <span class="n">zone</span><span class="p">[</span><span class="s2">&quot;spacing_cm&quot;</span><span class="p">])]</span>
+    <span class="n">available</span> <span class="o">=</span> <span class="n">length</span> <span class="o">-</span> <span class="n">basal</span> <span class="o">-</span> <span class="n">apical</span>
+    <span class="n">count</span> <span class="o">=</span> <span class="mi">0</span> <span class="k">if</span> <span class="n">available</span> <span class="o">&lt;</span> <span class="mi">0</span> <span class="k">else</span> <span class="mi">1</span> <span class="o">+</span> <span class="n">available</span> <span class="o">//</span> <span class="n">spacing</span>
+    <span class="k">if</span> <span class="n">count</span> <span class="o">&gt;</span> <span class="n">MAX_PARENT2_BRANCH_SITES</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent2 zone exceeds the numerical allocation limit of 10000 sites&quot;</span><span class="p">)</span>
+    <span class="n">sites</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">basal</span> <span class="o">+</span> <span class="n">index</span> <span class="o">*</span> <span class="n">spacing</span><span class="p">)</span> <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">count</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">site</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">site</span> <span class="o">&lt;</span> <span class="n">length_cm</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">sites</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">right</span> <span class="o">&lt;=</span> <span class="n">left</span> <span class="k">for</span> <span class="n">left</span><span class="p">,</span> <span class="n">right</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">sites</span><span class="p">,</span> <span class="n">sites</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent2 zone sites are not strictly interior/increasing representable values&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">sites</span></div>
+
 
 
 <div class="viewcode-block" id="sample_branch_sites">
@@ -205,6 +268,53 @@
 
         <span class="n">position</span> <span class="o">+=</span> <span class="n">spacing</span>
 
+    <span class="k">return</span> <span class="n">sites</span></div>
+
+
+
+<div class="viewcode-block" id="redistribute_capped_sites">
+<a class="viewcode-back" href="../../../api_reference/utils.html#deeprootgen.utils.branching.redistribute_capped_sites">[docs]</a>
+<span class="k">def</span> <span class="nf">redistribute_capped_sites</span><span class="p">(</span>
+    <span class="n">parent_xyz</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">,</span>
+    <span class="n">retained_count</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">floor_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.4</span><span class="p">,</span>
+    <span class="n">ceiling_threshold</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">0.9</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">float</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Place a legacy-retained count at midpoint quantiles of its eligible window.</span>
+
+<span class="sd">    Research assumption: retain n from the unchanged stochastic sampler, then</span>
+<span class="sd">    use f*L+(j+.5)*(c-f)*L/n, j=0,...,n-1. L is the geometric parent contour</span>
+<span class="sd">    length in cm. This pure function consumes no randomness and does not change</span>
+<span class="sd">    the existing sampler. It does not preserve downstream daughter lengths:</span>
+<span class="sd">    those use parent subsegment lengths in the unchanged construction formula.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">xyz</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asarray</span><span class="p">(</span><span class="n">parent_xyz</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">xyz</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">2</span> <span class="ow">or</span> <span class="n">xyz</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="o">!=</span> <span class="mi">3</span> <span class="ow">or</span> <span class="nb">len</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;parent_xyz must have shape (n_points &gt;= 2, 3).&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">xyz</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">():</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent coordinates must be finite.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">retained_count</span><span class="p">,</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">bool_</span><span class="p">))</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">retained_count</span><span class="p">,</span> <span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">integer</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;retained_count must be an integer.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">retained_count</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;retained_count must be nonnegative.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">floor_threshold</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">ceiling_threshold</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">floor_threshold</span> <span class="o">&lt;</span> <span class="n">ceiling_threshold</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Expected finite 0 &lt;= floor_threshold &lt; ceiling_threshold &lt;= 1.&quot;</span><span class="p">)</span>
+    <span class="n">lengths</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">norm</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">diff</span><span class="p">(</span><span class="n">xyz</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">lengths</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">lengths</span> <span class="o">&lt;=</span> <span class="mf">1e-12</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent contains nonfinite or zero-length segments.&quot;</span><span class="p">)</span>
+    <span class="n">total_length</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lengths</span><span class="o">.</span><span class="n">sum</span><span class="p">())</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">total_length</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Parent contour length must be finite.&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">retained_count</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="n">start</span><span class="p">,</span> <span class="n">end</span> <span class="o">=</span> <span class="n">floor_threshold</span> <span class="o">*</span> <span class="n">total_length</span><span class="p">,</span> <span class="n">ceiling_threshold</span> <span class="o">*</span> <span class="n">total_length</span>
+    <span class="n">sites</span> <span class="o">=</span> <span class="p">[</span><span class="nb">float</span><span class="p">(</span><span class="n">start</span> <span class="o">+</span> <span class="p">(</span><span class="n">index</span> <span class="o">+</span> <span class="mf">0.5</span><span class="p">)</span> <span class="o">*</span> <span class="p">(</span><span class="n">end</span> <span class="o">-</span> <span class="n">start</span><span class="p">)</span> <span class="o">/</span> <span class="n">retained_count</span><span class="p">)</span>
+             <span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">retained_count</span><span class="p">)]</span>
+    <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="n">np</span><span class="o">.</span><span class="n">isfinite</span><span class="p">(</span><span class="n">sites</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">()</span> <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">site</span> <span class="o">&lt;</span> <span class="n">total_length</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">sites</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="ow">not</span> <span class="n">start</span> <span class="o">&lt;</span> <span class="n">site</span> <span class="o">&lt;</span> <span class="n">end</span> <span class="k">for</span> <span class="n">site</span> <span class="ow">in</span> <span class="n">sites</span><span class="p">)</span>
+            <span class="ow">or</span> <span class="nb">any</span><span class="p">(</span><span class="n">right</span> <span class="o">&lt;=</span> <span class="n">left</span> <span class="k">for</span> <span class="n">left</span><span class="p">,</span> <span class="n">right</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">sites</span><span class="p">,</span> <span class="n">sites</span><span class="p">[</span><span class="mi">1</span><span class="p">:]))):</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Redistributed sites must be finite, ordered and strictly interior.&quot;</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">sites</span></div>
 
 </pre></div>

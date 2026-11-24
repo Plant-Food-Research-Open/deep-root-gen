@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explore and fit a schema-4 root system &mdash; DeepRootGen 1.0.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=19f00094" />
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="../_static/jquery.js?v=5d32c60e"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+        <script src="../_static/documentation_options.js?v=8d563738"></script>
+        <script src="../_static/doctools.js?v=9a2dae69"></script>
+        <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Running the full application with Docker" href="full_stack.html" />
+    <link rel="prev" title="Usage" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../index.html" class="icon icon-home">
+            DeepRootGen
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../introduction/index.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction/project_guide.html">DeepRootGen</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">Usage</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Explore and fit a schema-4 root system</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#run-an-invented-example">Run an invented example</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#change-one-control-in-the-interface">Change one control in the interface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#compare-and-calibrate">Compare and calibrate</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="full_stack.html">Running the full application with Docker</a></li>
+<li class="toctree-l2"><a class="reference internal" href="standalone.html">Run the model independently</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../faqs.html">FAQ</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api_reference/index.html">API Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../changelogs/changelog.html">Changelog</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../community/index.html">Community</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../licenses/license.html">License</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">DeepRootGen</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="index.html">Usage</a></li>
+      <li class="breadcrumb-item active">Explore and fit a schema-4 root system</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="../_sources/usage/native_workflow.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="explore-and-fit-a-schema-4-root-system">
+<h1>Explore and fit a schema-4 root system<a class="headerlink" href="#explore-and-fit-a-schema-4-root-system" title="Link to this heading"></a></h1>
+<p>Use the same schema-4 JSON for offline simulation, a Python notebook and the
+Simulation page. Each run produces a root architecture for one parameter set
+and seed. The active feature settings govern calculations by root order.</p>
+<section id="run-an-invented-example">
+<h2>Run an invented example<a class="headerlink" href="#run-an-invented-example" title="Link to this heading"></a></h2>
+<p>In the repository’s locked Python 3.10 environment, run the following from the
+repository root. The second command requires a new output directory.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>deeprootgen<span class="w"> </span>simulate<span class="w"> </span>--config<span class="w"> </span>examples/design/native_crown_0_20cm.json<span class="w"> </span>--explain-config
+python<span class="w"> </span>-m<span class="w"> </span>deeprootgen<span class="w"> </span>simulate<span class="w"> </span>--config<span class="w"> </span>examples/design/native_crown_0_20cm.json<span class="w"> </span>--outdir<span class="w"> </span>.runtime/crown-demo
+</pre></div>
+</div>
+<p>Open <code class="docutils literal notranslate"><span class="pre">roots.html</span></code> to rotate the generated structure. The <code class="docutils literal notranslate"><span class="pre">nodes.csv</span></code> and
+<code class="docutils literal notranslate"><span class="pre">edges.csv</span></code> pair records each node and parent-child relationship.
+<code class="docutils literal notranslate"><span class="pre">organs.csv</span></code> contains whole axes. Open <code class="docutils literal notranslate"><span class="pre">root_summary.json</span></code> for valid axis
+counts and lengths by order and for length and dry mass by diameter class.
+The run manifest records the seed and file identities.</p>
+</section>
+<section id="change-one-control-in-the-interface">
+<h2>Change one control in the interface<a class="headerlink" href="#change-one-control-in-the-interface" title="Link to this heading"></a></h2>
+<p>On a running local stack, go to <strong>Simulation</strong> and use <strong>Load parameters</strong> to
+open the same JSON. The ordinary fields cover controls such as the seed and
+reporting diameter. <strong>Advanced settings (JSON)</strong> includes <code class="docutils literal notranslate"><span class="pre">features</span></code> and
+<code class="docutils literal notranslate"><span class="pre">limits</span></code>. To try a shallower crown, change
+<code class="docutils literal notranslate"><span class="pre">features.primary_origins.settings.depth_range_cm</span></code> to <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">8]</span></code> and keep
+the seed fixed. <strong>Save parameters</strong> downloads a reusable JSON.</p>
+<p><strong>Run procedure</strong> submits the job to Prefect. Once it completes, open the
+matching MLflow artifacts. On the EDA page, load the synthetic node CSV and
+plot <code class="docutils literal notranslate"><span class="pre">x</span></code> against <code class="docutils literal notranslate"><span class="pre">z</span></code> grouped by <code class="docutils literal notranslate"><span class="pre">order</span></code>. The offline HTML and CSV provide
+the same geometry for use without a running service stack.</p>
+<p>The default branching gate is 0.093 cm of parent diameter at a daughter
+attachment. The default reporting cut of 0.25 cm groups length and dry mass.
+With allocation targets unset, changing the reporting cut leaves the geometry
+and total length and mass unchanged. Optional <code class="docutils literal notranslate"><span class="pre">root_ratio_length</span></code> and
+<code class="docutils literal notranslate"><span class="pre">root_ratio_biomass</span></code> are requested lower-class fractions. Their allocation
+controls specify which dimensions may change to reach them.</p>
+</section>
+<section id="compare-and-calibrate">
+<h2>Compare and calibrate<a class="headerlink" href="#compare-and-calibrate" title="Link to this heading"></a></h2>
+<p>Start with paired trials that change one setting and share a seed. In a
+notebook, use <code class="docutils literal notranslate"><span class="pre">deeprootgen.run_records.tracked_run</span></code> to save the config,
+outputs, seed and source identity in a new run directory. For a wider search,
+set plausible bounds and use common fitting seeds across candidates. Save
+failed trials with their diagnostics. Freeze a candidate before checking new
+seeds and held observations.</p>
+<p>The packaged calibration flows operate on selected summaries and parameter
+intervals. Sensitivity Analysis estimates Sobol effects on the discrepancy.
+Optimisation searches for a low discrepancy with Optuna. ABC and SNPE
+characterize parameter uncertainty conditional on chosen observations and
+priors. Surrogates approximate simulator outputs and Deployments call a
+configured prediction service.</p>
+<p>For a study fitting spatial root length density and biomass, define the actual
+sampling volumes, depth convention and diameter support for each observation.
+Use its corresponding observation operator and check the two responses
+separately. Keep private input data and empirical configurations local.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="Usage" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="full_stack.html" class="btn btn-neutral float-right" title="Running the full application with Docker" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2024, James Bristow.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
