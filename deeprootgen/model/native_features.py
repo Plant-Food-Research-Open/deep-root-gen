@@ -245,7 +245,7 @@ def place_origins(state):
     receipts = []
     for index, primary in enumerate(sim.organs.get(1, [])):
         oid = int(primary.segments[0].node_data.organ_id)
-        start, phi = disk_origin(law, law_stream(state.streams, laws.streams, "origin", oid))
+        start, phi = disk_origin(law, law_stream(state.streams, laws.streams, "origin", oid), index)
         _translate_primary(primary, sim.G.bases[index].node_data, start)
         if "heading" in law:
             primary.plan["initial_heading"] = radial_inclination(
@@ -327,7 +327,8 @@ def tapered_axis(organ, curve, taper, state):
         from .cohort_geometry import reconcile_interval_lengths
 
         start = curve.points[0] if curve is not None else polyline[0]
-        reconciled, changes = reconcile_interval_lengths(np.vstack([start, positions]), lengths, True)
+        reconciled, changes = reconcile_interval_lengths(np.vstack([start, positions]), lengths, True,
+                                                         roundoff_scaled=True)
         equivalents *= np.sqrt(lengths / reconciled)  # same integrated material
         lengths = reconciled
         state.law_counters["length_metadata_reconciliations"].extend(

@@ -82,11 +82,13 @@ def equivalent_diameter(a, b):
     return np.sqrt((a * a + a * b + b * b) / 3.0)
 
 
-def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface_z=0.0, *, row_alignment_per_cm=0.0, deep_carrier=None, carrier_receipt=None):
+def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface_z=0.0, *, row_alignment_per_cm=0.0, deep_carrier=None, carrier_receipt=None, bias=None):
     """Integrate before inserting material/attachment nodes; z-positive up.
 
     ``surface_z`` is the declared soil surface of the caller's frame; the
-    cohort frame keeps its historical surface at zero.
+    cohort frame keeps its historical surface at zero. ``bias`` optionally maps
+    the current point to a per-cm heading increment (for example a moisture
+    tropism); it adds no random draws, so streams stay paired.
     """
     if not (np.isfinite(length) and length > 0 and np.isfinite(step) and step > 0):
         raise ValueError("Positive finite length/step required")
@@ -126,6 +128,12 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface
         previous_heading = heading.copy()
         heading = spherical_exp_heading(frame, turn)
         heading = heading + h * drift * np.array([0.0, 0.0, -1.0])
+        if bias is not None:
+            pulled = heading + h * bias(points[-1])
+            # Resolution bounds step * pull below the heading norm; keep the
+            # unpulled heading if a caller's bias would still cancel it.
+            if np.linalg.norm(pulled) > 1e-6 * np.linalg.norm(heading):
+                heading = pulled
         heading /= np.linalg.norm(heading)
         if row_alignment_per_cm:
             heading = align_heading(heading, ROW_AXIS, row_alignment_per_cm * h)
@@ -144,7 +152,7 @@ def integrate_curve(length, start, heading, step, q, ell, downward, rng, surface
     return stations, np.asarray(points), reflections
 
 
-def reconcile_interval_lengths(coords, stored, enabled=False):
+def reconcile_interval_lengths(coords, stored, enabled=False, *, roundoff_scaled=False):
     """Bounded metadata reconciliation; never moves geometry or cuts.
 
     Reject intervals below a 64-epsilon coordinate-scale resolution floor.
@@ -177,7 +185,15 @@ def reconcile_interval_lengths(coords, stored, enabled=False):
         relative = error / min(actual[k], result[k])
         if error > guard:
             raise ValueError(f"Interval {k} exceeds absolute roundoff agreement guard")
-        if relative > np.sqrt(eps):
+        # Endpoint rounding alone moves a chord by up to about eps * scale, so a
+        # sub-micron interval far from the origin cannot agree to sqrt(eps) of its
+        # own length. ``roundoff_scaled`` (current native engine) therefore fails
+        # only disagreement beyond both bounds; the default keeps the historical
+        # sqrt(eps) rule that archived protocols reproduce.
+        bound = np.sqrt(eps)
+        if roundoff_scaled:
+            bound = max(bound, 2 * eps * scale[k] / min(actual[k], result[k]))
+        if relative > bound:
             raise ValueError(f"Interval {k} exceeds relative roundoff agreement guard")
         records.append(
             dict(

@@ -31,6 +31,30 @@ Let H be the integral of local exposure, between 0 and 1, over eligible parent l
 
 The simulation integrates on the final parent path after placement and curvature. It splits intervals at material and footprint boundaries, applies 16-point Gauss–Legendre quadrature on the pieces, and inverts the integral for random attachment positions. The `add` arm samples extras proportionately to exposure. The `uniform_extra` arm uses exactly the same parent-level count draws and places them uniformly on eligible length. For `redistribute`, the accepted movable daughters are sampled with weight 1 + (m − 1)K. This preserves count and the first-site law’s anchored daughter. The parent cap applies at each new location. A numerical coincidence within 10⁻⁹ cm keeps the existing event. Supplemental births occur before core sampling and use the existing daughter length, taper and curvature laws.
 
+## Recruit wet-zone parents as well as terminals
+
+The terminal law above can only add fine roots on parent length that already crosses the wetting zone. Set `order_sensitivity` to let wetted soil also recruit non-terminal daughters. Its keys are daughter orders from 2 to `parent_order`, and its values s lie between 0 and 1. On an order k − 1 parent, the expected extra order-k count is s(m − 1)λH, using that parent's own exposure and background rate. Each recruited daughter then receives an ordinary native subtree: the same length, taper, branching and curvature laws, keyed by its new organ IDs. The terminal step afterwards also acts on the recruited parents. The terminal order always uses s = 1. A value of 0, or omitting the setting, keeps the terminal-only law draw for draw.
+
+```json
+"order_sensitivity": {"3": 0.4, "4": 0.8}
+```
+
+Recruitment inserts an attachment node but never moves an existing axis. It is available for `add` and `uniform_extra`. It also requires a stochastic branching law on each affected parent order and insertion-angle curvature at the recruited order and every descendant order. `irrigation.json` reports these births under `upstream`, keyed by daughter order, together with each parent's native subtree size.
+
+## Recruitment budget
+
+Set `max_extra_fraction` to cap wet-zone recruitment. For each recruited order, the total expected extra daughters is capped at this fraction of that order's daughters present before recruitment. Every parent's expectation is scaled by the same factor, so the wet-zone allocation is unchanged. Without the setting the law is uncapped as before. The budget applies to `add` and `uniform_extra`. `irrigation.json` records `budget` with the baseline count, the uncapped expectation and the applied scale. Use it with moisture-directed growth: steering keeps parents inside the wet zone, which raises their exposure, so uncapped recruitment can grow without bound.
+
+## Moisture-directed growth
+
+Set `moisture_tropism` to let roots of chosen orders turn towards wetter soil while they grow. Its keys are root orders and its values are non-negative gains a. At each curvature step of length h, the heading gains h · a · ∇K before normalisation, where K is the exposure above and ∇K is its gradient per centimetre in the model frame.
+
+```json
+"moisture_tropism": {"1": 0.5, "2": 1.0, "3": 1.0, "4": 1.5, "5": 1.5}
+```
+
+The gradient is the analytic derivative on soil support. It is zero outside the footprint, at its centre and above the surface, and nothing is evaluated in air. Roots near the edge of the wet zone are therefore turned back into it, and soil beyond the footprint exerts no pull. With the cosine kernel, the largest gradient across the row is π/(2R) per centimetre, about 0.04 for R = 40 cm. A gain of 1 then turns a heading by up to about 0.08 rad per 2 cm step. The term uses no random draws, so streams stay paired with the same configuration without it. A gain of 0, or omitting the setting, reproduces the old law exactly. It applies only to orders with correlated curvature and only while the irrigation response is active (`peak_multiplier` > 1). Resolution rejects a gain if `step_cm × (downward drift + gain × π / (2 × shortest kernel length))` ≥ 1, because one step could then reverse a heading. Order keys must be canonical, so `"2"` is accepted and `"02"` is rejected. Curvature receipts record the gain, and `moisture_tropism` in the diagnostics lists the active orders.
+
 ## Run a single vine or a planted neighbourhood
 
 ```bash

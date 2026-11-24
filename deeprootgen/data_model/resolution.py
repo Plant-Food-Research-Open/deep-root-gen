@@ -352,6 +352,32 @@ def _validate_irrigation(parsed, resolved, settings, irrigation):
         raise ValueError("Irrigation requires realized parent curvature and terminal insertion-angle curvature")
     if order == 1 and resolved.laws.relocation is not None:
         raise ValueError("Irrigation of relocated primary sites is outside the terminal-order pilot")
+    transfer = parsed.birth_depth_transfer
+    for daughter_order in sorted(irrigation.upstream_sensitivity()):
+        parent_order = daughter_order - 1
+        if (parent_order not in resolved.laws.branching
+                or p.daughters_by_parent_order.get(str(parent_order)) is not None):
+            raise ValueError("Non-terminal irrigation requires a stochastic parent branching law without a quota")
+        if resolved.laws.direction.get(parent_order, {}).get("law") != "correlated_curvature" or any(
+                resolved.laws.direction.get(k, {}).get("law") != "correlated_curvature"
+                or resolved.laws.direction.get(k, {}).get("initial_heading") != "insertion_angle"
+                for k in range(daughter_order, p.max_order + 1)):
+            raise ValueError("Non-terminal irrigation requires a realized curved parent and insertion-angle "
+                             "curvature at the recruited order and every descendant order")
+        if parent_order == 1 and resolved.laws.relocation is not None:
+            raise ValueError("Irrigation of relocated primary sites is outside the recruitment law")
+        if "birth_depth_transfer" in settings and parent_order in transfer.parent_orders:
+            raise ValueError("Conflicting attachment controls on a non-terminal irrigation parent order")
+    for key, gain in (irrigation.moisture_tropism or {}).items():
+        law = resolved.laws.direction.get(int(key), {})
+        if gain and (int(key) > p.max_order or law.get("law") != "correlated_curvature"):
+            raise ValueError("Moisture tropism requires correlated curvature at each listed root order")
+        if gain:
+            from ..model.irrigation import gradient_bound
+
+            if law["step_cm"] * (law["downward_drift_per_cm"] + gain * gradient_bound(irrigation)) >= 1:
+                raise ValueError(f"Moisture tropism gain {gain} at order {key} could reverse a heading in "
+                                 "one step; reduce the gain or the curvature step")
     resolved.description["irrigation"] = settings["irrigation"]
 
 
@@ -790,7 +816,7 @@ def _resolve_origins(settings, p):
         return resolve_vine_origins(settings, p.outer_root_num + p.inner_root_num, surface)
     supplied = settings.model_dump(exclude_none=True)
     foreign = ({"x_cm", "y_cm", "depth_cm"} if settings.layout == "disk" else
-               {"radius_cm", "depth_range_cm", "heading"}) & set(supplied)
+               {"radius_cm", "depth_range_cm", "heading", "azimuth_groups"}) & set(supplied)
     if foreign:
         raise ValueError(f"primary_origins layout {settings.layout} does not consume {sorted(foreign)}")
     if settings.layout == "disk":
@@ -799,6 +825,23 @@ def _resolve_origins(settings, p):
         if not depth or len(depth) != 2 or not 0 <= depth[0] <= depth[1]:
             raise ValueError("primary_origins.depth_range_cm must be [min, max] with 0 <= min <= max")
         law = dict(layout="disk", radius_cm=radius, depth_range_cm=[float(depth[0]), float(depth[1])])
+        if settings.azimuth_groups is not None:
+            count = int(p.outer_root_num + p.inner_root_num)
+            if not settings.azimuth_groups:
+                raise ValueError("azimuth_groups needs at least one group")
+            seen, groups = set(), []
+            for g in settings.azimuth_groups:
+                idx = g.primary_indices
+                if (not idx or any(isinstance(i, bool) or not isinstance(i, int) or not 0 <= i < count for i in idx)
+                        or len(set(idx)) != len(idx) or seen & set(idx)):
+                    raise ValueError(f"azimuth_groups need distinct, non-overlapping primary indices in [0, {count})")
+                seen |= set(idx)
+                groups.append(dict(primary_indices=sorted(idx),
+                                   mean_deg=_number(g.mean_deg, "azimuth_groups.mean_deg", -360, 360),
+                                   concentration=_number(g.concentration, "azimuth_groups.concentration", 0)))
+                if g.half_plane:
+                    groups[-1]["half_plane"] = True
+            law["azimuth_groups"] = groups
     elif settings.layout == "point":
         law = dict(layout="point", x_cm=_number(settings.x_cm, "primary_origins.x_cm"),
                    y_cm=_number(settings.y_cm, "primary_origins.y_cm"),

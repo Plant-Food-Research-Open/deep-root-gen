@@ -262,6 +262,17 @@ def test_reconciliation_accept_and_each_guard():
         reconcile_interval_lengths(coords, [actual * (1 + 1e-6)], True)
     with pytest.raises(ValueError, match="resolution"):
         reconcile_interval_lengths([[1e5, 0, 0], [1e5 + 1e-12, 0, 0]], [1e-12], True)
+    # A sub-micron interval at ordinary coordinates (a native site 7.3e-7 cm from a curve
+    # station, Site 4 search): roundoff-level disagreement is reconciled, not rejected.
+    a = np.array([120.0, -95.0, -73.0])
+    b = a + 7.287751628837214e-07 * np.array([0.6, 0.0, -0.8])
+    chord = np.linalg.norm(b - a)
+    fixed, records = reconcile_interval_lengths([a, b], [chord * (1 + 1.6e-8)], True, roundoff_scaled=True)
+    assert fixed[0] == chord and records[0]["relative_error"] > np.sqrt(np.finfo(float).eps)
+    with pytest.raises(ValueError, match="relative"):          # historical sqrt(eps) rule by default
+        reconcile_interval_lengths([a, b], [chord * (1 + 1.6e-8)], True)
+    with pytest.raises(ValueError, match="relative"):          # beyond what endpoint rounding explains
+        reconcile_interval_lengths([a, b], [chord * (1 + 5e-6)], True, roundoff_scaled=True)
 
 
 def test_missing_controls_and_impossible_inclination_rejected():

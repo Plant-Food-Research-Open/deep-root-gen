@@ -184,12 +184,27 @@ class PrimaryHeading(_Strict):
     inclination_bounds_deg: Optional[List[float]] = None
 
 
+class AzimuthGroup(_Strict):
+    """Von Mises polar angle for the listed zero-based primary birth indices."""
+
+    primary_indices: Optional[List[int]] = None
+    mean_deg: Optional[float] = None
+    concentration: Optional[float] = None
+    # Opt-in: redraw until the angle lies within 90 degrees of the mean, so every
+    # group member emerges (and heads) on its own side; absent keeps one draw.
+    half_plane: Optional[bool] = None
+
+
 class PrimaryOriginsSettings(_Strict):
     """disk: sampled origin per primary; point: one translated common base."""
 
     layout: Optional[Literal["disk", "point"]] = None
     radius_cm: Optional[float] = None
     depth_range_cm: Optional[List[float]] = None
+    # Disk only: von Mises polar angle (and so radial heading) per group of
+    # zero-based primary birth indices, for example nine roots towards a drip
+    # line and one away. Unlisted primaries, or no groups, keep a uniform angle.
+    azimuth_groups: Optional[List[AzimuthGroup]] = None
     x_cm: Optional[float] = None
     y_cm: Optional[float] = None
     depth_cm: Optional[float] = None

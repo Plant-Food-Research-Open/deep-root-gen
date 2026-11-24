@@ -155,6 +155,9 @@ state. **Not run, not the next milestone.** The app command is Gunicorn
 `prefect deploy --prefect-file /app/flows/prefect.yaml --all`. Model-serving
 services are separately started by `scripts/model/deploy.sh`, which invokes
 `docker-compose.model-deploy.yaml`; they need existing Bento/MLflow artifacts.
+For local work use the supported [dashboard stack](../RUNNING.md#dashboard-stack-supported-local-startup)
+(`docker-compose.local.yaml`, optional `serving` profile) instead; it was
+verified end to end on 23 November 2026.
 
 Review local `.env` securely during an authorized service task. Do not print it
 or save expanded Compose output containing credentials. Existing sources have
