@@ -60,7 +60,9 @@ Root system architecture (RSA) plays an important role in plant growth and devel
 
 DeepRootGen provides a computational framework for generating synthetic three-dimensional root system architectures using a stochastic, parameterised root simulation model. The model represents individual root organs and segments within a hierarchical graph, allowing their geometry, topology and spatial distribution to be analysed.
 
-See [RUNNING.md](RUNNING.md) for current installation and runtime qualification status.
+Start with the [DeepRootGen handbook](docs/DEEPROOTGEN_HANDBOOK.md) and [web optimisation guide](docs/WEB_OPTIMISATION.md). See [RUNNING.md](RUNNING.md) for current installation and runtime qualification status.
+
+The [dashboard examples](docs/DASH_UI_EXAMPLES.md) cover each UI page with synthetic inputs, expected results and troubleshooting steps.
 
 For current model routes, the complete input dictionary, units and a practical
 scientific review workflow, start with the
@@ -126,61 +128,23 @@ This representation enables analysis of both root geometry and topology, includi
 
 # Quickstart
 
-The following example generates a synthetic root system architecture and exports its node and edge tables.
+Run the buried-trunk example from the repository root and inspect the root summary.
 
 ```python
-from deeprootgen.data_model import RootSimulationModel
+from pathlib import Path
+from deeprootgen.data_model import RootConfig, load_json_config
 from deeprootgen.model import RootSystemSimulation
 
-# Specify simulation parameters
-parameters = RootSimulationModel(
-    random_seed=42,
-    max_order=3,
-    root_ratio=0.5,
-    fine_root_threshold=0.15,
-    outer_root_num=4,
-    inner_root_num=2,
-    min_primary_length=15.0,
-    max_primary_length=40.0,
-    base_diameter=0.5,
-    diameter_reduction=0.2,
-    apex_diameter=0.05,
-    min_sec_root_num=1,
-    max_sec_root_num=3,
-    growth_sec_root=0.1,
-    min_sec_root_length=3.0,
-    max_sec_root_length=15.0,
-    segments_per_root=6,
-    length_reduction=0.7,
-    root_vary=10.0,
-    interbranch_distance=2.0,
-    mechanical_constraints=0.0,
-    root_tissue_density=0.15,
-    gravitropism=0.1,
-    t=1,
-    enable_soil=False,
-    soil_layer_height=10.0,
-    soil_n_layers=10,
-    soil_layer_width=10.0,
-    soil_n_cols=10,
-)
-
-# Initialise and run the simulation
-simulation = RootSystemSimulation(random_seed=42)
-simulation.run(parameters)
-
-# Extract the hierarchical root graph
-node_df, edge_df = simulation.G.as_df()
-
-# Export simulated architecture
-node_df.to_csv("root_nodes.csv", index=False)
-edge_df.to_csv("root_edges.csv", index=False)
-
-print(f"Generated {len(node_df)} nodes")
-print(f"Generated {len(edge_df)} edges")
+config = RootConfig.model_validate(load_json_config(Path("examples/design/native_crown_0_20cm.json")))
+simulation = RootSystemSimulation(random_seed=config.random_seed)
+simulation.run(config)
+print(simulation.result.metadata["root_summary"])
+nodes, edges = simulation.G.as_df()
 ```
 
-The generated data can be used for architectural analysis, visualisation, and integration with downstream modelling workflows.
+The [execution and parameter guide](docs/NATIVE_EXECUTION.md) covers the
+0.93 mm minimum diameter for structural-root branching, the 2.5 mm biomass
+and length classes, optional architecture targets, and CLI exports.
 
 # Installation
 

@@ -1,5 +1,14 @@
 # Native engine implementation report
 
+Current implementation follow-up: [repair report](NATIVE_ENGINE_REPAIR_REPORT.md).
+The original implementation decisions below are historical; the global planned
+selection and parent-material mutation described here have been superseded.
+
+> **Subsequent review:** the [post-merge review and improvement plan](NATIVE_ENGINE_REVIEW_AND_IMPROVEMENT_PLAN.md)
+> records fresh tests, confirmed defects and incomplete parts of the broader
+> composition requirement. The delivery claims and implementation decisions
+> below are retained as the implementation report, not a resolution of those findings.
+
 18 November 2026. Implements deliveries 0–5 of the
 [native feature composition plan](NATIVE_FEATURE_COMPOSITION_REVIEW_AND_PLAN.md).
 Base: HEAD `ff1a1df17381de3907f9799a56fb8f62008f6b47` plus the uncommitted

@@ -23,6 +23,7 @@ from prefect import flow, task
 from prefect.artifacts import create_table_artifact
 from prefect.task_runners import ConcurrentTaskRunner
 
+from deeprootgen.data_model.simulation_form import SoilDisplay
 from deeprootgen.calibration import (
     OptimisationModel,
     calculate_summary_statistic_discrepancy,
@@ -78,6 +79,7 @@ def prepare_task(input_parameters: RootCalibrationModel) -> tuple:
     distances, statistics_list = get_calibration_summary_stats(input_parameters)
     calibration_parameters = input_parameters.calibration_parameters
     sampler = TPESampler(
+        seed=input_parameters.random_seed,
         n_startup_trials=calibration_parameters["n_startup_trials"],
         n_ei_candidates=calibration_parameters["n_ei_candidates"],
         consider_prior=True,
@@ -161,8 +163,10 @@ def objective(
                 parameter, lower_bound, upper_bound
             )
         else:
+            if int(lower_bound) != lower_bound or int(upper_bound) != upper_bound:
+                raise ValueError(f"Expected integer bounds for {parameter}")
             parameter_specs[parameter] = trial.suggest_int(
-                parameter, lower_bound, upper_bound
+                parameter, int(lower_bound), int(upper_bound)
             )
 
     discrepancy = calculate_summary_statistic_discrepancy(
@@ -229,7 +233,7 @@ def log_task(
         if not parameter_name.startswith(params_prefix):
             continue
         parameter_name = parameter_name.replace(params_prefix, "")
-        best_parameter = best_parameters[f"{params_prefix}{parameter_name}"]
+        best_parameter = best_parameters[f"{params_prefix}{parameter_name}"].iloc[0]
         parameter_specs[parameter_name] = best_parameter
         mlflow.log_metric(parameter_name, best_parameter)
 
@@ -282,7 +286,8 @@ def run_optimisation(
 
     config = input_parameters.dict()
     log_config(config, TASK)
-    log_simulation(simulation_parameters, simulation, TASK)
+    log_simulation(simulation_parameters, simulation, TASK,
+                   SoilDisplay(**input_parameters.model_dump(include=set(SoilDisplay.model_fields))))
     save_graph_to_db(simulation, TASK, simulation_uuid)
     mlflow.end_run()
 

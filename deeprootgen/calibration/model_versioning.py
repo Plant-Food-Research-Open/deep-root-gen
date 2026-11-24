@@ -87,10 +87,15 @@ def log_model(
         description=f"A root model calibrator for performing the following task: {task}",
     )
 
+    # active_run() holds the tags present when the run started, so name the
+    # producing run explicitly; the serving page reports these labels.
+    labels = dict(mlflow.active_run().data.tags)
+    labels.update(task=task, simulation_uuid=str(simulation_uuid),
+                  simulation_tag=str(input_parameters.simulation_tag))
     bentoml.mlflow.import_model(
         task,
         model_uri,
-        labels=mlflow.active_run().data.tags,
+        labels=labels,
         metadata={
             "metrics": mlflow.active_run().data.metrics,
             "params": mlflow.active_run().data.params,

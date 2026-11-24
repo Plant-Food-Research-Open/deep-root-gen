@@ -92,6 +92,11 @@ def _primary_curves(organs, nodes):
     return curves
 
 
+def distal_arc_cm(old_arc, total, fraction):
+    """Distal relocation of a primary attachment on physical arclength."""
+    return total if old_arc == total else fraction * total + (1.0 - fraction) * old_arc
+
+
 def _placements(organs, nodes, curves, fraction):
     lookup = nodes.set_index("node_id")
     plans = []
@@ -112,9 +117,7 @@ def _placements(organs, nodes, curves, fraction):
             organ["attachment_arc_cm"], old_arc, rtol=0, atol=CURVE_ATOL_CM
         ):
             raise ValueError("Original physical Root2 arc disagrees with primary curve")
-        new_arc = (
-            total if old_arc == total else fraction * total + (1.0 - fraction) * old_arc
-        )
+        new_arc = distal_arc_cm(old_arc, total, fraction)
         if not np.isfinite(new_arc) or (
             old_arc < total and not old_arc < new_arc < total
         ):

@@ -5,6 +5,7 @@ installed runtime. No network, external source tree, git checkout or index is
 needed; a checked-in text patch is applied to a disposable package copy.
 """
 
+import gzip
 import hashlib
 import json
 import os
@@ -66,11 +67,28 @@ def materialize_reference(current_root, tmp_path, name):
             touched.add(path)
     if touched != set(before):
         raise AssertionError('Reference patch touches unexpected modules')
-    _verify_modules(current_root, before)
     target = Path(tmp_path) / ('public-reference-' + name)
     target.mkdir()
     shutil.copytree(current_root / 'deeprootgen', target / 'deeprootgen',
                     ignore=shutil.ignore_patterns('__pycache__', '*.pyc', '*.pyo'))
+    # Frozen preimages, authenticated independently of the evolving current
+    # implementation. Do not rebind historical postimages after code fixes.
+    archive = manifest.get("baseline_archive", {})
+    archive_path = FIXTURES / archive.get("file", "")
+    if archive_path.name != "baseline_modules.json.gz" or _sha256(archive_path) != archive.get("sha256"):
+        raise AssertionError("Public reference baseline archive hash mismatch")
+    modules = json.loads(gzip.decompress(archive_path.read_bytes()))
+    for name, expected in before.items():
+        path = _module_path(target, name)
+        if expected is None:
+            path.unlink(missing_ok=True)
+        else:
+            content = modules.get(expected, "").encode()
+            if hashlib.sha256(content).hexdigest() != expected:
+                raise AssertionError(f"Public reference baseline module hash mismatch: {name}")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(content)
+    _verify_modules(target, before)
     # Never discover a containing checkout or use its index/configuration.
     environment = {key: value for key, value in os.environ.items()
                    if key not in {'GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE'}}
@@ -97,3 +115,21 @@ def subprocess_environment(source_root):
         if absolute not in paths:
             paths.append(absolute)
     return {**os.environ, 'PYTHONPATH': os.pathsep.join(paths), 'PYTHONDONTWRITEBYTECODE': '1'}
+
+
+def comparison_command(script, *, current):
+    """Bind the submitted legacy input to the selected source tree's entrypoint.
+
+    The reference calls its original class. The current tree exposes the same
+    input contract in the archive module and shares the current numerical kernels.
+    Never give the reference subprocess a fallback to a class in the live tree.
+    """
+    module = 'deeprootgen.archive.simulation' if current else 'deeprootgen.model.root'
+    binding = f'''from importlib import import_module
+from pathlib import Path
+from inspect import getfile
+comparison_module = import_module({module!r})
+ComparisonSimulation = comparison_module.RootSystemSimulation
+assert Path(getfile(ComparisonSimulation)).resolve() == Path.cwd().joinpath(*{module!r}.split('.')).with_suffix('.py')
+'''
+    return [sys.executable, '-c', binding + script]

@@ -9,7 +9,7 @@ import pytest
 
 from deeprootgen.data_model import RootSimulationModel
 from deeprootgen.data_model.simulation_data_models import CurrentLengthCDF
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.model.hgraph import RootSystemGraph
 from deeprootgen.model.root import RootOrgan
 from deeprootgen.research.so4_controlled import construct_skeleton, validate_geometry

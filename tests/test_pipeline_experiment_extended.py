@@ -129,7 +129,7 @@ def test_calculate_graph_metrics_outputs_six_metrics(monkeypatch, tmp_path):
     monkeypatch.setattr(subject, "OUT_DIR", str(tmp_path))
     metric, artifact = Mock(), Mock()
     monkeypatch.setattr(
-        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact)
+        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact, log_dict=Mock())
     )
     # A connected path has unambiguous diameter=3, radius=2.
     result = subject.calculate_graph_metrics.fn(nx.path_graph(4), "now", "simulation")
@@ -257,7 +257,7 @@ def log_simulation_setup(monkeypatch, tmp_path):
     monkeypatch.setattr(subject, "get_datetime_now", lambda: "now")
     metric, artifact = Mock(), Mock()
     monkeypatch.setattr(
-        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact)
+        subject, "mlflow", SimpleNamespace(log_metric=metric, log_artifact=artifact, log_dict=Mock())
     )
     monkeypatch.setattr(subject, "ProfileReport", FakeProfile)
     graph = SimpleNamespace(
@@ -275,6 +275,7 @@ def log_simulation_setup(monkeypatch, tmp_path):
         )
     )
     sim = SimpleNamespace(
+        result=SimpleNamespace(metadata={"root_summary": {}}),
         G=graph,
         soil=soil,
         init_fig=lambda *_: FakeFigure(),
@@ -305,7 +306,7 @@ def test_log_simulation_artifacts_and_scalar_metric(log_simulation_setup, monkey
             return 2.0
 
     monkeypatch.setattr(subject, "get_summary_statistic_func", lambda _: RootNumber)
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     metrics = dict(call.args for call in metric.call_args_list)
     assert metrics == {"root_number": 2.0}
     assert (folder / "now-simulation_nodes.csv").exists()
@@ -322,7 +323,7 @@ def test_log_simulation_skips_rld_without_soil_grid(log_simulation_setup, monkey
     monkeypatch.setattr(
         subject, "get_summary_statistics", lambda: [{"value": "root_length_density"}]
     )
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     metric.assert_not_called()
     assert not list(folder.glob("*_rld_*"))
 
@@ -348,7 +349,7 @@ def test_log_simulation_skips_non_scalar_values(log_simulation_setup, monkeypatc
         "get_summary_statistic_func",
         lambda name: lambda **kw: Metric(name, **kw),
     )
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     logged = dict(call.args for call in metric.call_args_list)
     assert logged == {"average_tuple": 3.0}
     df = pd.read_csv(folder / "now-simulation_summary_statistics.csv")
@@ -401,7 +402,7 @@ def test_log_simulation_rld_dry_mass_and_grid_exports(
             pd.DataFrame({"mass": [0.2]}),
         ),
     )
-    subject.log_simulation.fn(params, sim, "simulation")
+    subject.log_simulation.fn(SimpleNamespace(parameters=params), sim, "simulation", params)
     assert metric.call_args_list[0].args == ("root_length_density", 0.15)
     assert (folder / "now-simulation_rld_voxels.csv").exists()
     assert (folder / "now-simulation_rld_rows.csv").exists()

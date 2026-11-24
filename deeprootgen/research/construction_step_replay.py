@@ -28,6 +28,14 @@ VERSION = "so4-construction-steps-v1"
 GRID = "construction_steps_v1"
 
 
+class ReplayParameters(RootSimulationModel):
+    """INITIAL records from schema 4 omit retired static-generation controls."""
+
+    root_ratio: float | None = None
+    mechanical_constraints: float | None = None
+    t: int | None = None
+
+
 def capture_construction_steps(skeleton, simulation):
     """Export original boundary identities and positioned geometry from live nodes."""
     skeleton.verify()
@@ -67,8 +75,8 @@ def _scope(skeleton, settings, arm, surface_z):
     validate_saved_tertiary_length_rank(skeleton, settings)
     validate_saved_primary_attachment(skeleton, settings)
     validate_saved_order_controls(skeleton, settings)
-    saved = RootSimulationModel(**skeleton.payload["parameters"])
-    requested = RootSimulationModel(**settings)
+    saved = ReplayParameters.model_validate(skeleton.payload["parameters"])
+    requested = ReplayParameters.model_validate(settings)
     if saved.research_current_length_grid != GRID or requested.research_current_length_grid != GRID:
         raise ValueError("Missing construction-step route")
     saved_values, requested_values = saved.model_dump(), requested.model_dump()

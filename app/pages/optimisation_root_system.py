@@ -10,6 +10,7 @@ from dash import (
     Output,
     State,
     callback,
+    ctx,
     dcc,
     html,
     no_update,
@@ -17,9 +18,13 @@ from dash import (
 )
 
 from deeprootgen.form import build_calibration_parameters, get_common_layout
+from deeprootgen.form.run_feedback import (
+    calibration_action,
+    load_statistics_upload,
+    register_run_status_callback,
+)
 from deeprootgen.io import load_data_from_file, s3_upload_file
 from deeprootgen.pipeline import (
-    dispatch_new_run,
     load_form_parameters,
     save_form_parameters,
     save_simulation_runs,
@@ -387,12 +392,12 @@ def update_summary_data_state(
     if summary_label is None:
         return button_contents, [True], [True]
 
-    if summary_stats is None or distances is None:
+    if not summary_stats or not distances:
         return [summary_label], [True], [False]
 
     summary_stats_list = summary_stats[0]
     distance_list = distances[0]
-    if len(summary_stats_list) == 0 or len(distance_list) == 0:
+    if not summary_stats_list or not distance_list:
         return [summary_label], [True], [False]
 
     if summary_stats_list[0] is None or distance_list[0] is None:
@@ -422,14 +427,9 @@ def load_summary_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
+    summary_data, toast_message = load_statistics_upload(list_of_contents, list_of_names)
+    if toast_message is no_update:
         return no_update
-
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, _, toast_message = load_data_from_file(list_of_contents, list_of_names)
-    summary_data = {"label": list_of_names[0], "values": loaded_data}
     return summary_data, True, toast_message
 
 
@@ -475,75 +475,53 @@ def clear_summary_data(n_clicks: int | list[int], summary_data: dict) -> tuple:
     Output("store-simulation-run", "data", allow_duplicate=True),
     Output(f"{PAGE_ID}-results-toast", "is_open"),
     Output(f"{PAGE_ID}-results-toast", "children"),
+    Output(f"{PAGE_ID}-submission-nonce", "data"),
     Input({"index": f"{PAGE_ID}-run-sim-button", "type": ALL}, "n_clicks"),
+    Input(f"{PAGE_ID}-preview", "n_clicks"),
     State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
     State({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
     State({"index": f"{PAGE_ID}-stat-by-soil-layer-switch", "type": ALL}, "on"),
     State({"index": f"{PAGE_ID}-stat-by-soil-col-switch", "type": ALL}, "on"),
     State("store-simulation-run", "data"),
     State("store-summary-data", "data"),
+    State(f"{PAGE_ID}-submission-nonce", "data"),
     prevent_initial_call=True,
 )
 def run_root_model(
     n_clicks: list,
+    preview_clicks: int | None,
     parameter_values: list,
     calibration_values: list,
     stats_by_layer: list[bool],
     stats_by_col: list[bool],
     simulation_runs: list,
     summary_data: dict,
+    nonce: str | None,
 ) -> tuple:
-    """Run and plot the root model.
+    """Check the form, or validate and queue the worker run.
 
-    Args:
-        n_clicks (list):
-            Number of times the button has been clicked.
-        parameter_values (list):
-            The parameter form input data.
-        calibration_values (list):
-            The calibration parameter form input data.
-        stats_by_layer (list):
-            Whether to calculate statistics by soil layer.
-        stats_by_col (list):
-            Whether to calculate statistics by soil column.
-        simulation_runs (list):
-            A list of simulation run data.
-        summary_data: (dict):
-            The dictionary of observed summary statistic data.
+    Check setup never submits. Run submits only a form that passes the same
+    validation, and reports a missing deployment, an unreachable API or an
+    uncertain send separately (see deeprootgen.form.run_feedback).
 
     Returns:
         tuple:
-            The updated form state.
+            The run table, toast state and message, and submission nonce.
     """
-    if n_clicks is None or len(n_clicks) == 0:
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:
-        return no_update
-
-    stat_by_layer = stats_by_layer[0]
-    stat_by_col = stats_by_col[0]
-
-    summary_statistics = summary_data.get("values", None)
-    if summary_statistics is None:
-        return no_update
+    preview = ctx.triggered_id == f"{PAGE_ID}-preview"
+    if not (preview_clicks if preview else n_clicks and n_clicks[0]):
+        return no_update, no_update, no_update, no_update
 
     form_inputs = build_calibration_parameters(
         FORM_NAME,
         TASK,
         parameter_values,
         calibration_values,
-        summary_statistics=summary_statistics,
-        stat_by_layer=stat_by_layer,
-        stat_by_col=stat_by_col,
+        summary_statistics=(summary_data or {}).get("values"),
+        stat_by_layer=bool(stats_by_layer and stats_by_layer[0]),
+        stat_by_col=bool(stats_by_col and stats_by_col[0]),
     )
-    if form_inputs is None:
-        return no_update
-
-    simulation_runs, toast_message = dispatch_new_run(
-        TASK, form_inputs, simulation_runs
-    )
-    return simulation_runs, True, toast_message
+    return calibration_action(TASK, form_inputs, preview, simulation_runs, nonce)
 
 
 ######################################
@@ -560,10 +538,12 @@ def layout() -> html.Div:
     Returns:
         html.Div: The page layout.
     """
-    title = "Run Optimisation"
-    page_description = """
-    Optimise the parameters of the root system architecture simulation against a target dataset
-    """
+    title = "Optimise whole-root statistics"
+    page_description = (
+        "Upload whole-root targets, select one distance metric and set the search ranges. "
+        "Start with primary root count, length and downward bias. Set equal bounds to fix a parameter. "
+        "Check the setup before running. A run needs the configured Prefect deployment."
+    )
 
     layout = get_common_layout(
         title=title,
@@ -574,4 +554,10 @@ def layout() -> html.Div:
         task=TASK,
         data_key=DATA_COMPONENT_KEY,
     )
-    return layout
+    return html.Div([
+        html.Button("Check setup", id=f"{PAGE_ID}-preview", className="btn btn-outline-primary m-2"),
+        layout,
+    ])
+
+
+register_run_status_callback(PAGE_ID)

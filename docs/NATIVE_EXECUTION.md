@@ -1,240 +1,385 @@
-# Native execution: one engine, independently enabled features
+# Running DeepRootGen with one root-system input
 
-> **18 November 2026 status.** Every input — legacy flat, schema 2 (native,
-> `construction_steps_v1`, `cohort_v5`) and schema 3 — is parsed and resolved by
-> one resolver and runs through one fixed engine lifecycle with one graph writer
-> and one random-stream owner. The separate native, construction-step and cohort
-> runners are gone; old inputs are adapters that declare their historical laws.
-> Schema 3 switches curvature, taper, origins, maturity, lengths, branching,
-> parent capping and attachment relocation on and off in the same file. See the
-> [plan](research/NATIVE_FEATURE_COMPOSITION_REVIEW_AND_PLAN.md) and the
-> [implementation report](research/NATIVE_ENGINE_IMPLEMENTATION_REPORT.md).
-
-All example inputs are invented; they are not calibration settings, and no
-result here is a biological validation.
-
-## Schema 3: one JSON, independently enabled features
-
-The [schema-3 example](../examples/design/native_feature_options.proposed.json)
-keeps one native parameter set and a `features` block. Change only a block's
-`enabled` flag to switch that calculation on or off; every other value keeps its
-single owner. Disabled blocks keep their settings, are type-checked and never
-affect the model, its draws or its effective-model identity. Unknown keys,
-misspelled booleans, duplicate JSON keys, old `research_*` aliases inside
-`parameters`, incomplete settings and unsupported combinations fail before any
-simulator state or random draw.
-
-```python
-from pathlib import Path
-from deeprootgen.data_model import explain_config
-from deeprootgen.model import RootSystemSimulation
-
-source = Path('examples/design/native_feature_options.proposed.json')
-print(explain_config(source)['laws']['by_order']['1'])   # active laws per order
-simulation = RootSystemSimulation(random_seed=42, simulation_tag='proposed-invented-feature-toggle-example')
-simulation.run(source)                                  # raw JSON text, Path or dict
-resolved = simulation.result.resolved                   # saved description and hashes
-```
+Fresh runs use schema version 4 through `RootSystemSimulation.run()`, the CLI and
+tracked runs. The JSON contains native parameters, a seed, and the features
+selected for that architecture. The engine resolves calculations by root order.
+[RootConfig](../deeprootgen/data_model/canonical.py) ·
+[Example with first-order origins along a buried trunk](../examples/design/native_crown_0_20cm.json)
 
 ```bash
-python -m deeprootgen simulate --config my_features.json --explain-config
-python -m deeprootgen simulate --config my_features.json --outdir .runtime/my-new-run
+python -m deeprootgen simulate --config examples/design/native_crown_0_20cm.json --explain-config
+python -m deeprootgen simulate --config examples/design/native_crown_0_20cm.json --outdir /tmp/grapevine-roots
 ```
 
-`--explain-config` prints the active law per stage and order, inactive values,
-replaced native fallbacks, units, stream policy and hashes, or a
-`{"valid": false, "error": ...}` verdict. Pass raw input (dict, JSON text or
-path) so the supplied-input hash matches across API, CLI and notebooks. Each
-result records three identities: supplied input (includes dormant settings),
-effective model (active laws and the native values they consume; labels,
-resource limits and inactive fallbacks excluded) and run identity (effective
-model, seed, generator source and numeric environment).
+The output directory must be new. Open `root_summary.json` for counts and
+physical lengths by order, length and dry biomass by diameter class, and
+achieved fractions. `execution.json` records allocation results when a target is
+supplied. The graph uses cm for lengths and diameters, and g for dry mass.
+Use the exported `parameters.json` to repeat a seeded run.
+The resolved integer crown split is in `execution.json`. Open
+`branching.json` for site proposals, placed sites, accepted daughters and
+invalid daughters by parent order. Replacement laws also record the first-site
+draw and branch decision for each parent. For native spacing, the proposal count
+starts at the sites placed by that calculation. Diameter rejections count
+sites, while Bernoulli rejections and first sites at or beyond the tip count
+parent decisions.
 
-### What each feature replaces
+## Parameters for structural-root simulations
 
-| Feature | Stage | Replaces | Semantics |
-|---|---|---|---|
-| `curvature` (per order) | direction | native scaffold / Fichtl / legacy law of that order | Correlated (OU) curvature on physical arclength: `step_cm`, stationary `curvature_sd_rad_cm`, `correlation_length_cm`, `downward_drift_per_cm`; reflected downward at `soil_surface_z_cm`. Primary heading `scaffold_chord` or `origin_heading`; daughters use a keyed `insertion_angle` about the realized parent tangent. |
-| `taper` (per order) | material | cylinder per construction interval | Point diameter on arclength (base, mid = tip + fraction·(base − tip), tip); each segment carries the volume-conserving equivalent diameter and is classified fine/structural by it. Geometry is unchanged. |
-| `lengths` (per order) | dimensions | native uniform lengths | `bounded_lognormal` (native segment proportions kept) or `discrete_cdf` (the keyed current-length CDF law). |
-| `branching` (per order) | branch plan | native count and spacing | First-branch draw, probability, daughter count and uniform sites; terminal order is `max_order`. |
-| `primary_origins` | placement | common base at the origin | `point`: translated common base; `disk`: one zero-material base per primary, optional `radial_inclination` heading. |
-| `cohort_maturity` | dimensions | maturity 1 | Dimensionless value per primary group (never age); scales whole length, point-taper base and optionally branch probability. |
-| `parent_diameter_cap` | material | none | Daughter base ≤ fraction × parent point diameter at the birth site. |
-| `attachment_relocation` | attachments | birth site | Order-2 sites move to `fraction·L + (1 − fraction)·old`; sampled daughter dimensions are kept. |
+| Setting under `parameters` | Meaning |
+|---|---|
+| `max_order` | Integer ceiling. Crown roots have order 1 and each daughter has its parent's order plus one. |
+| `primary_root_count`, `outer_primary_fraction` | Number of first-order organs and optional fraction assigned to outer placement. The outer count rounds half up. The other roots form the inner group. |
+| `daughters_per_parent` | A fixed integer or an integer range with `min` and `max_exclusive`. Optional `daughters_by_parent_order` overrides the request on named parent orders. |
+| `apex_diameter` | Endpoint of the native cylinder-diameter sampling interval in cm. The point taper feature supplies a separate physical tip diameter. |
+| `min_branching_diameter_cm` | Defaults to **0.093 cm (0.93 mm)**. Each proposed daughter needs a final attachment site at least this thick. Zero disables the diameter check. Existing thin roots still contribute length and dry mass. |
+| `threshold_root_diameter_cm` | Defaults to **0.25 cm (2.5 mm)**. Summaries and allocation targets use two classes, diameter at or below this cutoff and diameter above it. |
+| `root_ratio_length`, `root_ratio_biomass` | Optional targets for the fractions of total valid root length and root dry biomass in the lower diameter class. Both use fractions from 0 to 1. |
+| `allocation_controls` | Positive ranges for length and diameter scale factors by numeric root order. The solver adjusts the permitted dimensions and checks the achieved fractions on the generated geometry. |
+| `root_tissue_density` | Dry mass per material volume in g/cm³. Crown support and invalid roots are excluded from the root summary. |
+| `features.primary_origins` (top-level feature) | For a buried trunk, disk radius 0 and depth range [0, 20] cm place first-order origins along the trunk below the specified soil surface. |
 
-Order of constraints: sampling → maturity scaling → parent cap → tip limit →
-branch censoring. Supported combinations are declared and checked before
-execution, for example: maturity diameter scaling and parent capping require
-taper on every order; branch-probability scaling requires the branching law;
-with the legacy fallback, curvature must cover a prefix of orders 1..k (native
-repairs of an ancestor would otherwise rotate a curved descendant); relocation
-requires daughters realized from the final attachment and cannot be combined
-with capping. When every construction law is replaced (curvature, taper,
-bounded lengths and branching on every order, disk origins with a heading),
-nothing native remains: construction is "planned" and draws nothing from the
-native sequential generator; see the invented
-[fully replaced example](../examples/design/native_features_fully_replaced.json),
-which omits every native fallback value no law consumes.
+Fichtl et al. use **0.93 mm** as their minimum structural-root diameter. Here
+the user selected it as the local parent diameter needed for a new daughter.
+This rule represents branching in the structural-root architecture. Tissue age
+and lignification require developmental information. A 1.2 mm attachment can
+therefore produce a daughter and still count toward the lower 2.5 mm reporting
+class. [Fichtl et al. (2026)](https://doi.org/10.1111/nph.71727) ·
+[Gambetta et al. (2013)](https://pmc.ncbi.nlm.nih.gov/articles/PMC3813648/)
 
-`run(..., initial_recorder=callback)` passes a read-only view of the placed
-scaffold to `callback` at the INITIAL phase. It is accepted for construction-step
-input and for schema-3 native construction.
+## Selecting optional features
 
-A replaced direction law draws only from its keyed stream; native corrections
-visiting a replaced axis take their usual draw but only check. Biology and
-placement draws are therefore unchanged by a direction replacement, while later
-correction draws can differ when validity outcomes differ.
+Native cylinder and length kernels supply ordinary dimensions. Use numeric
+lengths under `features.lengths.settings.by_order` for fixed whole-axis lengths.
+A point taper accepts fixed base/tip diameters and bounded positive draws,
+including a truncated normal for the first-order base. Means and SDs describe
+the distribution before truncation. Enable `cohort_maturity` only to give
+descendants a shared primary-tree factor affecting size or branch probability.
+Routing and publication use the same native axis state for these choices.
 
-## Run from a notebook with tracking
+For `features.branching.settings.by_order`, the bounded lognormal sets the
+first-site distance in cm, measured along the parent. Its mean and SD describe
+the underlying distribution. The branch probability applies per parent. When
+the draw succeeds and the first site lies before the tip, the conditional
+count probabilities control the family size. The remaining sites are uniform
+between the first site and the tip. The final diameter gate applies after any
+relocation. An entry supplied for the terminal order is retained as inactive
+input and creates no branch draws.
 
-Use [`notebooks/grapevine_fichtl_2024/6_native_engine_tracked_runs.ipynb`](../notebooks/grapevine_fichtl_2024/6_native_engine_tracked_runs.ipynb)
-for traceable notebook runs. Select the qualified Python 3.10 environment; the
-notebook finds the repository root itself. It explains the resolved
-configuration before running, runs primary curvature off → on → off from the
-same file, checks exact baseline recovery, then shows the same tracked toggle
-for another feature. It uses only the invented example by default.
+For a measured thick-root taper, set the order's taper `law` to
+`exponential_above_diameter`. Set `rate_per_cm` to the nonnegative decay rate
+and `thick_min_cm` to the lower measurement limit. The diameter follows
+`d(s) = d₀ exp(−ks)` on arclength through the thick part. When the axis reaches the
+lower limit, the remaining thin taper joins that diameter and uses the configured
+tip and midpoint fraction. Axes whose sampled bases are already below the limit
+use the original point taper. The branch gate reads the local point diameter.
+The graph stores an equivalent diameter that preserves integrated volume.
 
-Each run goes through `deeprootgen.run_records.tracked_run`, which uses the
-same parser, engine and exporter as the CLI. It never overwrites a folder and
-writes, under `.runtime/notebook-native-engine/<session>/<label>/`:
+With point taper on every order, `features.parent_diameter_cap` limits each
+daughter's basal diameter to a fraction of the parent diameter at the final
+attachment. Enabling distal relocation therefore evaluates both branching
+eligibility and the daughter cap farther along the primary taper.
 
-* `parameters.json`: the exact input after any notebook edit; rerun it with
-  `python -m deeprootgen simulate --config <folder>/parameters.json --outdir <new>`;
-* `resolved_config.json`: active laws by stage and order, inactive settings,
-  units, RNG streams and hashes;
-* `run_record.json`: label, UTC time, input file and its hash, the three model
-  identities, active features, seed, counts, output hashes, generator source
-  hash, git commit and dirty state, and package versions;
-* `run_manifest.json`, `nodes.csv`, `edges.csv` and `organs.csv`.
+Curved laterals with `initial_heading: "insertion_angle"` can also use
+`features.insertion.settings.row_axial_kappa_by_order`. A positive concentration
+biases insertion azimuth around the simulator's row axis (+y), preserving
+the sampled polar angle relative to the parent. Zero leaves the angle draw intact.
 
-Every record is also appended to `.runtime/notebook-native-engine/ledger.jsonl`;
-`read_ledger` loads it for comparison across sessions. To check a
-reproduction, compare `effective_model_sha256` (same model) and
-`run_identity_sha256` (also same seed, code and numeric environment). Keep
-private inputs and their run folders local.
+In `fichtl2024` mode, Fichtl angle and trial settings apply only to orders using
+the Fichtl direction kernel or Fichtl construction-step directions.
+`features.direction.settings.higher_order_tropism` supplies the controls for
+the active Fichtl orders 4 and 5. Curvature-owned orders use their own parameters.
+When every active Fichtl order supplies `sigma_by_order`, the global
+`fichtl_sigma` can be omitted. Fichtl-mode primary and post-direction validation
+remain selected by the validation controls.
+
+For an example with two adjustable dimensions, run the [paired allocation
+input](../examples/design/native_allocation_targets.json). It requests 50% of
+length and 10% of dry biomass below or at 2.5 mm. A scalar fixes an axis
+dimension. Use `{"nominal_cm": 3.0}` for a value the solver may adjust inside
+the order's scale range. The accepted realization must reach each supplied
+fraction within 0.01. A proven conflict and an exhausted search have different
+outcomes in the allocation receipt.
+
+The separate reporting and branching parameters allow a finer reporting cutoff
+without regenerating a different topology when allocation targets are absent.
+When a target is active, a changed reporting cutoff can change the architecture
+required to reach it. The result reports the actual achieved fractions.
+[Input plan and scientific definitions](research/SINGLE_INPUT_AND_PARAMETER_SIMPLIFICATION_PLAN.md)
+
+
+## Rainfed daughter placement
+
+Schema 4 accepts an optional top-level `daughter_placement`. The attachment
+and recruitment modes operate on the seeded terminal-parent order. For these
+modes, both parent and daughter use correlated curvature, and
+the daughter uses an insertion-angle heading and point taper. The final
+parent diameter must meet the configured gate of at least 0.093 cm. This
+option is available for rainfed configurations. Use a separate irrigation arm
+for an outlet response.
+
+- `{"strength": 0.5}` uses a peak multiplier of 1.25 in the default
+  `redistribute` mode, with a full-preference layer at 90–150 cm, a smooth
+  rise from 80 cm and taper to 170 cm. The default parent order is four.
+  The mode keeps the first realized site, daughter identities, counts and
+  length draws. It reapplies the terminal base and tip laws at the new site,
+  including the local diameter cap.
+- A frozen `profile` supplies an intercept, scaled depth, two depth hinges
+  and a nearest-row distance coefficient. The profile also carries the
+  training mean, support bounds, fade distance, row spacing and tube support
+  by zone. Strength scales the spatial odds or site weight by
+  `1.5 ** (strength * preference)`. The generator receives the coefficients
+  and support, with fitting performed offline.
+- The `branch_probability` mode uses the contour-average multiplier on the
+  ordinary first-site law's branch odds. The `retention` mode centres the
+  local odds multipliers to preserve an expected 85% retained count per vine.
+  At zero strength, redistribution and branching reproduce seeded rainfed
+  geometry, while retention draws use the uniform 85% control.
+- The fixed-layer `add` and `uniform_extra` modes draw the same extra
+  counts per parent on paired seeds and use weighted and uniform eligible
+  positions respectively. The local cap can change the realized material.
+
+- Fixed-layer recruitment or relocation can set four `layer_depths_cm`
+  boundaries for the start of the rise, plateau start, plateau end and end of
+  the fall. `layer_peak_multiplier` specifies the maximum at full strength.
+  This optional control can represent a shallow layer in a rainfed study.
+  The built-in profile retains its 80–170 cm support and 1.5 peak. When
+  a parent barely enters the chosen layer and the ordinary sampler exhausts
+  its proposal budget, deep addition continues from its accepted sites on the
+  portions of contour with positive recruitment weight. It uses the same
+  depth-dependent acceptance law.
+- A profile may set `row_depth_slope` to make the cross-row effect change
+  with depth, centred at 90 cm. Sparse row-zone support and the depth taper
+  attenuate this term in the same way as the additive row effect.
+- `branch_probability_uniform` uses the supplied profile to calculate the
+  expected number of eligible daughters, then matches that expectation
+  with one common odds multiplier for the vine. Both arms reuse the original
+  branch-activation and conditional family draws. Realized totals can differ.
+- `sparse_depth` activates at most one terminal daughter per parent with
+  eligible contour below 90 cm. Its strength is the parent activation
+  probability. `sparse_uniform` draws the same realized number of families
+  across the full eligible contour. Set the ordinary terminal branch
+  probability to zero to isolate either sparse arm.
+- `sparse_depth_balanced` takes the same realized number of deep births
+  and spreads them among eligible parents using horizontal cells. Specify
+  `spatial_cell_width_cm`. The grid gets a random offset for each vine.
+  The diagnostic `grid_origin_offset_cm` is measured from the fixed model
+  x/y origin. Translating a crown can therefore change cell membership.
+  Each occupied cell supplies one candidate before a cell supplies a
+  second. Compare with `sparse_depth` on the same parent geometry and seed.
+
+### A continuous vineyard preference from soil cores
+
+An optional `vineyard_3d_v1` profile represents one repeating vineyard cell.
+Model x runs across the row, y runs along it, and depth is positive below the
+soil surface. The horizontal origin is the vine crown. At each depth knot the
+four coefficients weight a constant, the across-row cosine, the along-row
+cosine and their product. The field interpolates between depth knots, clips
+the preference to [−1, 1], and fades to zero beyond its fitted depth range.
+The cosine terms assume symmetry on either side of the row and vine. The
+generator subtracts the declared x/y of a translated common-point crown.
+For an indexed primary layout, supply survey coordinates relative to the
+vine crown, with the crown at (0, 0) in model x/y.
+
+Fit the field offline using training tubes. For example, given a frame
+`training` with `core_id`, `depth_cm`, `cross_cm`, `along_cm` and a
+signed `target` in [−1, 1], the following attaches the fitted surface to a
+seeded, compatible five-order rainfed configuration. A positive target
+indicates that the reference underpredicts roots. The distances in this
+example are in centimetres.
 
 ```python
-from deeprootgen.run_records import read_ledger, tracked_run
+from deeprootgen.research.core_preference_surface import fit_core_preference_surface
 
-record = tracked_run("my_features.json", ".runtime/my-runs/first", label="first",
-                     ledger=".runtime/my-runs/ledger.jsonl")
+profile = fit_core_preference_surface(
+    training, across_period_cm=300, along_period_cm=200, mode="all",
+)
+config["daughter_placement"] = dict(
+    mode="branch_probability", parent_order=4, strength=1.0, profile=profile,
+)
 ```
 
-## Old inputs
+The native rule multiplies the local odds or attachment weight by
+`1.5 ** (strength × preference)`. For a parent at a uniform preference of +1,
+branch probability 0.60 becomes about 0.692 at strength 1. For a parent
+that crosses several layers, the branching rule averages the multiplier
+over eligible contour. Retention evaluates each terminal at its birth and
+adjusts a common intercept to preserve the expected retained count.
+Redistribution changes movable attachment sites at fixed daughter count.
 
-Use the existing Python 3.10 environment and unchanged lock described in
-[RUNNING.md](../RUNNING.md). Run with a fresh simulator and an explicit seed:
+Before evaluating a held tube, exclude every depth from that tube when
+estimating both the residual targets and the profile. Compare `mode="all"`
+with the fitter's `mode="depth_only"` and the corresponding unguided growth
+control. A lower top-layer weight or capped residual changes the evaluation
+cost. Report the original physical score as well, using the same simulated
+vines for all costs. [Spatial cost implementation](../deeprootgen/research/core_placement_cost.py)
 
-```python
-import json
-from pathlib import Path
-from deeprootgen.model import RootSystemSimulation
+### Related controls for root direction
 
-source = Path('examples/research/native_steps_synthetic.json')
-simulation = RootSystemSimulation(random_seed=json.loads(source.read_text())['random_seed'])
-simulation.run(source)
-nodes, edges = simulation.G.as_df()
-metadata, organs = simulation.result.metadata, simulation.result.organ_table
+Set `daughter_placement.mode` to `surface_bearing`, supply the frozen
+vineyard `profile`, set `strength` from 0 to 1, and list the daughter
+orders in `bearing_orders` (for example, `[2, 3]`). The rule guides the
+initial azimuth of daughters in those orders. Each selected order needs
+seeded correlated curvature with an insertion-angle heading. The terminal
+parent diameter and branch gates used for recruitment do not apply here.
+Active sibling sectors and row-axial insertion each own the bearing on their
+configured orders. Select other orders for surface bearing.
+
+The rule compares the native heading with three quarter-turn rotations around
+the realized parent tangent. It scores the tip of each straight probe at the
+shorter of 40 cm and the daughter's sampled contour length. A probe crossing
+the soil surface reflects its vertical step downward from the birth height.
+Candidate weights are proportional to `exp(2 × strength × preference)`. The
+sampling rule keeps the original bearing whenever possible under these
+weights, including every birth on a flat field. It preserves the sampled
+polar angle and the curvature noise stream. Each scored curve records its
+chosen quarter-turn, probe length, number of reflected probes and preferences.
+
+Under a lateral curvature law, `sibling_sectors.min_birth_depth_cm` filters
+eligible births before forming sibling windows. `deep_carrier` specifies
+`fraction`, `trigger_depth_cm` and `drift_multiplier`. For selected axes,
+the increased drift begins on the next curvature step after the first
+downward crossing of the trigger depth. The integration retains the same
+curvature noise stream.
+
+`minimum_realized_primary_length_cm` conditions the primary lognormal length
+draw on reaching the stated contour length after cohort scaling. It preserves
+the nominal upper bound and fails if that cohort has no admissible support.
+A new floor is an experimental input. Standard inputs use their existing
+length law.
+
+
+## Transfer ordinary daughter births to deeper parent contour
+
+A seeded schema-4 vine can move selected ordinary daughters before their
+directions and descendants are realized. For example, this top-level setting
+selects half of eligible shallow births on first-, second- and third-order
+parents in expectation.
+
+```json
+{
+  "birth_depth_transfer": {
+    "parent_orders": [1, 2, 3],
+    "shallow_depth_cm": 30,
+    "deep_depth_cm": 60,
+    "transfer_probability": 0.5
+  }
+}
 ```
+
+A candidate must be born shallower than 30 cm below the configured soil
+surface. Its destination is sampled in proportion to eligible contour length
+deeper than 60 cm on the same parent. The local parent diameter must support
+the existing daughter. The rule preserves the first accepted daughter under
+a count-based first-branch law. A selected bud stays in place if the parent
+lacks compatible contour. Existing buds and their descendants keep their
+identities and dimensions. Their final geometry and any later recruitment
+can respond to the changed origin.
+
+Ordinary branching, a curved parent and an insertion-angle curved daughter
+are required on each selected pair of orders. Other attachment rules can
+act on distinct orders in the same vine. Combine this rule with sparse deep
+recruitment on later parents, or with a fitted spatial preference there.
+Per-order receipts in `diagnostics.birth_depth_transfer.by_parent_order`
+report the eligible shallow buds, selection draws, successful moves and
+shortfalls. For a multi-order treatment, each order's starting depths already
+include the effects of upstream moves. Compare a separate transfer-off vine
+at the same seed to measure the net change across the whole root system.
+
+## Migrating an existing input
+
+The [offline conversion function](../deeprootgen/data_model/migration.py) returns
+a new document. Preserve historical source files and review the converted
+settings before use. Converted comparison inputs can carry their original
+reporting threshold and an explicit zero branch minimum to reproduce the
+intended baseline. Newly authored structural simulations use the defaults above.
+The [historical contracts](NATIVE_EXECUTION_V1_V3.md) document the original
+adapters and sealed reference results.
+
+## Optional spatial construction
+
+The [invented five-order input](../examples/design/spatial_construction_synthetic.json)
+uses all three controls below. Each control can be selected independently.
+The [implementation notes](research/SPATIAL_CONSTRUCTION_IMPLEMENTATION.md)
+describe units, conflicts and validation.
+
+| Control | Schema-4 setting | Run receipt |
+|---|---|---|
+| Alignment along either row direction | `features.curvature.settings.by_order.<order>.row_alignment_per_cm` | `row_alignment.json` records the strength, step and length-weighted squared along-row component |
+| Branch sites per usable contour length | `features.branching.settings.by_order.<order>.law` set to `length_poisson_sites_v1` | `branching.json` records the zone, activation, proposal and acceptance for each affected parent |
+| One coherent vine origin record | `features.primary_origins.settings.layout` set to `vine_catalogue` | `vine_origin_catalogue.json` records the selected record, its source metadata and the active pool identity |
+
+Row alignment acts on the current heading at each physical curvature step.
+The row axis is model y, with equal preference for both directions.
+The default strength is zero. The product of strength and physical step
+must be at most 0.5. Use `insertion.row_axial_kappa_by_order` for an
+azimuth preference that applies only at emergence.
+
+For Poisson branch sites, supply `basal_exclusion_cm`,
+`apical_exclusion_cm`, `mean_spacing_cm` and `branch_probability`.
+An active parent draws a count with mean equal to its usable contour
+length divided by spacing. Positions lie between its basal and apical
+exclusions. The existing local diameter gate determines eligibility.
+The execution limit `limits.max_branch_proposals` defaults to 100,000 for
+Poisson runs. It bounds cumulative proposals before position allocation.
+An excessive draw fails the run and retains its original count in the error.
+
+A vine catalogue declares `catalogue_version: vine_origins_v1` and
+`coordinate_frame: model_soil_cm_v1` and embeds the origin records.
+Use `selection.mode: sample` with a seed, or `selection.mode: fixed`
+with an `entry_id`. Each record supplies a common point or all indexed
+primary origins. A primary layout must agree with `primary_root_count`.
+Primary headings, if supplied, use primary curvature with
+`initial_heading: origin_heading`. Export/reload preserves the entire
+supplied catalogue and reproduces the selected record for a seeded run.
+
+### Random placement of sibling roots
+
+Two optional settings control how daughters share their parent's contour and
+the space around it. Neither uses observation coordinates.
+
+* On a **parent** order using `first_branch_and_daughter_count`, set
+  `stratify_distal_sites` to `true` to spread births along the contour.
+  The law draws the first branch and daughter count as usual. For the remaining
+  daughters it divides the contour from the first branch to the tip into equal
+  intervals and draws one random position per interval. The diameter gate
+  still acts at each proposed site.
+* On a **daughter** order using `initial_heading: insertion_angle`, add
+  `"sibling_sectors": {"window_cm": 15, "fraction": 1.0}` to its curvature
+  settings. Group eligible daughters by parent and by successive windows of
+  physical arclength measured from its base. In a selected window containing
+  two or more daughters, draw a random rotation and assign each daughter a
+  different angular sector at random. Each bearing has additional uniform
+  jitter inside its sector. A frame transported along the curved parent keeps
+  those bearings comparable at adjacent sites. The insertion angle to the
+  local parent tangent and the downstream curvature draws are retained.
+  A nonzero row-axial insertion control acts afterward and can change the
+  resulting azimuth. The curve receipt records `sibling_sector_applied`.
+
+Both settings are off by default. A fraction of 0.5 selects half the eligible
+windows in expectation. Singleton windows retain their original bearing.
+
+### Depth-dependent terminal recruitment in a research vine
+
+The [offline research constructor](../scripts/research/realize_terminal_recruitment.py)
+accepts a five-order schema-4 potential vine with native taper parameters.
+It grows the potential vine, keeps orders 1–4, and draws one retention outcome
+per fifth-order axis using its realized insertion depth in cm below the soil
+surface. Its retention probability is
+`p_deep + (1 - p_deep) / (1 + exp((depth_cm - midpoint_cm) / 8))`.
+The two inputs describe a hypothetical mature population. A deep probability
+of one keeps every eligible terminal. Seeded draws use biological organ IDs.
 
 ```bash
-python -m deeprootgen simulate --config examples/research/native_steps_synthetic.json \
-  --outdir .runtime/my-new-native-step-run
-python -m deeprootgen simulate --config examples/research/native_cohort_synthetic.json \
-  --outdir .runtime/my-new-native-cohort-run
+python scripts/research/realize_terminal_recruitment.py \
+  --config population.schema4.json --seed 101 \
+  --deep-probability 0.7 --midpoint-cm 30 --output mature_vine.npz
 ```
 
-Old inputs keep their historical parsing, restrictions, random streams, node
-IDs and serialized outputs exactly (frozen references in
-`tests/fixtures/native_execution_contracts.json`). Each is an adapter that
-declares laws for the shared phases:
+The archive contains complete retained polylines (`points`, `sizes`), organ
+and parent IDs, orders and source taper parameters. It can be generated before
+any observation coordinates are available. The native run describes the
+potential population. Compute mature-vine mass and spatial summaries from
+the retained axes and the study's tissue-density and taper recipe.
 
-| Input | Declared laws in the shared engine |
-|---|---|
-| Flat `RootSimulationModel` / schema-2 native | Native construction, placement, corrections and Fichtl or legacy direction laws, in the historical draw order |
-| Schema-2 `construction_steps_v1` | Native construction and placement, read-only INITIAL view, frozen-scaffold surface check, distal relocation, construction-step interval direction law with minimum-angle surface projection, pure checks, record-based identity allocation |
-| Schema-2 `cohort_v5` | Planned construction with bounded lengths, point taper, first-branch branching, maturity groups, parent cap, disk origins with radial inclination and OU curvature on every order; historical `SeedSequence([seed, organ, purpose])` streams, bases from node ID 1, cohort result serialization |
-
-Use a new output directory. Extended output adds `organs.csv`, `execution.json`,
-`crown_support.json`, `resolved_config.json` and, where applicable,
-`node_metadata.csv`. Node/edge CSVs retain native table columns. `run()` returns
-`None`; inspect the simulator and its result. A failed run publishes no result.
-Every run needs a fresh simulator.
-
-## Execution ownership
-
-```mermaid
-flowchart TD
-    INPUT[Flat, schema-2 or schema-3 input] --> RESOLVE[parse_config and resolve_config: one law per stage and order]
-    RESOLVE --> PREP[Prepare forest: dimensions, material, birth sites; native or planned]
-    PREP --> PLACE[Place scaffold, origins and headings]
-    PLACE --> INIT[Optional read-only INITIAL view]
-    INIT --> PRE[Pre-direction law]
-    PRE --> ATT[Attachment mapping]
-    ATT --> DIR[Direction laws per order, parent first]
-    DIR --> POST[Post-direction law; replaced axes check only]
-    POST --> MAT[Materialize: construction, attachment, corner and material cuts]
-    MAT --> EMIT[publish_graph: the one writer and organ registry]
-    EMIT --> CHECK[Pure integrity and law checks]
-    CHECK --> RESULT[One SimulationResult: view by capabilities; receipts in result.engine]
-```
-
-| Module | Responsibility |
-|---|---|
-| `data_model/resolution.py`, `features.py`, `inventory.py` | Parser, schema 3, law tables, supported combinations, identities, field inventory |
-| `model/engine.py` | Fixed lifecycle and traversal; no generator dispatch |
-| `model/root.py` | Native kernels (construction, placement, validation, Fichtl and legacy laws) |
-| `model/laws.py`, `axis_laws.py`, `native_features.py` | Leaf laws: planned sampling, origins, headings, maturity, branching, curvature, taper |
-| `model/execution.py`, `attachment.py`, `interval_geometry.py` | Construction-step kernels: the one distal-relocation law and the interval direction law |
-| `model/materialize.py`, `cohort_geometry.py` | Cut union, taper integration, classification |
-| `model/hgraph.py` (`publish_graph`) | Sole writer: identity allocation, nodes, edges, organ rebinding |
-| `model/views.py`, `execution.py` (`SimulationResult`) | Result contents by capability and declared historical serialization |
-| `model/streams.py` | Native sequential stream plus cached keyed streams |
-
-The historical `CohortRootGenerator.generate()` remains a configuration/export
-adapter over `run()`. Saved INITIAL replay and graph-segment arms remain
-explicitly historical experiment tools; they are not fresh generators.
-
-## Root material and crown support
-
-Forests with distributed origins (cohort adapter, schema-3 `disk` origins)
-contain one zero-material base per primary. `plant_id` identifies the actual
-vine; `simulation.result.node_metadata` carries `primary_tree_id` and the group
-label. The cohort adapter's optional `crown_support` describes nonmaterial crown
-connections and the separately assumed crown mass; those links do not contribute
-root length, volume or core RLD.
-
-Existing finite-core utilities require one base per observer plant ID. Use:
-
-```python
-root_nodes, root_edges = simulation.result.observation_tables(simulation.G)
-```
-
-This projects primary trees onto temporary observer IDs, retaining `vine_id`,
-whenever the result declares the `tree_to_vine_map` capability. Sum
-primary-tree contributions back to the vine before averaging populations or
-adding crown mass. The full-support view `simulation.result.cohort_tables(...)`
-requires the `crown_support_view` capability; do not pass it to root-only
-statistics.
-
-Root geometry uses cm and z upward. The construction-step contract uses x
-across-row, y along-row and `depth=20-z`; the cohort contract uses its declared
-local crown/soil frame. Read metadata before comparing outputs. Tapered segment
-diameters conserve integrated volume and differ from point basal/midpoint
-diameters. Native organ-average labels retain their meaning on untapered axes.
-
-## Consumer capabilities and verification
-
-| Consumer | Support |
-|---|---|
-| Direct API, offline CLI, tracked notebook runs | All inputs above; tested with invented examples |
-| Controlled construction-step notebook/search bridge | Schema-2 adapter with existing comparison and INITIAL identities |
-| Historical cohort API | Schema-2 adapter with exact historical export parity on frozen invented cases |
-| Finite-core utility | Explicit root-only projection, with mandatory tree-to-vine aggregation |
-| NetworkX | Root forest, including isolated bases; sidecars remain separate |
-| Dash/Prefect persistence, BentoML, native calibration/legacy statistics | Flat native requests only; Prefect rejects other requests before side effects |
-
-The unchanged historical reference commit is recorded in
-`tests/fixtures/native_execution_contracts.json`. Its expected hashes were
-computed from isolated reference source and were not regenerated.
+[Configure irrigation depth, daughter recruitment and vineyard spacing](research/IRRIGATION_INPUTS.md)

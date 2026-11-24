@@ -51,15 +51,19 @@ def first_branch_sites(law, order, max_order, length, maturity, scale_probabilit
             n = int(rng.choice(np.arange(1, len(weights) + 1), p=weights))
             sites = [first_draw]
             if n > 1:
-                sites += sorted(rng.uniform(first_draw, length, n - 1).tolist())
+                if law.get("stratify_distal_sites"):
+                    fractions = (np.arange(n - 1) + rng.random(n - 1)) / (n - 1)
+                    sites.extend((first_draw + (length - first_draw) * fractions).tolist())
+                else:
+                    sites += sorted(rng.uniform(first_draw, length, n - 1).tolist())
         else:
             counters["branch_beyond_tip"] += 1
     return first_draw, sites
 
 
-def point_taper_dimensions(law, maturity, diameter_power, parent_diameter, cap, rng, counters):
+def point_taper_dimensions(law, maturity, diameter_power, parent_diameter, cap, rng, counters, *, diameter_scale=1.):
     """Base (scaled, then capped) and tip (limited to the base) diameters, cm."""
-    base = bounded_draw(law["base_cm"], rng)
+    base = bounded_draw(law["base_cm"], rng) * diameter_scale
     if diameter_power is not None:
         base = base * maturity**diameter_power
     if parent_diameter is not None and cap is not None:
@@ -67,7 +71,7 @@ def point_taper_dimensions(law, maturity, diameter_power, parent_diameter, cap, 
         if base > limit:
             counters["diameter_constrained"] += 1
             base = limit
-    tip_draw = bounded_draw(law["tip_cm"], rng)
+    tip_draw = bounded_draw(law["tip_cm"], rng) * diameter_scale
     counters["tip_constrained"] += int(tip_draw > base)
     return base, min(tip_draw, base)
 
@@ -102,9 +106,30 @@ def site_diameter(plan, site):
     return float(taper_diameter(site, plan["length"], plan["base"], plan["tip"], plan["midpoint"]))
 
 
-def disk_origin(law, rng):
-    """Uniform-area disk position and its polar angle; z below the surface."""
-    phi = rng.uniform(-np.pi, np.pi)
+HALF_PLANE_REJECTION_BUDGET = 1000   # acceptance >= 1/2 for any concentration
+
+
+def disk_origin(law, rng, index=None):
+    """Uniform-area disk position and its polar angle; z below the surface.
+
+    Optional von Mises bearing groups bias the polar angle (and so the radial
+    heading) of their listed birth indices, optionally within the half-plane
+    around the group mean; other primaries keep the uniform angle, as before.
+    """
+    groups = law.get("azimuth_groups")
+    if groups is not None and index is None:
+        raise ValueError("Grouped primary bearings require the primary birth index")
+    azimuth = None if groups is None else next((g for g in groups if index in g["primary_indices"]), None)
+    if azimuth is None:
+        phi = rng.uniform(-np.pi, np.pi)
+    else:
+        mean = np.deg2rad(azimuth["mean_deg"])
+        for _ in range(HALF_PLANE_REJECTION_BUDGET):
+            phi = rng.vonmises(mean, azimuth["concentration"])
+            if not azimuth.get("half_plane") or np.cos(phi - mean) >= 0:
+                break
+        else:
+            raise ValueError("Half-plane bearing rejection budget exhausted")
     radius = law["radius_cm"] * np.sqrt(rng.uniform())
     start = np.array(
         [radius * np.cos(phi), radius * np.sin(phi), -(rng.uniform(*law["depth_range_cm"]) - law["surface_z_cm"])]

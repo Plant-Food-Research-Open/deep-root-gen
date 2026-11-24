@@ -115,51 +115,14 @@ The install is potentially large because of inference/Torch dependencies and
 was not started in the documentation task. Provisioning is a separate scoped
 task. An import pass and dummy pass still do not validate model outputs.
 
-The following is a **proposed** tiny offline simulation probe after imports
-work. It is derived from existing form/schema fields and has not run against
-the locked application. It uses synthetic parameters, no services, no data,
-no fitting and no output files. Values are chosen for a cheap plumbing check,
-not a scientific reference scenario or calibration.
+A small offline run is available from the repository root.
 
 ```bash
-PYTHONDONTWRITEBYTECODE=1 poetry run python - <<'PY'
-import numpy as np
-from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
-
-spec = dict(
-    random_seed=42, max_order=1, root_ratio=0.5,
-    fine_root_threshold=0.06, outer_root_num=1, inner_root_num=1,
-    min_primary_length=20.0, max_primary_length=30.0,
-    base_diameter=0.11, diameter_reduction=0.2, apex_diameter=0.02,
-    min_sec_root_num=1, max_sec_root_num=2, growth_sec_root=0.2,
-    min_sec_root_length=10.0, max_sec_root_length=20.0,
-    segments_per_root=5, length_reduction=0.5, root_vary=30.0,
-    interbranch_distance=0.0078, mechanical_constraints=0.5,
-    root_tissue_density=0.05, gravitropism=7.5, t=0,
-    enable_soil=False,
-)
-params = RootSimulationModel(**spec)
-tables = []
-for _ in range(2):
-    sim = RootSystemSimulation(random_seed=params.random_seed)
-    sim.run(params)
-    nodes, edges = sim.G.as_df()
-    assert nodes.node_id.is_unique
-    ids = set(nodes.node_id)
-    assert set(edges.parent_id) <= ids and set(edges.child_id) <= ids
-    assert np.isfinite(nodes[['x', 'y', 'z', 'length', 'diameter']].to_numpy()).all()
-    assert (nodes[['length', 'diameter']] >= 0).all().all()
-    tables.append((nodes, edges))
-assert tables[0][0].equals(tables[1][0])
-assert tables[0][1].equals(tables[1][1])
-print('Synthetic plumbing probe passed; scientific validation still pending')
-PY
+poetry run python -m deeprootgen simulate --config examples/synthetic_minimal.json --outdir /tmp/deeprootgen-smoke
 ```
 
-This narrow probe cannot validate branching (max_order=1), growth (t=0), mass,
-geometry correctness, statistics, inference, observed-data compatibility or
-invalid-root policy. Add targeted fixtures only under a future code/test task.
+Use a fresh output directory each time. See the [canonical execution guide](NATIVE_EXECUTION.md)
+for schema-4 settings and material summaries.
 
 ## Application and deployment commands: source-derived only
 
@@ -175,6 +138,9 @@ state. **Not run, not the next milestone.** The app command is Gunicorn
 `prefect deploy --prefect-file /app/flows/prefect.yaml --all`. Model-serving
 services are separately started by `scripts/model/deploy.sh`, which invokes
 `docker-compose.model-deploy.yaml`; they need existing Bento/MLflow artifacts.
+For local work use the supported [dashboard stack](../RUNNING.md#dashboard-stack-supported-local-startup)
+(`docker-compose.local.yaml`, optional `serving` profile) instead; it was
+verified end to end on 23 November 2026.
 
 Review local `.env` securely during an authorized service task. Do not print it
 or save expanded Compose output containing credentials. Existing sources have

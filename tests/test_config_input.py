@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 
-from deeprootgen.cli import main, simulate
+from deeprootgen.archive.export import main, simulate
 from deeprootgen.data_model import (
     RootSimulationConfig,
     RootSimulationConfigV3,
     RootSimulationModel,
     load_json_config,
-    parse_config,
 )
+from deeprootgen.archive.resolution import parse_config
 
 ROOT = Path(__file__).resolve().parents[1]
-FLAT = json.loads((ROOT / "examples/synthetic_minimal.json").read_text())
-V3 = json.loads((ROOT / "examples/design/native_feature_options.proposed.json").read_text())
+FLAT = json.loads((ROOT / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
+V3 = json.loads((ROOT / "tests/fixtures/migration_inputs/design/native_feature_options.proposed.json").read_text())
 
 
 def test_duplicate_json_keys_fail_at_every_level():
@@ -31,7 +31,7 @@ def test_duplicate_json_keys_fail_at_every_level():
 
 
 def test_cli_rejects_duplicate_keys_before_creating_output(tmp_path, capsys):
-    text = (ROOT / "examples/synthetic_minimal.json").read_text().replace(
+    text = (ROOT / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text().replace(
         '"random_seed": 42,', '"random_seed": 42, "random_seed": 43,'
     )
     config = tmp_path / "dup.json"

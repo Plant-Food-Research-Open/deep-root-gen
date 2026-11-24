@@ -15,7 +15,7 @@ from typing import Dict, List, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .simulation_data_models import FEATURE_NAMES, RootSimulationModel  # noqa: F401
+from .simulation_data_models import FEATURE_NAMES, RootSimulationModel, ResearchPrimaryDesignEntry, Parent2BranchZone  # noqa: F401
 
 SCHEMA_VERSION = 3
 CURVATURE_LAW = "correlated_curvature"
@@ -39,7 +39,7 @@ CURVATURE_BOUNDS = dict(
 )
 
 STRICT = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
-_ORDER_KEY = re.compile(r"^[1-9][0-9]*$")
+_ORDER_KEY = re.compile(r"[1-9][0-9]*")
 
 # Flat-schema fields that schema 3 does not accept in ``parameters``. Old-input
 # adapters still parse and serialize them; schema 3 gives each value one owner.
@@ -55,7 +55,7 @@ class _Strict(BaseModel):
 
 def _order_keys(mapping):
     for key in mapping:
-        if not isinstance(key, str) or not _ORDER_KEY.match(key):
+        if not isinstance(key, str) or not _ORDER_KEY.fullmatch(key):
             raise ValueError(f"by_order keys must be canonical positive order strings, got {key!r}")
     return mapping
 
@@ -95,12 +95,14 @@ class NativeParameters(RootSimulationModel):
         """Inherited check, with an absent legacy gravitropism treated as zero."""
         if self.tropism_mode == "fichtl2024" and self.gravitropism not in (None, 0, 0.0):
             raise ValueError("Set legacy gravitropism to zero in fichtl2024 mode")
-        restore = self.gravitropism
-        object.__setattr__(self, "gravitropism", 0.0 if restore is None else restore)
-        try:
-            return RootSimulationModel.require_explicit_fichtl_parameters(self)
-        finally:
-            object.__setattr__(self, "gravitropism", restore)
+        # Consumer-specific completeness is enforced after feature resolution.
+        return self
+
+    @model_validator(mode="after")
+    def validate_optional_order_scope(self):
+        # Higher-order laws belong to feature blocks and are checked after
+        # resolution; aliases are still forbidden at this input boundary.
+        return self
 
     @model_validator(mode="before")
     @classmethod
@@ -182,12 +184,27 @@ class PrimaryHeading(_Strict):
     inclination_bounds_deg: Optional[List[float]] = None
 
 
+class AzimuthGroup(_Strict):
+    """Von Mises polar angle for the listed zero-based primary birth indices."""
+
+    primary_indices: Optional[List[int]] = None
+    mean_deg: Optional[float] = None
+    concentration: Optional[float] = None
+    # Opt-in: redraw until the angle lies within 90 degrees of the mean, so every
+    # group member emerges (and heads) on its own side; absent keeps one draw.
+    half_plane: Optional[bool] = None
+
+
 class PrimaryOriginsSettings(_Strict):
     """disk: sampled origin per primary; point: one translated common base."""
 
     layout: Optional[Literal["disk", "point"]] = None
     radius_cm: Optional[float] = None
     depth_range_cm: Optional[List[float]] = None
+    # Disk only: von Mises polar angle (and so radial heading) per group of
+    # zero-based primary birth indices, for example nine roots towards a drip
+    # line and one away. Unlisted primaries, or no groups, keep a uniform angle.
+    azimuth_groups: Optional[List[AzimuthGroup]] = None
     x_cm: Optional[float] = None
     y_cm: Optional[float] = None
     depth_cm: Optional[float] = None
@@ -305,9 +322,83 @@ class AttachmentRelocationFeature(_Strict):
     settings: AttachmentRelocationSettings = Field(default_factory=AttachmentRelocationSettings)
 
 
+class PrimaryPlacementSettings(_Strict):
+    yaw_mean_deg: Optional[float] = None
+    yaw_kappa: Optional[float] = None
+    yaw_reverse_probability: Optional[float] = None
+    inclination_bias: Optional[float] = None
+    explicit_design: Optional[List[ResearchPrimaryDesignEntry]] = None
+
+
+class BranchSitesSettings(_Strict):
+    placement: Optional[Literal["legacy_spacing", "redistribute_capped"]] = None
+    counts_by_order: Optional[Dict[str, int]] = None
+    primary_zone_cm: Optional[Dict[str, float]] = None
+    primary_fractions: Optional[List[float]] = None
+    parent2_zone_cm: Optional[Parent2BranchZone] = None
+
+
+class SiblingLengthsSettings(_Strict):
+    tertiary_rank_strength: Optional[float] = None
+
+
+class InsertionSettings(_Strict):
+    row_axial_kappa_by_order: Optional[Dict[str, float]] = None
+
+
+class DirectionSettings(_Strict):
+    sigma_by_order: Optional[Dict[str, float]] = None
+    higher_order_tropism: Optional[Dict[str, Dict[str, float]]] = None
+    stationing: Optional[Literal["construction_steps_v1"]] = None
+    boundary: Optional[Literal["minimum_angle_projection"]] = None
+    first_interval: Optional[Literal["assigned_insertion"]] = None
+    primary_correction: Optional[Literal["native", "frozen_surface_check"]] = None
+    post_correction: Optional[Literal["native", "pure_surface_check"]] = None
+
+
+class MaterializationSettings(_Strict):
+    reconcile_length_metadata: Optional[bool] = None
+
+
+class PrimaryPlacementFeature(_Strict):
+    enabled: bool = False
+    settings: PrimaryPlacementSettings = Field(default_factory=PrimaryPlacementSettings)
+
+
+class BranchSitesFeature(_Strict):
+    enabled: bool = False
+    settings: BranchSitesSettings = Field(default_factory=BranchSitesSettings)
+
+
+class SiblingLengthsFeature(_Strict):
+    enabled: bool = False
+    settings: SiblingLengthsSettings = Field(default_factory=SiblingLengthsSettings)
+
+
+class InsertionFeature(_Strict):
+    enabled: bool = False
+    settings: InsertionSettings = Field(default_factory=InsertionSettings)
+
+
+class DirectionFeature(_Strict):
+    enabled: bool = False
+    settings: DirectionSettings = Field(default_factory=DirectionSettings)
+
+
+class MaterializationFeature(_Strict):
+    enabled: bool = False
+    settings: MaterializationSettings = Field(default_factory=MaterializationSettings)
+
+
 class Features(_Strict):
     """Every recognized feature; an omitted block is disabled with no settings."""
 
+    primary_placement: PrimaryPlacementFeature = Field(default_factory=PrimaryPlacementFeature)
+    branch_sites: BranchSitesFeature = Field(default_factory=BranchSitesFeature)
+    sibling_lengths: SiblingLengthsFeature = Field(default_factory=SiblingLengthsFeature)
+    insertion: InsertionFeature = Field(default_factory=InsertionFeature)
+    direction: DirectionFeature = Field(default_factory=DirectionFeature)
+    materialization: MaterializationFeature = Field(default_factory=MaterializationFeature)
     curvature: CurvatureFeature = Field(default_factory=CurvatureFeature)
     taper: TaperFeature = Field(default_factory=TaperFeature)
     primary_origins: PrimaryOriginsFeature = Field(default_factory=PrimaryOriginsFeature)
@@ -323,6 +414,7 @@ class Limits(_Strict):
 
     max_organs: Optional[int] = Field(default=None, gt=0)
     max_nodes: Optional[int] = Field(default=None, gt=0)
+    max_stations: Optional[int] = Field(default=None, gt=0)
 
 
 class RootSimulationConfigV3(_Strict):

@@ -21,7 +21,7 @@ def scaffold_chord_heading(organ):
 
 
 def realize_correlated_curvature(organ, law, streams, *, start=None, heading=None, length=None, arcs=None,
-                                 rng=None):
+                                 rng=None, reserve_stations=None, bias=None):
     """Correlated (OU) curvature over the organ's sampled contour length.
 
     Construction intervals keep their lengths and material; their boundaries
@@ -49,6 +49,16 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
     identity = int(organ.segments[0].node_data.organ_id)
     if rng is None:
         rng = streams.keyed(CURVATURE_STREAM_NAMESPACE, CURVATURE_LAW_VERSION, identity)
+    if reserve_stations is not None:
+        import math
+
+        reserve_stations("stations", math.ceil(total / law["step_cm"]) + 1)
+    alignment = law.get("row_alignment")
+    carrier = law.get("deep_carrier")
+    carrier_receipt = {}
+    if carrier is not None:
+        selected = streams.keyed("feature.curvature.deep_carrier", "1", identity).random() < carrier["fraction"]
+        carrier = dict(carrier, selected=bool(selected))
     stations, points, reflections = integrate_curve(
         total,
         start,
@@ -59,6 +69,8 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         law["downward_drift_per_cm"],
         rng,
         surface_z=law["surface_z_cm"],
+        row_alignment_per_cm=alignment["row_alignment_per_cm"] if alignment else 0.0,
+        deep_carrier=carrier, carrier_receipt=carrier_receipt, bias=bias,
     )
     unit_heading = np.asarray(heading, dtype=float)
     receipt = dict(
@@ -73,4 +85,15 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         surface_reflections=int(reflections),
         initial_heading_unit=(unit_heading / np.linalg.norm(unit_heading)).tolist(),
     )
+    if carrier is not None:
+        receipt["deep_carrier"] = carrier_receipt
+    if bias is not None:
+        receipt["moisture_tropism_gain"] = float(getattr(bias, "gain", np.nan))
+    if alignment is not None:
+        widths = np.diff(stations)
+        along_row = np.diff(points[:, 1]) / widths
+        receipt["row_alignment"] = dict(
+            alignment, step_cm=law["step_cm"],
+            length_weighted_squared_row_component=float(np.dot(widths, along_row**2) / total),
+        )
     return AxisCurve(identity, stations, points, np.asarray(arcs, dtype=float), dict(law), receipt)

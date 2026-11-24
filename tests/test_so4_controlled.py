@@ -215,7 +215,7 @@ def test_skeleton_save_load_and_mutation_detection(rsa_nodes, tmp_path):
 
 def test_small_public_initial_construction():
     values = json.loads(
-        (Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text()
+        (Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text()
     )
     values.update(
         max_order=3,
@@ -383,7 +383,7 @@ def test_initial_constructor_mode_and_surface_invariance(monkeypatch):
     from deeprootgen.model import RootSystemSimulation
 
     values = json.loads(
-        (Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text()
+        (Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text()
     )
     values.update(
         max_order=3,
@@ -636,7 +636,7 @@ def test_fichtl_proposal_rejects_invalid_inputs():
 def test_large_synthetic_four_arm_stress():
     """Public engineering stress only; seed 314159 is outside ensemble seeds."""
     values = json.loads(
-        (Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text()
+        (Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text()
     )
     values.update(
         max_order=3,

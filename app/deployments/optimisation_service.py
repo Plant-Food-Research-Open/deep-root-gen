@@ -1,55 +1,23 @@
-#!/usr/bin/env python
+"""Serve the best stored trials of the latest optimisation calibrator."""
 
-######################################
-# Imports
-######################################
-
-import bentoml
 import pandas as pd
 from bentoml.io import JSON, PandasDataFrame
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-######################################
-# Constants
-######################################
+from deeprootgen.serving import load, require, service
 
 TASK = "optimisation"
-
-######################################
-# Main
-######################################
-
-runner = bentoml.mlflow.get(f"{TASK}:latest").to_runner()
-
-svc = bentoml.Service(TASK, runners=[runner])
+model, missing = load(TASK)
+svc, runner = service(TASK, model)
 
 
 class OptimisationFeatures(BaseModel):
-    """The optimisation features data model."""
+    """The number of best trials to return."""
 
-    n_trials: int
-
-
-input_spec = JSON(pydantic_model=OptimisationFeatures)
+    n_trials: int = Field(ge=1)
 
 
-@svc.api(input=input_spec, output=PandasDataFrame())
-def predict(inputs: OptimisationFeatures) -> dict:
-    """Get optimisation trial data.
-
-    Args:
-        inputs (OptimisationFeatures):
-            The optimisation request data.
-
-    Returns:
-        dict:
-            The optimisation trial history.
-    """
-    input_dict = inputs.dict()
-    if len(input_dict) == 1:
-        index = [0]
-    else:
-        index = None
-    input_df = pd.DataFrame(input_dict, index=index)
-    result = runner.predict.run(input_df)
-    return result
+@svc.api(input=JSON(pydantic_model=OptimisationFeatures), output=PandasDataFrame())
+def predict(inputs: OptimisationFeatures) -> pd.DataFrame:
+    """Return the ``n_trials`` lowest-objective trials."""
+    return require(runner, missing).predict.run(pd.DataFrame({"n_trials": [inputs.n_trials]}))

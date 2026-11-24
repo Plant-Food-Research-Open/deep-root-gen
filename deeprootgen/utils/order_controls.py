@@ -106,13 +106,12 @@ def validate_order_scope(parameters, constructor_seed=None):
         else lambda key, default=None: getattr(parameters, key, default)
     )
     maximum = get("max_order", 3)
-    higher = validate_higher_order_tropism(get(HIGHER_FIELD))
-    if higher is not None or (get("tropism_mode") == "fichtl2024" and maximum > 3):
-        if (
-            get("tropism_mode") != "fichtl2024"
-            or maximum not in (4, 5)
-            or higher is None
-            or set(higher) != set(range(4, maximum + 1))
+    if not get("canonical_generation", False):
+        higher = validate_higher_order_tropism(get(HIGHER_FIELD))
+        expects_higher = get("tropism_mode") == "fichtl2024" and maximum > 3
+        if (higher is not None or expects_higher) and (
+            not expects_higher or maximum not in (4, 5)
+            or higher is None or set(higher) != set(range(4, maximum + 1))
         ):
             raise ValueError(
                 "Fichtl orders4/5 require exactly the explicit higher-order entries4..max"

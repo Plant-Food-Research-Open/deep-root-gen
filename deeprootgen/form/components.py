@@ -385,9 +385,12 @@ def build_common_layout(
             is_open=False,
             dismissable=True,
             icon="primary",
-            duration=5000,
-            style={"position": "fixed", "bottom": "0", "left": "0", "zIndex": "9999"},
+            style={"position": "fixed", "bottom": "0", "left": "0", "zIndex": "9999",
+                   "maxWidth": "36rem"},
         ),
+        # Rotated only after Prefect definitely accepts a request (see run_feedback).
+        dcc.Store(id=f"{page_id}-submission-nonce", storage_type="memory"),
+        dcc.Interval(id=f"{page_id}-run-status-poll", interval=5000),
         external_links_collapsible,
     ]
 
@@ -456,7 +459,7 @@ def get_out_table_df() -> pd.DataFrame:
         pd.DataFrame:
             The output table as a dataframe.
     """
-    out_df = pd.DataFrame([], columns=["workflow", "task", "date", "tag"])
+    out_df = pd.DataFrame([], columns=["workflow", "task", "date", "tag", "state"])
     return out_df
 
 

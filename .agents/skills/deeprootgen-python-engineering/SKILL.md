@@ -1,6 +1,6 @@
 ---
 name: deeprootgen-python-engineering
-description: Inspect and maintain DeepRootGen Python simulation, graph schemas, summary statistics and Dash/Prefect interfaces in this repository, with small synthetic validation checks.
+description: Inspect and maintain DeepRootGen Python simulation, graph schemas, summary statistics and Dash/Prefect interfaces. Validate with small synthetic checks and hand off local results with clickable links, copyable folder paths and VS Code commands.
 ---
 
 # DeepRootGen Python engineering
@@ -39,6 +39,14 @@ for ordinary Python maintenance.
 - Preserve AGENTS.md local-data boundaries. XYZ measured density/biomass is not
   automatically the graph-node schema. Do not inspect raw observations, fit,
   upload or adopt calibration outside an explicit later local-data task.
+
+## Local result links
+
+Link the main local result or index using its absolute path. Give the containing
+folder's absolute path as copyable text once per result folder, so it survives
+copying into LibreOffice or a message. For opening the folder in VS Code, include
+`code --reuse-window "/absolute/path/to/results"` when `code` is available on
+the user's desktop. Quote paths that contain spaces.
 
 ## Optional SO4 research mode (14 November 2026)
 

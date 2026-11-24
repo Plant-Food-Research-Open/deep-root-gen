@@ -15,17 +15,23 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     Existing directories are never overwritten. Input is parsed and resolved
     by the shared resolver before any directory or simulation state exists.
     """
-    import numpy as np
-
     from .data_model.resolution import canonical_input, resolve_config
     from .model import RootSystemSimulation
 
+    return _export(spec, outdir, resolve_config, canonical_input, RootSystemSimulation)
+
+
+def _export(spec, outdir, resolve_config, canonical_input, simulation_class):
+    import copy
+    import numpy as np
+
+    spec = copy.deepcopy(spec)
     resolved = resolve_config(spec)
     parameters = resolved.config
     target = Path(outdir).expanduser().resolve()
     if target.exists():
         raise FileExistsError(f"Output directory already exists: {target}")
-    simulation = RootSystemSimulation(
+    simulation = simulation_class(
         random_seed=parameters.random_seed,
         simulation_tag=parameters.simulation_tag,
     )
@@ -69,7 +75,18 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
         figure.update_layout(scene=dict(aspectmode="data"))
         figure.write_html(target / "roots.html")
         result = simulation.result
+        if "root_summary" in result.metadata:
+            (target / "root_summary.json").write_text(
+                json.dumps(result.metadata["root_summary"], indent=2, allow_nan=False) + "\n"
+            )
         result.organ_table.to_csv(target / "organs.csv", index=False)
+        if "branching" in result.diagnostics:
+            (target / "branching.json").write_text(
+                json.dumps(result.diagnostics["branching"], indent=2, allow_nan=False) + "\n"
+            )
+        _export_spatial_receipts(result.diagnostics, target)
+        if "irrigation" in result.diagnostics:
+            (target / "irrigation.json").write_text(json.dumps(result.diagnostics["irrigation"], allow_nan=False) + "\n")
         if not result.node_metadata.empty:
             result.node_metadata.to_csv(target / "node_metadata.csv", index=False)
         (target / "execution.json").write_text(
@@ -114,14 +131,33 @@ def simulate(spec: dict, outdir: str | Path) -> dict:
     from .data_model.resolution import source_identity
     from .run_records import repository_state
 
-    manifest["source_sha256"] = source_identity()
+    provenance = simulation.result.engine.get("provenance", {}) if simulation.result is not None else {}
+    manifest["execution_provenance"] = provenance
+    manifest["source_sha256"] = provenance.get("source_sha256", source_identity())
     manifest["repository"] = repository_state()
     (target / "run_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
     return manifest
 
 
+def _export_spatial_receipts(diagnostics, target):
+    alignment = [
+        dict(organ_id=item["organ_id"], order=item["order"], **item["row_alignment"])
+        for item in diagnostics.get("curvature", ()) if "row_alignment" in item
+    ]
+    for name, value in (
+        ("row_alignment", alignment),
+        ("vine_origin_catalogue", diagnostics.get("vine_origin_catalogue")),
+    ):
+        if value:
+            (target / f"{name}.json").write_text(json.dumps(value, indent=2, allow_nan=False) + "\n")
+
+
 def main(argv=None) -> int:
     """Parse the small command contract; help does not import model dependencies."""
+    return _main(argv, simulate)
+
+
+def _main(argv, run_config, explain=None):
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("simulate", help="run and export an offline simulation")
@@ -132,7 +168,38 @@ def main(argv=None) -> int:
         action="store_true",
         help="print the resolved laws, inactive values and hashes, then exit without running",
     )
+    group = commands.add_parser("neighbourhood", help="grow vines at supplied horizontal offsets")
+    group.add_argument("--config", type=Path, required=True, help="seeded model parameter JSON")
+    group.add_argument("--origins", type=Path, help="JSON array of [x_cm, y_cm] offsets")
+    group.add_argument("--vine-distance-cm", type=float, help="distance along a row")
+    group.add_argument("--row-distance-cm", type=float, help="distance between rows")
+    group.add_argument("--mode", choices=("translated", "independent"), default="translated")
+    group.add_argument("--outdir", type=Path, required=True, help="new graph export directory")
+    search = commands.add_parser(
+        "core-search", help="opt-in research search over the lattice soil-core score (arms, space, tpe, confirm)"
+    )
+    search.add_argument("--spec", type=Path, required=True, help="search spec JSON (docs/research/CORE_LATTICE_SEARCH.md)")
+    search.add_argument("--stage", choices=("arms", "space", "tpe", "confirm"), required=True)
+    search.add_argument("--name", help="arm set from the spec, for --stage arms")
+    search.add_argument("--outdir", type=Path, required=True, help="local search output directory")
     args = parser.parse_args(argv)
+    if args.command == "core-search":
+        from .research.core_lattice_search import main as search_main
+
+        try:
+            result = search_main(args)
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+            parser.exit(1, f"Core search failed: {exc}\n")
+        print(json.dumps(result, indent=2, default=str))
+        return 0
+    if args.command == "neighbourhood":
+        from .research.neighbourhood import export_neighbourhood
+        try:
+            receipt = export_neighbourhood(args.config, args.origins, args.mode, args.outdir, vine_distance_cm=args.vine_distance_cm, row_distance_cm=args.row_distance_cm)
+        except (OSError, ValueError, TypeError) as exc:
+            parser.exit(1, f"Neighbourhood generation failed: {exc}\n")
+        print(json.dumps(receipt, indent=2))
+        return 0
     if not args.explain_config and args.outdir is None:
         parser.error("--outdir is required unless --explain-config is given")
     try:
@@ -140,9 +207,9 @@ def main(argv=None) -> int:
 
         spec = load_json_config(args.config)
         if args.explain_config:
-            result = explain_config(spec)
+            result = (explain or explain_config)(spec)
         else:
-            result = simulate(spec, args.outdir)
+            result = run_config(spec, args.outdir)
     except (OSError, ValueError, TypeError) as exc:
         if args.explain_config:
             # Dependency and validation errors are part of the explanation.

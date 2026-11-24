@@ -10,7 +10,7 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.research import so4_controlled as controlled
 from deeprootgen.utils import tropism
 
@@ -18,7 +18,7 @@ POLICY = "minimum_angle_projection"
 
 
 def parameters(seed=42, row=None, combined=True, **updates):
-    values = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    values = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     values.update(random_seed=seed, max_order=3, min_sec_root_num=2, max_sec_root_num=3,
                   min_primary_length=10., max_primary_length=12.,
                   min_sec_root_length=2., max_sec_root_length=3., root_vary=10.,

@@ -211,5 +211,9 @@
       "provenance": "Authenticated pre-feature source epoch; exact hashes recorded before feature implementation. Source only, no observations/results."
     }
   },
-  "scope": "Restore changed public package modules to prior checkpoint bytes; untouched modules share the installed/public runtime on both sides."
+  "scope": "Restore changed public package modules to prior checkpoint bytes; untouched modules share the installed/public runtime on both sides.",
+  "baseline_archive": {
+    "file": "baseline_modules.json.gz",
+    "sha256": "8e5116619fd65caa9bd1f6a0b03d0460fddec1d97cea8a2b7acffb7d6d8bd0ac"
+  }
 }

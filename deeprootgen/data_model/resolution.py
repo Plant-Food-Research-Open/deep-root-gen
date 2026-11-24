@@ -1,20 +1,6 @@
-"""One parser and one resolver for every fresh-generation input.
-
-``parse_config`` turns raw input into exactly one validated input model:
-legacy flat ``RootSimulationModel``, schema-2 ``RootSimulationConfig`` or
-schema-3 ``RootSimulationConfigV3``. Versioned keys are reserved before legacy
-flat parsing, so a requested option block can never be silently discarded, and
-the JSON reader rejects duplicate keys at every nesting level.
-
-``resolve_config`` chooses one active law per stage and order, checks
-dependencies before any simulation state or randomness is used, and produces
-the resolved description saved with every result (``--explain-config``).
-Already-parsed legacy objects cannot recover keys discarded earlier; callers
-must pass raw input through this module.
-"""
+"""Resolve one public root configuration into per-order native calculations."""
 
 import copy
-import functools
 import hashlib
 import json
 import platform
@@ -22,7 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
-from .execution import RootSimulationConfig
+from .canonical import RootConfig
 from .features import (
     CORNER_COINCIDENCE_CM,
     CURVATURE_BOUNDS,
@@ -34,10 +20,8 @@ from .features import (
     OBSERVATION_SETTINGS,
     RESEARCH_ALIASES,
     TOP_LEVEL_OWNED,
-    NativeParameters,
-    RootSimulationConfigV3,
 )
-from .simulation_data_models import RootSimulationModel, reserved_key_conflicts
+from .simulation_data_models import RootSimulationModel
 
 ENGINE_LIFECYCLE_VERSION = "native-engine-lifecycle-v1"
 ENGINE_PHASES = (
@@ -79,6 +63,7 @@ UNITS = dict(
     curvature_sd_rad_cm="stationary per-component curvature SD, rad/cm",
     correlation_length_cm="cm",
     downward_drift_per_cm="heading drift toward -z per cm of arclength (dimensionless/cm)",
+    row_alignment_per_cm="symmetric heading alignment toward model ±y, 1/cm",
     step_cm="physical direction-integration step, cm",
 )
 
@@ -103,61 +88,18 @@ def load_json_config(source):
 
 
 def parse_config(spec):
-    """Return one validated input model; never discard a versioned key."""
+    """Read a canonical root-system configuration, checking nested model mutations."""
     if isinstance(spec, (str, Path)):
         spec = load_json_config(spec)
-    if isinstance(spec, RootSimulationConfigV3):
-        # Detach and revalidate: callers can mutate nested Pydantic objects.
-        return RootSimulationConfigV3.model_validate(_v3_dump(spec))
-    if isinstance(spec, RootSimulationConfig):
-        return RootSimulationConfig.model_validate(spec.model_dump())
-    if isinstance(spec, NativeParameters):
-        raise TypeError("Schema-3 parameters run only inside a RootSimulationConfigV3")
-    if isinstance(spec, RootSimulationModel):
-        return spec
-    if not isinstance(spec, dict):
-        raise TypeError(
-            "Simulation input must be a JSON object, JSON text/path or a validated simulation model"
-        )
-    if "schema_version" not in spec:
-        reserved = reserved_key_conflicts(spec, RootSimulationModel.model_fields)
-        if reserved:
-            raise ValueError(
-                f"Keys {reserved} require an explicit schema_version (2 or 3); "
-                "legacy flat parsing would discard them"
-            )
-        return RootSimulationModel(**spec)
-    version = spec["schema_version"]
-    if type(version) is not int:
-        raise ValueError("schema_version must be the integer 2 or 3")
-    if version == 2:
-        return RootSimulationConfig(**spec)
-    if version == 3:
-        return RootSimulationConfigV3(**spec)
-    raise ValueError(f"Unsupported schema_version {version}; expected 2 or 3")
-
-
-def _v3_dump(config):
-    """Round-trip dump; drop only defaulted non-canonical parameter fields.
-
-    A non-default value in such a field (for example a caller mutation after
-    validation) is kept, so revalidation rejects it instead of discarding it.
-    """
-    values = config.model_dump()
-    # Only the parameters the input set; omitted fallbacks keep their defaults.
-    parameters = config.parameters.model_dump(exclude_unset=True)
-    for name in TOP_LEVEL_OWNED + NOT_CONSUMED_BY_STATIC_RUN + OBSERVATION_SETTINGS + RESEARCH_ALIASES:
-        if name in parameters and parameters[name] == NativeParameters.model_fields[name].default:
-            del parameters[name]
-    values["parameters"] = parameters
-    return values
+    if isinstance(spec, RootConfig):
+        spec = spec.model_dump()
+    if not isinstance(spec, dict) or spec.get("schema_version") != 4:
+        raise ValueError("Fresh generation requires schema_version 4. Convert older inputs with the offline migration utility.")
+    return RootConfig.model_validate(spec)
 
 
 def canonical_input(config):
-    """Reloadable serialization of a validated input (schema-3 keeps one owner)."""
-    if isinstance(config, RootSimulationConfigV3):
-        return _v3_dump(config)
-    return config.model_dump()
+    return config.model_dump(mode="json", exclude_unset=True)
 
 
 def canonical_json(value):
@@ -181,9 +123,8 @@ def sha256_json(value):
     return hashlib.sha256(canonical_json(value).encode()).hexdigest()
 
 
-@functools.lru_cache(maxsize=1)
 def source_identity():
-    """Hash of the installed generator source; binds run identity to code."""
+    """Current on-disk generator hash (not loaded-code authentication)."""
     root = Path(__file__).resolve().parents[1]
     digest = hashlib.sha256()
     for path in sorted(root.rglob("*.py")):
@@ -274,7 +215,9 @@ class ResolvedConfig:
         return self.laws.direction
 
     def run_identity(self, seed):
-        """Effective model plus seed, generator source and numeric environment."""
+        """Seeded model signature only; realized identities also need run-start state."""
+        if seed is None:
+            raise ValueError("An unseeded model signature cannot identify a realized execution")
         return sha256_json(
             dict(
                 effective_model_sha256=self.hashes["effective_model_sha256"],
@@ -295,17 +238,162 @@ def _supplied_payload(spec):
     return None
 
 
+def _keyed_features(laws):
+    """Active calculations that obtain an axis-keyed generator."""
+    if laws.direction:
+        yield "direction"
+    if laws.origins is not None and laws.origins["layout"] == "disk":
+        yield "primary_origins"
+    if laws.origins is not None and laws.origins["layout"] == "vine_catalogue" and laws.origins["selection"]["mode"] == "sample":
+        yield "primary_origins.vine_catalogue"
+    if laws.maturity is not None:
+        yield "cohort_maturity"
+    if laws.branching:
+        yield "branching"
+    if any(rule["law"] == "discrete_cdf" or rule.get("sd", 0) > 0 for rule in laws.lengths.values()):
+        yield "lengths"
+    if any(rule[key]["sd"] > 0 for rule in laws.taper.values() for key in ("base_cm", "tip_cm")):
+        yield "taper"
+
+
 def resolve_config(spec):
-    """Parse if needed, choose laws, check dependencies, describe and hash."""
-    supplied = _supplied_payload(spec)
+    """Resolve a schema-4 input against the shared native construction kernels."""
+    from .consumers import spatial_feature_consumers
+
     parsed = parse_config(spec)
-    if isinstance(parsed, RootSimulationConfigV3):
-        resolved = _resolve_v3(parsed)
-    elif isinstance(parsed, RootSimulationConfig):
-        resolved = _resolve_v2(parsed)
-    else:
-        resolved = _resolve_flat(parsed)
-    resolved.hashes["supplied_input_sha256"] = sha256_json(supplied)
+    p = parsed.parameters
+    settings = {"daughters_by_parent_order": p.daughters_by_parent_order}
+    if hasattr(p.root_tissue_density, "bounds_mm"):
+        settings["tissue_density_by_diameter"] = p.root_tissue_density.model_dump()
+    if p.max_order > 1:
+        settings["min_branching_diameter_cm"] = p.min_branching_diameter_cm
+    if p.allocation_controls is not None:
+        settings["allocation"] = dict(root_ratio_biomass=p.root_ratio_biomass, root_ratio_length=p.root_ratio_length,
+                                      controls=p.allocation_controls.model_dump())
+    irrigation = parsed.irrigation
+    if irrigation is not None and irrigation.peak_multiplier > 1:
+        settings["irrigation"] = irrigation.model_dump(exclude_none=True)
+    placement = parsed.daughter_placement
+    if placement is not None and (placement.strength or placement.mode == "retention"):
+        settings["daughter_placement"] = placement.model_dump(exclude_none=True)
+    transfer = parsed.birth_depth_transfer
+    if transfer is not None and transfer.transfer_probability:
+        settings["birth_depth_transfer"] = dict(transfer.model_dump(), parent_orders=sorted(transfer.parent_orders))
+    floor = parsed.minimum_realized_primary_length_cm
+    if floor is not None:
+        settings["minimum_realized_primary_length_cm"] = floor
+    resolved = _resolve_features(parsed, p.kernel_parameters(), "4", contract=settings)
+    if "birth_depth_transfer" in settings:
+        if parsed.random_seed is None:
+            raise ValueError("Birth depth transfer requires an explicit random_seed")
+        for order in transfer.parent_orders:
+            parent = resolved.laws.direction.get(order, {})
+            daughter = resolved.laws.direction.get(order + 1, {})
+            if (order >= p.max_order or order not in resolved.laws.branching
+                    or parent.get("law") != "correlated_curvature"
+                    or daughter.get("initial_heading") != "insertion_angle"
+                    or daughter.get("law") != "correlated_curvature"):
+                raise ValueError("Birth depth transfer requires ordinary branching, a realized curved parent "
+                                 "and an insertion-angle daughter at each selected order")
+            if ((order == 1 and resolved.laws.relocation is not None)
+                    or ("irrigation" in settings and order == irrigation.parent_order)
+                    or ("daughter_placement" in settings and placement.mode != "surface_bearing"
+                        and order == placement.parent_order)):
+                raise ValueError("Conflicting attachment controls on the birth depth transfer parent order")
+        resolved.description["birth_depth_transfer"] = settings["birth_depth_transfer"]
+    if floor is not None:
+        primary = resolved.laws.lengths.get(1, {})
+        if primary.get("law") != "bounded_lognormal" or not primary.get("sd") or p.allocation_controls is not None:
+            raise ValueError("A realized primary floor requires a stochastic lognormal length law without allocation")
+        primary["realized_floor_cm"] = floor
+        resolved.description["minimum_realized_primary_length_cm"] = floor
+    if "daughter_placement" in settings and placement.mode == "surface_bearing":
+        if parsed.random_seed is None:
+            raise ValueError("Surface bearing requires an explicit random_seed")
+        for order in placement.bearing_orders:
+            law = resolved.laws.direction.get(order, {})
+            if law.get("law") != "correlated_curvature" or law.get("initial_heading") != "insertion_angle":
+                raise ValueError(f"Surface bearing requires correlated curvature with insertion_angle on order {order}")
+            if "sibling_sectors" in law or law.get("row_axial_kappa", 0.) > 0:
+                raise ValueError(f"Surface bearing conflicts with sibling sectors or row-axial insertion on order {order}")
+        resolved.description["daughter_placement"] = settings["daughter_placement"]
+    elif "daughter_placement" in settings:
+        order = placement.parent_order
+        parent = resolved.laws.direction.get(order, {})
+        daughter = resolved.laws.direction.get(order + 1, {})
+        if (order + 1 != p.max_order or parsed.random_seed is None
+                or order not in resolved.laws.branching
+                or parent.get("law") != "correlated_curvature"
+                or daughter.get("law") != "correlated_curvature"
+                or daughter.get("initial_heading") != "insertion_angle"):
+            raise ValueError("Daughter placement requires seeded curved terminal parents and insertion-angle daughters")
+        if "irrigation" in settings:
+            raise ValueError("Rainfed daughter placement and active irrigation cannot be combined")
+        if p.min_branching_diameter_cm < 0.093 or order + 1 not in resolved.laws.taper:
+            raise ValueError("Daughter placement requires a parent diameter gate of at least 0.093 cm and terminal point taper")
+        if ((placement.mode.startswith("branch_probability") or placement.mode.startswith("sparse_"))
+                and resolved.laws.branching[order]["law"] != "first_branch_and_daughter_count"):
+            raise ValueError("A branching probability preference requires the first-site daughter-count law")
+        if placement.mode.startswith("sparse_") and resolved.laws.branching[order]["branch_probability"] != 0:
+            raise ValueError("Sparse recruitment requires an inactive ordinary terminal branch law")
+        resolved.description["daughter_placement"] = settings["daughter_placement"]
+    if "irrigation" in settings:
+        order = irrigation.parent_order
+        if order + 1 != p.max_order or parsed.random_seed is None:
+            raise ValueError("Irrigation requires a seeded terminal daughter order")
+        if order not in resolved.laws.branching or p.daughters_by_parent_order.get(str(order)) is not None or getattr(resolved.parameters, "research_root_counts_by_order", None):
+            raise ValueError("Irrigation requires a stochastic branching law without an exact daughter quota")
+        parent = resolved.laws.direction.get(order, {})
+        daughter = resolved.laws.direction.get(order + 1, {})
+        if parent.get("law") != "correlated_curvature" or daughter.get("initial_heading") != "insertion_angle":
+            raise ValueError("Irrigation requires realized parent curvature and terminal insertion-angle curvature")
+        if order == 1 and resolved.laws.relocation is not None:
+            raise ValueError("Irrigation of relocated primary sites is outside the terminal-order pilot")
+        for daughter_order in sorted(irrigation.upstream_sensitivity()):
+            parent_order = daughter_order - 1
+            if (parent_order not in resolved.laws.branching
+                    or p.daughters_by_parent_order.get(str(parent_order)) is not None):
+                raise ValueError("Non-terminal irrigation requires a stochastic parent branching law without a quota")
+            if resolved.laws.direction.get(parent_order, {}).get("law") != "correlated_curvature" or any(
+                    resolved.laws.direction.get(k, {}).get("law") != "correlated_curvature"
+                    or resolved.laws.direction.get(k, {}).get("initial_heading") != "insertion_angle"
+                    for k in range(daughter_order, p.max_order + 1)):
+                raise ValueError("Non-terminal irrigation requires a realized curved parent and insertion-angle "
+                                 "curvature at the recruited order and every descendant order")
+            if parent_order == 1 and resolved.laws.relocation is not None:
+                raise ValueError("Irrigation of relocated primary sites is outside the recruitment law")
+            if "birth_depth_transfer" in settings and parent_order in transfer.parent_orders:
+                raise ValueError("Conflicting attachment controls on a non-terminal irrigation parent order")
+        for key, gain in (irrigation.moisture_tropism or {}).items():
+            law = resolved.laws.direction.get(int(key), {})
+            if gain and (int(key) > p.max_order or law.get("law") != "correlated_curvature"):
+                raise ValueError("Moisture tropism requires correlated curvature at each listed root order")
+            if gain:
+                from ..model.irrigation import gradient_bound
+
+                if law["step_cm"] * (law["downward_drift_per_cm"] + gain * gradient_bound(irrigation)) >= 1:
+                    raise ValueError(f"Moisture tropism gain {gain} at order {key} could reverse a heading in "
+                                     "one step; reduce the gain or the curvature step")
+        resolved.description["irrigation"] = settings["irrigation"]
+    if parsed.random_seed is None:
+        keyed = list(_keyed_features(resolved.laws))
+        if keyed:
+            raise ValueError(f"An explicit random_seed is required for keyed calculations: {keyed}")
+    consumers = resolved.description["consumers"]
+    consumers.update(spatial_feature_consumers(resolved.laws))
+    nonterminal = list(range(1, p.max_order))
+    consumers["min_branching_diameter_cm"] = dict(
+        operation="daughter eligibility at the final attachment", units="cm",
+        orders=nonterminal, status="active" if nonterminal and p.min_branching_diameter_cm else "inactive",
+    )
+    consumers["threshold_root_diameter_cm"] = dict(
+        operation="diameter-class length, dry biomass and achieved fractions", units="cm",
+        orders=list(range(1, p.max_order + 1)), status="active",
+    )
+    for name in ("root_ratio_length", "root_ratio_biomass"):
+        consumers[name] = dict(operation="architecture allocation", units="fraction",
+                               status="active" if getattr(p, name) is not None else "inactive")
+    resolved.hashes["supplied_input_sha256"] = sha256_json(_supplied_payload(spec))
     resolved.description["hashes"] = dict(resolved.hashes)
     return resolved
 
@@ -370,7 +458,15 @@ def _effective_native_parameters(p, laws):
     if laws.construction == "planned":
         inactive |= set(NATIVE_CONSTRUCTION_FIELDS) | set(FICHTL_ONLY_FIELDS) | set(LEGACY_ONLY_FIELDS)
         inactive |= {"tropism_mode", "max_val_attempts", "floor_threshold", "ceiling_threshold"}
+    from .consumers import parameter_consumers
+
+    consumers = parameter_consumers(p, laws)
+    inactive |= {name for name, item in consumers.items() if item["status"] != "active"}
     values = {name: getattr(p, name, None) for name in EFFECTIVE_NATIVE_FIELDS if name not in inactive}
+    if laws.construction != "planned":
+        values["segments_per_root"] = p.segments_per_root or 1
+        if "root_vary" in values and values["root_vary"] is None:
+            values["root_vary"] = 0.0
     for name in RESEARCH_ALIASES:
         value = getattr(p, name, None)
         if _research_active(name, value):
@@ -454,13 +550,14 @@ def _law_table(p, laws):
 
 
 def _describe(source_schema, p, seed, tag, laws, active, dormant, limits, contract=None):
+    from .consumers import parameter_consumers
+
     law_table = _law_table(p, laws)
     effective = _dump(
         dict(
             lifecycle_version=ENGINE_LIFECYCLE_VERSION,
             parameters=_effective_native_parameters(p, laws),
             laws=law_table,
-            active_features=active,
             contract=contract,
         )
     )
@@ -477,6 +574,7 @@ def _describe(source_schema, p, seed, tag, laws, active, dormant, limits, contra
             features=dict(active=active, inactive=dormant),
             contract=contract,
             units=UNITS,
+            consumers=parameter_consumers(p, laws),
             rng=dict(
                 native="numpy default_rng(seed) sequential stream; historical draw order",
                 native_schedule=(
@@ -490,147 +588,12 @@ def _describe(source_schema, p, seed, tag, laws, active, dormant, limits, contra
             limits=limits,
         )
     )
+    if source_schema == "4":
+        description["rng"].update(
+            native="numpy default_rng(seed), sequential native kernels",
+            native_schedule="schema4: draw from selected dimension laws and construction partitions",
+        )
     return description, dict(effective_model_sha256=sha256_json(effective))
-
-
-def _resolve_flat(p):
-    if _construction_step_controls(p):
-        raise ValueError(CONSTRUCTION_STEP_GUARD)
-    laws = _native_laws(p)
-    description, hashes = _describe("flat", p, getattr(p, "random_seed", None), None, laws, {}, {}, {})
-    return ResolvedConfig("flat", p, p, None, None, laws, {}, description, hashes)
-
-
-def _resolve_v2(config):
-    if config.construction.kind == "cohort":
-        return _resolve_cohort_v5(config)
-    if config.trajectory == "construction_steps_v1":
-        return _resolve_construction_steps(config)
-    p = config.construction.parameters
-    if _construction_step_controls(p):
-        raise ValueError(CONSTRUCTION_STEP_GUARD)
-    laws = _native_laws(p)
-    description, hashes = _describe("2", p, config.random_seed, config.simulation_tag, laws, {}, {}, {})
-    return ResolvedConfig("2", config, p, config.random_seed, config.simulation_tag, laws, {}, description,
-                          hashes, requested_simulation_tag=config.simulation_tag,
-                          simulator_tag=config.simulation_tag)
-
-
-SO4_INTERNAL_TAG = "SO4-T2-controlled-INITIAL"
-SO4_SURFACE_Z_CM = 20.0
-
-
-def _resolve_construction_steps(config):
-    """Schema-2 SO4 construction steps: native construction, interval direction law."""
-    from ..utils.primary_attachment import validate_distal_fraction
-
-    p = config.construction.parameters.model_copy(update={"simulation_tag": SO4_INTERNAL_TAG})
-    fraction = validate_distal_fraction(p.research_primary_attachment_distal_fraction)
-    laws = EngineLaws(
-        pre="frozen_scaffold_surface_check_v1",
-        post="interval_pure_checks_v1",
-        native_direction=None,
-        direction={
-            order: dict(law="construction_step_intervals", version="so4-construction-steps-v1",
-                        boundary="minimum_angle_projection", surface_z_cm=SO4_SURFACE_Z_CM)
-            for order in range(2, int(p.max_order) + 1)
-        },
-        relocation=(dict(law="distal_fraction", distal_fraction=float(fraction)) if fraction else None),
-        surface_z_cm=SO4_SURFACE_Z_CM,
-        writer=dict(first_node_id=0, records=True),
-        view="construction_steps_v1",
-        view_options=dict(
-            coordinate_frame="model-x-across-y-along-depth20-minus-z-cm",
-            internal_simulation_tag=SO4_INTERNAL_TAG,
-        ),
-    )
-    description, hashes = _describe(
-        "2", p, config.random_seed, config.simulation_tag, laws, {}, {}, {}, contract="construction_steps_v1"
-    )
-    return ResolvedConfig("2", config, p, config.random_seed, SO4_INTERNAL_TAG, laws, {}, description, hashes,
-                          requested_simulation_tag=config.simulation_tag, simulator_tag=SO4_INTERNAL_TAG)
-
-
-def _resolve_cohort_v5(config):
-    """Schema-2 cohort: every construction law replaced; historical streams/IDs/output."""
-    construction = config.construction
-    c = construction.parameters.model_dump()
-    older, later = construction.older_count, construction.later_count
-    orders = {int(k): v for k, v in c["orders"].items()}
-    p = NativeParameters.model_construct(
-        random_seed=config.random_seed,
-        simulation_tag=config.simulation_tag,
-        max_order=5,
-        outer_root_num=older,
-        inner_root_num=later,
-        root_tissue_density=c["dry_density_g_cm3"],
-        fine_root_threshold=c["fine_cutoff_mm"] / 10.0,
-        soil_surface_z_cm=0.0,
-        tropism_mode="legacy",
-    )
-    laws = EngineLaws(
-        construction="planned",
-        lengths={k: dict(law="bounded_lognormal", **rule["length_cm"]) for k, rule in orders.items()},
-        taper={
-            k: dict(law="piecewise_linear_arclength", base_cm=rule["base_diameter_cm"],
-                    tip_cm=rule["tip_diameter_cm"], midpoint_diameter_fraction=rule.get("midpoint_fraction", 0.5))
-            for k, rule in orders.items()
-        },
-        branching={
-            k: dict(law="first_branch_and_daughter_count", first_branch_cm=rule["first_branch_cm"],
-                    branch_probability=rule["branch_probability"],
-                    daughter_probabilities=rule["daughter_probabilities"])
-            for k, rule in orders.items()
-        },
-        maturity=dict(
-            groups=[
-                dict(label="A", primary_indices=list(range(older)), maturity_range=[1.0, 1.0], draw="fixed"),
-                dict(label="B", primary_indices=list(range(older, older + later)),
-                     maturity_range=list(c["later_maturity"]), draw="uniform"),
-            ],
-            length_power=c["maturity_length_power"],
-            diameter_power=c["maturity_diameter_power"],
-            scale_branch_probability=True,
-            diameter_target="base_anchor",
-        ),
-        cap=dict(fraction_max=c["child_diameter_fraction_max"]),
-        origins=dict(
-            layout="disk", radius_cm=c["crown_radius_cm"], depth_range_cm=list(c["crown_depth_cm"]), surface_z_cm=0.0,
-            heading=dict(law="radial_inclination", inclination_mean_deg=c["inclination_mean_deg"],
-                         inclination_sd_deg=c["inclination_sd_deg"],
-                         inclination_bounds_deg=list(c["inclination_bounds_deg"])),
-        ),
-        direction={
-            k: dict(
-                law=CURVATURE_LAW, version="cohort-root-research-v5", step_cm=c["step_cm"],
-                curvature_sd_rad_cm=rule["curvature_sd_rad_cm"], correlation_length_cm=rule["correlation_cm"],
-                downward_drift_per_cm=rule["downward_drift_per_cm"], boundary="reflect_downward",
-                first_interval="integrate", initial_heading="origin_heading" if k == 1 else "insertion_angle",
-                insertion_mean_deg=c["insertion_mean_deg"], insertion_sd_deg=c["insertion_sd_deg"],
-                surface_z_cm=0.0,
-            )
-            for k, rule in orders.items()
-        },
-        streams="cohort_v5",
-        surface_z_cm=0.0,
-        materialization=dict(rule="cohort_v5_material_cuts", corner_coincidence_cm=0.0,
-                             reconcile_length_metadata=c.get("reconcile_length_metadata", False),
-                             cutoff_mm=c["fine_cutoff_mm"], position_type="base"),
-        writer=dict(first_node_id=1, records=False),
-        view="cohort_v5",
-        view_options=dict(
-            coordinate_frame="local-crown-soil0-z-up-cm", crown_mass_g=c["crown_mass_g"],
-            crown_depth_cm=list(c["crown_depth_cm"]), unrepresented_fine_mass_g=c.get("unrepresented_fine_mass_g", 0.0),
-            dry_density_g_cm3=c["dry_density_g_cm3"], fine_cutoff_mm=c["fine_cutoff_mm"], version="cohort-root-research-v5",
-        ),
-    )
-    limits = dict(max_organs=c["max_organs"], organ_limit_message="Explicit organ budget exhausted; no silent truncation")
-    description, hashes = _describe(
-        "2", p, config.random_seed, config.simulation_tag, laws, {}, {}, limits,
-        contract=dict(cohort_v5=construction.model_dump(mode="json")),
-    )
-    return ResolvedConfig("2", config, p, config.random_seed, config.simulation_tag, laws, limits, description,
-                          hashes, requested_simulation_tag=config.simulation_tag)
 
 
 # ---------------------------------------------------------------------------
@@ -666,7 +629,12 @@ def _distribution(spec, name):
 
     if spec is None:
         raise ValueError(f"{name} distribution is required by the enabled feature")
+    if isinstance(spec, (int, float)):
+        value = _number(spec, name, low=0, low_open=True)
+        return dict(mean=value, sd=0., min=value, max=value)
     values = {k: _number(getattr(spec, k), f"{name}.{k}") for k in ("mean", "sd", "min", "max")}
+    if getattr(spec, "law", None) == "truncated_normal":
+        values["law"] = "truncated_normal"
     import numpy as np
 
     bounded_draw(values, np.random.default_rng(0))  # validates support/acceptance
@@ -713,6 +681,8 @@ def _resolve_curvature(settings, p):
                 f"curvature.by_order[{key!r}] on a daughter order requires initial_heading='insertion_angle' "
                 "with insertion_mean_deg and insertion_sd_deg"
             )
+        if order == 1 and (law.insertion_mean_deg is not None or law.insertion_sd_deg is not None):
+            raise ValueError("Primary curvature has no insertion-angle consumer")
         if order == 1 and heading == "insertion_angle":
             raise ValueError("Primary curvature uses initial_heading 'scaffold_chord' or 'origin_heading'")
         entry = dict(
@@ -721,6 +691,23 @@ def _resolve_curvature(settings, p):
             first_interval=law.first_interval, initial_heading=heading,
             surface_z_cm=float(p.soil_surface_z_cm), stream_namespace=CURVATURE_STREAM_NAMESPACE,
         )
+        strength = getattr(law, "row_alignment_per_cm", 0.0)
+        sectors = getattr(law, "sibling_sectors", None)
+        if sectors is not None:
+            if heading != "insertion_angle":
+                raise ValueError("sibling_sectors requires lateral insertion_angle")
+            if sectors.fraction:
+                entry["sibling_sectors"] = sectors.model_dump(exclude_none=True)
+        carrier = getattr(law, "deep_carrier", None)
+        if carrier is not None and carrier.fraction:
+            if order == 1 or step * drift * carrier.drift_multiplier >= 1:
+                raise ValueError("Deep carrier requires a lateral order and step times amplified drift below one")
+            entry["deep_carrier"] = carrier.model_dump()
+        if strength:
+            from ..model.row_alignment import ROW_AXIS, ROW_ALIGNMENT_LAW, check_alignment_step
+
+            check_alignment_step(strength, step)
+            entry["row_alignment"] = dict(law=ROW_ALIGNMENT_LAW, row_alignment_per_cm=strength, axis=list(ROW_AXIS))
         if heading == "insertion_angle":
             entry["insertion_mean_deg"] = _number(law.insertion_mean_deg, f"curvature[{key}].insertion_mean_deg", 0, 90)
             entry["insertion_sd_deg"] = _number(law.insertion_sd_deg, f"curvature[{key}].insertion_sd_deg", 0)
@@ -744,6 +731,8 @@ def _resolve_taper(settings, p):
             base_cm=_distribution(law.base_cm, f"taper[{order}].base_cm"),
             tip_cm=_distribution(law.tip_cm, f"taper[{order}].tip_cm"),
         )
+        if law.law == "exponential_above_diameter":
+            laws[order].update(rate_per_cm=law.rate_per_cm, thick_min_cm=law.thick_min_cm)
     return laws
 
 
@@ -773,11 +762,15 @@ class _Spec:
 
 def _resolve_branching(settings, p):
     import numpy as np
+    from ..model.branching_laws import LENGTH_POISSON_LAW, LENGTH_POISSON_STREAM, LENGTH_POISSON_VERSION
 
     laws = {}
     for order, law in _orders(settings, "branching", p.max_order):
         if law.law is None:
             raise ValueError(f"Enabled branching.by_order['{order}'] requires law")
+        if law.law == LENGTH_POISSON_LAW:
+            laws[order] = dict(law.model_dump(), stream_namespace=LENGTH_POISSON_STREAM, version=LENGTH_POISSON_VERSION)
+            continue
         probability = _number(law.branch_probability, f"branching[{order}].branch_probability", 0, 1)
         weights = law.daughter_probabilities
         if not weights or any(w < 0 for w in weights) or not np.isclose(sum(weights), 1.0, rtol=0, atol=1e-12):
@@ -786,17 +779,45 @@ def _resolve_branching(settings, p):
             law=law.law, first_branch_cm=_distribution(law.first_branch_cm, f"branching[{order}].first_branch_cm"),
             branch_probability=probability, daughter_probabilities=list(weights),
         )
+        if getattr(law, "stratify_distal_sites", False):
+            laws[order]["stratify_distal_sites"] = True
     return laws
 
 
 def _resolve_origins(settings, p):
     surface = float(p.soil_surface_z_cm)
+    if settings.layout == "vine_catalogue":
+        from ..model.vine_origins import resolve_vine_origins
+
+        return resolve_vine_origins(settings, p.outer_root_num + p.inner_root_num, surface)
+    supplied = settings.model_dump(exclude_none=True)
+    foreign = ({"x_cm", "y_cm", "depth_cm"} if settings.layout == "disk" else
+               {"radius_cm", "depth_range_cm", "heading", "azimuth_groups"}) & set(supplied)
+    if foreign:
+        raise ValueError(f"primary_origins layout {settings.layout} does not consume {sorted(foreign)}")
     if settings.layout == "disk":
         radius = _number(settings.radius_cm, "primary_origins.radius_cm", 0)
         depth = settings.depth_range_cm
         if not depth or len(depth) != 2 or not 0 <= depth[0] <= depth[1]:
             raise ValueError("primary_origins.depth_range_cm must be [min, max] with 0 <= min <= max")
         law = dict(layout="disk", radius_cm=radius, depth_range_cm=[float(depth[0]), float(depth[1])])
+        if settings.azimuth_groups is not None:
+            count = int(p.outer_root_num + p.inner_root_num)
+            if not settings.azimuth_groups:
+                raise ValueError("azimuth_groups needs at least one group")
+            seen, groups = set(), []
+            for g in settings.azimuth_groups:
+                idx = g.primary_indices
+                if (not idx or any(isinstance(i, bool) or not isinstance(i, int) or not 0 <= i < count for i in idx)
+                        or len(set(idx)) != len(idx) or seen & set(idx)):
+                    raise ValueError(f"azimuth_groups need distinct, non-overlapping primary indices in [0, {count})")
+                seen |= set(idx)
+                groups.append(dict(primary_indices=sorted(idx),
+                                   mean_deg=_number(g.mean_deg, "azimuth_groups.mean_deg", -360, 360),
+                                   concentration=_number(g.concentration, "azimuth_groups.concentration", 0)))
+                if g.half_plane:
+                    groups[-1]["half_plane"] = True
+            law["azimuth_groups"] = groups
     elif settings.layout == "point":
         law = dict(layout="point", x_cm=_number(settings.x_cm, "primary_origins.x_cm"),
                    y_cm=_number(settings.y_cm, "primary_origins.y_cm"),
@@ -846,8 +867,8 @@ def _resolve_maturity(settings, p):
     )
 
 
-def _resolve_v3(config):
-    p = config.parameters.model_copy(
+def _resolve_features(config, parameters, version, contract=None):
+    p = parameters.model_copy(
         update=dict(random_seed=config.random_seed, simulation_tag=config.simulation_tag)
     )
     f = config.features
@@ -864,6 +885,13 @@ def _resolve_v3(config):
         laws.lengths = _resolve_lengths(f.lengths.settings, p)
     if f.branching.enabled:
         laws.branching = _resolve_branching(f.branching.settings, p)
+        if version == "4" and p.max_order in laws.branching:
+            terminal = str(p.max_order)
+            laws.branching.pop(p.max_order)
+            settings = active["branching"]["by_order"]
+            dormant["branching"] = {"by_order": {terminal: settings.pop(terminal)}}
+            if not settings:
+                active.pop("branching")
     if f.primary_origins.enabled:
         laws.origins = _resolve_origins(f.primary_origins.settings, p)
     if f.cohort_maturity.enabled:
@@ -876,7 +904,12 @@ def _resolve_v3(config):
         if s.orders != [2] or s.preserve_sampled_daughter_dimensions is False:
             raise ValueError("attachment_relocation supports orders [2] with preserved sampled daughter dimensions")
         laws.relocation = dict(law="distal_fraction", distal_fraction=_number(s.distal_fraction, "distal_fraction", 0, 1, True))
+    from .native_options import resolve_native_options
+
+    p = resolve_native_options(f, p, laws)
     _check_supported_combinations(p, laws)
+    p = p.model_copy(update=dict(root_vary=0.0 if p.root_vary is None else p.root_vary,
+                                 segments_per_root=p.segments_per_root or 1))
     cdfs = {order: law for order, law in laws.lengths.items() if law["law"] == "discrete_cdf"}
     if cdfs and laws.construction == "native":
         # One law, one implementation: the keyed current-length CDF kernel.
@@ -894,69 +927,73 @@ def _resolve_v3(config):
                       ("parent_diameter_cap", laws.cap), ("attachment_relocation", laws.relocation)):
         if law:
             active[name] = law
-    limits = config.limits.model_dump(exclude_none=True)
-    description, hashes = _describe("3", p, config.random_seed, config.simulation_tag, laws, active, dormant, limits)
-    return ResolvedConfig("3", config, p, config.random_seed, config.simulation_tag, laws, limits,
+    limits = _execution_limits(config, laws)
+    description, hashes = _describe(version, p, config.random_seed, config.simulation_tag, laws, active, dormant, limits, contract)
+    return ResolvedConfig(version, config, p, config.random_seed, config.simulation_tag, laws, limits,
                           description, hashes, requested_simulation_tag=config.simulation_tag,
                           simulator_tag=config.simulation_tag)
+
+
+def _execution_limits(config, laws):
+    from ..model.budget import DEFAULT_MAX_BRANCH_PROPOSALS
+
+    limits = config.limits.model_dump(exclude_none=True)
+    if _poisson_orders(laws):
+        limits.setdefault("max_branch_proposals", DEFAULT_MAX_BRANCH_PROPOSALS)
+    return limits
 
 
 def _check_supported_combinations(p, laws):
     """Declared supported combinations; every other one fails before execution."""
     orders = set(range(1, int(p.max_order) + 1))
-    if _fully_replaced(laws, orders):
-        _configure_planned(p, laws)
-        return
     _check_native_parameters(p, laws)
     _check_headings(laws)
     _check_direction_rules(p, laws)
     _check_material_rules(p, laws, orders)
     _check_relocation(p, laws)
+    _check_poisson_ownership(laws)
 
 
-def _fully_replaced(laws, orders):
-    """Nothing native remains when every construction law is replaced."""
-    return (
-        set(laws.direction) == orders
-        and set(laws.taper) == orders
-        and set(laws.lengths) == orders
-        and all(law["law"] == "bounded_lognormal" for law in laws.lengths.values())
-        and orders - {max(orders)} <= set(laws.branching)
-    )
+def _poisson_orders(laws):
+    from ..model.branching_laws import LENGTH_POISSON_LAW
+
+    return {order for order, law in laws.branching.items() if law["law"] == LENGTH_POISSON_LAW}
 
 
-def _configure_planned(p, laws):
-    if int(p.outer_root_num) + int(p.inner_root_num) < 1:
-        raise ValueError("Fully replaced construction requires at least one primary")
-    laws.construction = "planned"
-    laws.pre = laws.post = laws.native_direction = None
-    laws.materialization = dict(rule="merged_material_cuts_v1", corner_coincidence_cm=CORNER_COINCIDENCE_CM,
-                                reconcile_length_metadata=False,
-                                cutoff_mm=float(p.fine_root_threshold) * 10.0, position_type="native_birth_group")
-    if laws.origins is None or laws.origins["layout"] != "disk" or "heading" not in laws.origins:
-        raise ValueError("Fully replaced construction requires disk primary_origins with a radial_inclination heading")
-    if laws.direction[1]["initial_heading"] != "origin_heading":
-        raise ValueError("Fully replaced construction requires primary curvature initial_heading 'origin_heading'")
-    if laws.relocation is not None:
-        raise ValueError("attachment_relocation requires native primary construction")
+def _check_poisson_ownership(laws):
+    orders = _poisson_orders(laws)
+    if orders and laws.maturity is not None and laws.maturity["scale_branch_probability"]:
+        raise ValueError("length_poisson_sites_v1 conflicts with maturity-scaled branch probability")
+    if 1 in orders and laws.relocation is not None:
+        raise ValueError("length_poisson_sites_v1 on parent order 1 conflicts with order-2 attachment relocation")
 
 
 def _check_native_parameters(p, laws):
-    if int(p.outer_root_num) < 1 or int(p.inner_root_num) < 1:
+    if not getattr(p, "canonical_generation", False) and min(p.outer_root_num, p.inner_root_num) < 1:
         raise ValueError("Native primary placement spaces each group around the base; "
                          "outer_root_num and inner_root_num must both be at least 1")
-    missing = [name for name in NATIVE_CONSTRUCTION_FIELDS if getattr(p, name, None) is None]
-    if laws.native_direction == "legacy_gravitropism_blend_v1" and getattr(p, "gravitropism", None) is None:
+    from .consumers import parameter_consumers
+
+    consumers = parameter_consumers(p, laws)
+    missing = [name for name, consumer in consumers.items()
+               if consumer["required"] and getattr(p, name, None) is None]
+    needs_partition = (any(k not in laws.lengths for k in range(1, p.max_order + 1))
+                       or any(k not in laws.taper for k in range(1, p.max_order + 1)))
+    if p.segments_per_root is None and needs_partition:
+        missing.append("segments_per_root")
+    if (laws.native_direction == "legacy_gravitropism_blend_v1"
+            and set(range(1, p.max_order + 1)) - set(laws.direction)
+            and getattr(p, "gravitropism", None) is None):
         missing.append("gravitropism")
     if missing:
         raise ValueError(f"Native construction laws still active; missing native parameters {missing}")
 
 
 def _check_headings(laws):
-    origin_heading = laws.origins is not None and "heading" in laws.origins
-    if any(law["initial_heading"] == "origin_heading" for law in laws.direction.values()) and not origin_heading:
+    origin_heading = laws.origins is not None and ("heading" in laws.origins or laws.origins.get("measured_headings", False))
+    if any(law.get("initial_heading") == "origin_heading" for law in laws.direction.values()) and not origin_heading:
         raise ValueError("initial_heading 'origin_heading' requires primary_origins with a heading law")
-    if origin_heading and 1 not in laws.direction:
+    if origin_heading and laws.direction.get(1, {}).get("initial_heading") != "origin_heading":
         raise ValueError("A primary_origins heading law requires primary curvature to use it")
 
 
@@ -989,7 +1026,7 @@ def _check_material_rules(p, laws, orders):
     if laws.cap is not None:
         if set(laws.taper) != orders:
             raise ValueError("parent_diameter_cap requires point taper on every order")
-        if laws.relocation is not None:
+        if laws.relocation is not None and not getattr(p, "canonical_generation", False):
             raise ValueError("parent_diameter_cap with attachment_relocation is unsupported (cap site may move)")
 
 

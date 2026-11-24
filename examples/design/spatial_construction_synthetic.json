@@ -1,0 +1,254 @@
+{
+  "schema_version": 4,
+  "random_seed": 42,
+  "simulation_tag": "invented-spatial-construction",
+  "parameters": {
+    "max_order": 5,
+    "root_tissue_density": 0.3,
+    "tropism_mode": "fichtl2024",
+    "soil_surface_z_cm": 0.0,
+    "primary_root_count": 3,
+    "outer_primary_fraction": 0.5,
+    "min_branching_diameter_cm": 0.093,
+    "threshold_root_diameter_cm": 0.06,
+    "root_vary": 0.0
+  },
+  "features": {
+    "curvature": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "scaffold_chord"
+          },
+          "2": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 45.0,
+            "insertion_sd_deg": 10.0,
+            "row_alignment_per_cm": 0.05
+          },
+          "3": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 45.0,
+            "insertion_sd_deg": 10.0
+          },
+          "4": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 45.0,
+            "insertion_sd_deg": 10.0
+          },
+          "5": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 45.0,
+            "insertion_sd_deg": 10.0
+          }
+        }
+      }
+    },
+    "taper": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": 0.2,
+            "tip_cm": 0.1
+          },
+          "2": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": 0.18000000000000002,
+            "tip_cm": 0.1
+          },
+          "3": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": 0.16,
+            "tip_cm": 0.1
+          },
+          "4": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": 0.14,
+            "tip_cm": 0.1
+          },
+          "5": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": 0.12000000000000001,
+            "tip_cm": 0.1
+          }
+        }
+      }
+    },
+    "primary_origins": {
+      "enabled": true,
+      "settings": {
+        "layout": "vine_catalogue",
+        "catalogue_version": "vine_origins_v1",
+        "coordinate_frame": "model_soil_cm_v1",
+        "selection": {
+          "mode": "sample"
+        },
+        "entries": [
+          {
+            "entry_id": "field-b",
+            "layout": "primary_layout",
+            "primaries": [
+              {
+                "index": 0,
+                "x_cm": 6.0,
+                "y_cm": -12.0,
+                "depth_cm": 14.0
+              },
+              {
+                "index": 1,
+                "x_cm": 7.0,
+                "y_cm": -15.0,
+                "depth_cm": 15.0
+              },
+              {
+                "index": 2,
+                "x_cm": 8.0,
+                "y_cm": -18.0,
+                "depth_cm": 16.0
+              }
+            ],
+            "crown_census_status": "complete"
+          },
+          {
+            "entry_id": "field-a",
+            "layout": "primary_layout",
+            "primaries": [
+              {
+                "index": 0,
+                "x_cm": -3.0,
+                "y_cm": 6.0,
+                "depth_cm": 5.0
+              },
+              {
+                "index": 1,
+                "x_cm": -2.0,
+                "y_cm": 3.0,
+                "depth_cm": 6.0
+              },
+              {
+                "index": 2,
+                "x_cm": -1.0,
+                "y_cm": 0.0,
+                "depth_cm": 7.0
+              }
+            ],
+            "crown_census_status": "complete"
+          }
+        ]
+      }
+    },
+    "lengths": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": 5.0,
+          "2": 5.0,
+          "3": 5.0,
+          "4": 5.0,
+          "5": 5.0
+        }
+      }
+    },
+    "branching": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "first_branch_and_daughter_count",
+            "branch_probability": 1.0,
+            "first_branch_cm": {
+              "mean": 1.0,
+              "sd": 0.0,
+              "min": 1.0,
+              "max": 1.0
+            },
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "2": {
+            "law": "length_poisson_sites_v1",
+            "basal_exclusion_cm": 0.6,
+            "apical_exclusion_cm": 0.7,
+            "mean_spacing_cm": 1.0,
+            "branch_probability": 1.0
+          },
+          "3": {
+            "law": "first_branch_and_daughter_count",
+            "branch_probability": 1.0,
+            "first_branch_cm": {
+              "mean": 1.0,
+              "sd": 0.0,
+              "min": 1.0,
+              "max": 1.0
+            },
+            "daughter_probabilities": [
+              1.0
+            ]
+          },
+          "4": {
+            "law": "first_branch_and_daughter_count",
+            "branch_probability": 1.0,
+            "first_branch_cm": {
+              "mean": 1.0,
+              "sd": 0.0,
+              "min": 1.0,
+              "max": 1.0
+            },
+            "daughter_probabilities": [
+              1.0
+            ]
+          }
+        }
+      }
+    }
+  },
+  "limits": {
+    "max_nodes": 1500,
+    "max_organs": 120,
+    "max_branch_proposals": 100
+  }
+}

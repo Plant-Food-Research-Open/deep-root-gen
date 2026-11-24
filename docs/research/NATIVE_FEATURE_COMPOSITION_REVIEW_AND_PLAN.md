@@ -1,5 +1,7 @@
 # Native feature composition: code review and further merge plan
 
+> **Next input-design plan, 18 November 2026:** [one format and parameter simplification](SINGLE_INPUT_AND_PARAMETER_SIMPLIFICATION_PLAN.md). The owner now prefers full conversion of active inputs rather than permanent legacy loading, one scalar maximum order, explicit count scopes and cohort only if it adds a distinct useful mechanism. This is a documentation-only planning update; the implementation history below is preserved.
+
 18 November 2026, revision 2. **Authoritative implementation plan.
 Implementation status: deliveries 0–5 are implemented and synthetically
 verified (see the [implementation report](NATIVE_ENGINE_IMPLEMENTATION_REPORT.md)).
@@ -172,7 +174,7 @@ needed. Use ordinary functions and a small number of typed state records.
 
 ## 5. One JSON and one configuration resolver
 
-[The proposed complete example](../../examples/design/native_feature_options.proposed.json)
+[The proposed complete example](../../tests/fixtures/migration_inputs/design/native_feature_options.proposed.json)
 is an invented **schema-version-3 input** and is executable. Each feature can
 be enabled within the declared supported combinations; unsupported combinations
 fail before execution.

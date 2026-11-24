@@ -11,14 +11,14 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.utils.tropism import insertion_heading, sample_heading
-from tests.public_checkpoint_reference import materialize_reference, subprocess_environment
+from tests.public_checkpoint_reference import comparison_command, materialize_reference, subprocess_environment
 
 
 def parameters(mode="legacy"):
     values = json.loads(
-        (Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text()
+        (Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text()
     )
     values.update(
         max_order=3,
@@ -198,7 +198,7 @@ import deeprootgen.utils.branching as branching_module
 outputs = []
 for values in json.loads(sys.stdin.read()):
     parameters = schema_module.RootSimulationModel(**values)
-    simulation = root_module.RootSystemSimulation(random_seed=parameters.random_seed)
+    simulation = ComparisonSimulation(random_seed=parameters.random_seed)
     simulation.run(parameters)
     nodes, edges = simulation.G.as_df()
     outputs.append({
@@ -227,7 +227,7 @@ def test_prechange_legacy_golden(tmp_path):
     results, source_hashes = {}, {}
     for name, source in (("reference", reference), ("current", current)):
         run = subprocess.run(
-            [sys.executable, "-c", LEGACY_PARITY_SCRIPT],
+            comparison_command(LEGACY_PARITY_SCRIPT, current=name == "current"),
             input=json.dumps(parameters), text=True, capture_output=True,
             check=True, timeout=90, cwd=source,
             env=subprocess_environment(source),

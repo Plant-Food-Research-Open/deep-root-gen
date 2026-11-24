@@ -13,7 +13,7 @@ from deeprootgen.model.root import RootOrgan
 
 
 def parameters():
-    values = json.loads((Path(__file__).parents[1] / "examples/synthetic_minimal.json").read_text())
+    values = json.loads((Path(__file__).parents[1] / "tests/fixtures/migration_inputs/synthetic_minimal.json").read_text())
     values.update(random_seed=42, max_order=4, segments_per_root=10,
                   min_sec_root_num=2, max_sec_root_num=3, growth_sec_root=0.,
                   min_sec_root_length=10., max_sec_root_length=12.,

@@ -1,99 +1,34 @@
-#!/usr/bin/env python
-
-######################################
-# Imports
-######################################
-
-from typing import List, Optional
+"""Serve the numeric feature signature bundled with the selected surrogate."""
 
 import bentoml
 import pandas as pd
+from bentoml.exceptions import BadInput
 from bentoml.io import JSON, PandasDataFrame
-from pydantic import BaseModel
+from mlflow.models import Model
 
-######################################
-# Constants
-######################################
+from deeprootgen.data_model.surrogate_inputs import SurrogateFeatures
+from deeprootgen.serving import load, require, service
 
 TASK = "surrogate"
-
-######################################
-# Main
-######################################
-
-runner = bentoml.mlflow.get(f"{TASK}:latest").to_runner()
-
-svc = bentoml.Service(TASK, runners=[runner])
-
-
-class SimulationFeatures(BaseModel):
-    """The simulation features data model."""
-
-    random_seed: Optional[int] = 100
-    max_order: Optional[int] = 3
-    root_ratio: Optional[float] = 0.5
-    fine_root_threshold: Optional[float] = 0.06
-    outer_root_num: Optional[int] = 10
-    inner_root_num: Optional[int] = 8
-    min_primary_length: Optional[float] = 20
-    max_primary_length: Optional[float] = 30
-    base_diameter: Optional[float] = 0.11
-    diameter_reduction: Optional[float] = 0.2
-    apex_diameter: Optional[float] = 0.02
-    min_sec_root_num: Optional[int] = 1
-    max_sec_root_num: Optional[int] = 3
-    growth_sec_root: Optional[float] = 0.2
-    min_sec_root_length: Optional[float] = 100
-    max_sec_root_length: Optional[float] = 220
-    segments_per_root: Optional[int] = 50
-    length_reduction: Optional[float] = 0.5
-    root_vary: Optional[float] = 30
-    interbranch_distance: Optional[float] = 0.0078
-    mechanical_constraints: Optional[float] = 0.5
-    root_tissue_density: Optional[float] = 0.05
-    gravitropism: Optional[float] = 7.5
-    origin_min: Optional[float] = 1e-3
-    origin_max: Optional[float] = 1e-2
-    enable_soil: Optional[bool] = False
-    soil_layer_height: Optional[float] = 0
-    soil_layer_width: Optional[float] = 0
-    soil_n_layers: Optional[int] = 0
-    soil_n_cols: Optional[int] = 0
-    max_val_attempts: Optional[int] = 50
-    simulation_tag: Optional[str] = "default"
-    no_root_zone: Optional[float] = 1e-4
-    floor_threshold: Optional[float] = 0.4
-    ceiling_threshold: Optional[float] = 0.9
-
-
-class SurrogateFeatures(BaseModel):
-    """The Surrogate features data model."""
-
-    data: List[SimulationFeatures]
-
-
-input_spec = JSON(pydantic_model=SurrogateFeatures)
-
-
-@svc.api(input=input_spec, output=PandasDataFrame())
-def predict(inputs: SurrogateFeatures) -> dict:
-    """Get the surrogate model predictions.
-
-    Args:
-        inputs (SurrogateFeatures):
-            The simulation parameter data.
-
-    Returns:
-        dict:
-            The surrogate model predictions.
-    """
-    if len(inputs.data) > 0:
-        input_list = [simulation.dict() for simulation in inputs.data]
-
-    if len(input_list) == 1:
-        index = [0]
+model, missing = load(TASK)
+feature_types = {}
+if model is not None:
+    schema = Model.load(model.path_of(bentoml.mlflow.MLFLOW_MODEL_FOLDER)).get_input_schema()
+    if schema is None or not schema.has_input_names() or schema.is_tensor_spec():
+        model, missing = None, f"Surrogate {model.tag} has no named numeric training signature; retrain it."
     else:
-        index = None
-    input_df = pd.DataFrame(input_list, index=index)
-    result = runner.predict.run(input_df)
-    return result
+        feature_types = dict(zip(schema.input_names(), schema.numpy_types(), strict=True))
+        if any(dtype.kind not in "iuf" for dtype in feature_types.values()):
+            model, missing = None, f"Surrogate {model.tag} has a nonnumeric feature in its training signature."
+svc, runner = service(TASK, model)
+
+
+@svc.api(input=JSON(pydantic_model=SurrogateFeatures), output=PandasDataFrame())
+def predict(inputs: SurrogateFeatures) -> pd.DataFrame:
+    """Predict with the feature names and column order of the loaded model."""
+    served = require(runner, missing)
+    try:
+        frame = inputs.feature_frame(feature_types)
+    except ValueError as exc:
+        raise BadInput(f"Surrogate {model.tag}: {exc}") from exc
+    return served.predict.run(frame)

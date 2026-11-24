@@ -8,7 +8,7 @@ import pandas as pd
 import pytest
 
 from deeprootgen.data_model import RootSimulationModel
-from deeprootgen.model import RootSystemSimulation
+from deeprootgen.archive.simulation import RootSystemSimulation
 from deeprootgen.model import root as root_module
 from deeprootgen.research.so4_controlled import (
     Skeleton,

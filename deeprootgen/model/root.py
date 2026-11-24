@@ -88,6 +88,16 @@ class RootOrgan:
     def init_diameters(
         self, segments_per_root: int, apex_diameter: float
     ) -> np.ndarray:
+        features = getattr(self, "feature_laws", None)
+        canonical = getattr(self.input_parameters, "canonical_generation", False)
+        if canonical and hasattr(self, "primary_design"):
+            return np.zeros(segments_per_root)  # Supplied primary profile owns these values.
+        if features is not None and not features.uses_birth_diameter(int(self.parent_node.node_data.order) + 1):
+            # Preserve the native compatibility draw count without requiring
+            # replaced cylinder parameters or exposing dummy material.
+            if not canonical:
+                self.rng.uniform(0., 1., segments_per_root)
+            return np.zeros(segments_per_root)
         diameter_reduction = 1 - self.input_parameters.diameter_reduction
         base_diameter = self.base_diameter * diameter_reduction ** (
             self.parent_node.node_data.order
@@ -101,19 +111,32 @@ class RootOrgan:
         if cdf is not None and not hasattr(self, "_current_length_expected_organ_id"):
             raise ValueError("Current-length sampling requires a captured next organ ID")
         order = self.parent_node.node_data.order + 1
-        if order > 1:
+        features = getattr(self, "feature_laws", None)
+        bounded = features is not None and features.laws.lengths.get(int(order), {}).get("law") == "bounded_lognormal"
+        canonical = getattr(self.input_parameters, "canonical_generation", False)
+        if cdf is not None and canonical:
+            return self._sample_cdf_partition(cdf, segments_per_root, order, compatibility_draws=0)
+        if bounded or cdf is not None or (canonical and hasattr(self, "primary_design")):
+            # These values are compatibility draws only; native bounds have no
+            # numerical consumer once the total length law is replaced.
+            min_length, max_length = 0., 1.
+        elif order > 1:
             reduction_factor = self.length_reduction**self.parent_node.node_data.order
             min_length, max_length = self.sroot_length_interval * reduction_factor
         else:
             min_length, max_length = self.proot_length_interval
         lb, ub = sorted((min_length, max_length))
-        root_length = self.rng.uniform(lb, ub)
+        root_length = (1.0 if canonical and (bounded or hasattr(self, "primary_design"))
+                       else self.rng.uniform(lb, ub))
         segment_samples = self.rng.uniform(0, 1, segments_per_root)
         segment_samples = np.sort(segment_samples)[::-1]
         segment_samples /= segment_samples.sum()
         legacy_lengths = segment_samples * root_length
         if cdf is None:
             return legacy_lengths
+        return self._sample_cdf_partition(cdf, segments_per_root, order, compatibility_draws=1 + segments_per_root)
+
+    def _sample_cdf_partition(self, cdf, segments_per_root, order, compatibility_draws):
         if order == 3 and validate_rank_strength(getattr(self.input_parameters, "research_tertiary_length_rank_strength", None)):
             if not hasattr(self, "_tertiary_length_plan"):
                 raise ValueError("Active tertiary rank requires a preplanned biological sibling family")
@@ -125,7 +148,7 @@ class RootOrgan:
                 cdf, segments_per_root, self.input_parameters.random_seed,
                 self._current_length_expected_organ_id, int(order),
             )
-        diagnostics["legacy_compatibility_draw_count"] = 1 + segments_per_root
+        diagnostics["legacy_compatibility_draw_count"] = compatibility_draws
         self.current_length_diagnostics = diagnostics
         return lengths
 
@@ -169,6 +192,7 @@ class RootOrgan:
         """Generate local centreline points with geometric segment lengths."""
         coordinates = [np.zeros(3)]
         root_vary = self.input_parameters.root_vary
+        root_vary = 0.0 if root_vary is None else root_vary
         y_rotations = self.rng.uniform(-root_vary, root_vary, segments_per_root)
         z_rotations = self.rng.uniform(-root_vary, root_vary, segments_per_root)
         for i, segment_length in enumerate(lengths):
@@ -193,6 +217,9 @@ class RootOrgan:
         current_order = int(self.parent_node.node_data.order) + 1
         if current_order >= int(p.max_order):
             return 0
+        overrides = getattr(p, "daughters_by_parent_order", {})
+        if current_order in overrides:
+            return overrides[current_order]
         lo, hi = sorted((int(p.min_sec_root_num), int(p.max_sec_root_num)))
         if lo < 0:
             raise ValueError("min_sec_root_num must be nonnegative")
@@ -233,7 +260,7 @@ class RootOrgan:
             polyline = np.vstack((np.zeros((1, 3)), coordinates))
             original_lengths = np.linalg.norm(np.diff(polyline, axis=0), axis=1)
             cumulative = np.r_[0.0, np.cumsum(original_lengths)]
-            sites = features.branch_sites(self, float(cumulative[-1]))
+            sites = features.branch_sites(self, float(cumulative[-1]), len(original_lengths))
             if not sites:
                 return diameters, lengths, coordinates, []
             return RootOrgan._subdivide_at_sites(self, diameters, lengths, polyline, original_lengths, cumulative, sites)
@@ -299,7 +326,7 @@ class RootOrgan:
                 daughter_length_policy="keyed current-length CDF; no attachment-length addition",
             )
         if zone is not None:
-            current = self.current_length_diagnostics["sampled_current_length_cm"]
+            current = self._expected_current_length()
             if not np.isclose(cumulative[-1], current, rtol=0, atol=1e-8):
                 raise ValueError("Parent2 CURRENT and geometric lengths disagree")
             inputs = validate_parent2_branch_zone(zone)
@@ -326,6 +353,8 @@ class RootOrgan:
 
         # The original centreline corners and sites are retained exactly.
         cuts = np.unique(np.r_[cumulative, sites])
+        if hasattr(self, "feature_laws"):
+            self.feature_laws.reserve_construction(len(cuts) - 1, self.parent_node.G)
         subdivided = np.column_stack(
             [np.interp(cuts, cumulative, polyline[:, axis]) for axis in range(3)]
         )
@@ -394,7 +423,7 @@ class RootOrgan:
         self.mass = self.calculate_mass()
         if hasattr(self, "current_length_diagnostics"):
             realised = float(self.get_lengths().sum())
-            if not np.isclose(realised, self.current_length_diagnostics["sampled_current_length_cm"], rtol=0, atol=1e-8):
+            if not np.isclose(realised, self._expected_current_length(), rtol=0, atol=1e-8):
                 raise ValueError("Post-subdivision current organ length conservation exceeds 1e-8 cm")
             self.current_length_diagnostics["post_subdivision_length_cm"] = realised
         if hasattr(self, "_construction_step_lengths_cm"):
@@ -409,16 +438,25 @@ class RootOrgan:
             self.construction_step_provenance = copy.deepcopy(self.current_length_diagnostics)
         return self.segments
 
+    def _expected_current_length(self):
+        draw = self.current_length_diagnostics
+        return draw.get("allocated_length_cm", draw["sampled_current_length_cm"])
+
     def calculate_mass(self) -> float:
         diameters = self.get_diameters()
         lengths = self.get_lengths()
         volume = np.pi * (diameters / 2) ** 2 * lengths
+        if getattr(self, "diameter_density_applied", False):
+            densities = [node.node_data.root_tissue_density for node in self.segments]
+            return float(np.dot(volume, densities))
         return float((volume * self.input_parameters.root_tissue_density).sum())
 
     def construct_root(
         self, segments_per_root: int, apex_diameter: float, root_tissue_density: float
     ) -> List[RootNode]:
         """Construct primary root, inserting daughter attachment nodes first."""
+        if hasattr(self, "feature_laws"):
+            self.feature_laws.reserve_construction(segments_per_root, self.parent_node.G)
         diameters = self.init_diameters(segments_per_root, apex_diameter)
         lengths = self.init_lengths(segments_per_root)
         if hasattr(self, "primary_design"):
@@ -427,6 +465,7 @@ class RootOrgan:
         if features is not None:
             replaced = features.replace_lengths(self, lengths)
             lengths = features.scale_lengths(self, lengths if replaced is None else replaced)
+            diameters = features.scale_diameters(self, diameters)
         coordinates = self.init_segment_coordinates(segments_per_root, lengths)
         diameters, lengths, coordinates, attachments = self._prepare_branch_nodes(
             diameters, lengths, coordinates
@@ -450,6 +489,8 @@ class RootOrgan:
         """
         if not self.lateral_attachment_nodes:
             raise RuntimeError("No lateral insertion nodes remain on this organ")
+        if hasattr(self, "feature_laws"):
+            self.feature_laws.reserve_organ()
         parent_node = self.lateral_attachment_nodes.pop(0)
         child_organ = RootOrgan(
             parent_node,
@@ -470,11 +511,12 @@ class RootOrgan:
             raise ValueError("Active tertiary rank requires a preplanned biological sibling family")
         if self._current_length_cdf() is not None:
             self._current_length_expected_organ_id = int(self.parent_node.G.organ_id)
+        if hasattr(self, "feature_laws"):
+            self.feature_laws.reserve_construction(segments_per_root, self.parent_node.G)
         diameters = self.init_diameters(segments_per_root, apex_diameter)
         lengths = self.init_lengths(segments_per_root)
-        parent_data = self.parent_node.node_data
-        if getattr(self.input_parameters, "research_current_length_grid", None) is not None:
-            self._construction_step_lengths_cm = lengths.copy()
+        features = getattr(self, "feature_laws", None)
+        parent_data = self.parent_node.node_data if features is None else features.birth_context(self.parent_node)
         parent_order = parent_data.order
         diameters += parent_data.diameter * 0.1**parent_order
         features = getattr(self, "feature_laws", None)
@@ -485,6 +527,9 @@ class RootOrgan:
             lengths += parent_data.length * 0.1**parent_order
         if features is not None:
             lengths = features.scale_lengths(self, lengths)
+            diameters = features.scale_diameters(self, diameters)
+        if getattr(self.input_parameters, "research_current_length_grid", None) is not None:
+            self._construction_step_lengths_cm = lengths.copy()
         coordinates = self.init_segment_coordinates(segments_per_root, lengths)
 
         root_type_name = (
@@ -660,9 +705,18 @@ class RootOrgan:
         if current_order > 1:
             parent = self.get_parent_origin()
             first = self.get_coordinates()[0]
-            distance = np.linalg.norm(first - parent)
             expected = self.segments[0].node_data.length
-            if not np.isclose(distance, expected, rtol=1e-5, atol=1e-6):
+            curve = getattr(getattr(self, "axis_state", None), "curve", None)
+            if getattr(self.input_parameters, "canonical_generation", False) and curve is not None:
+                # Construction endpoints can span several physical curve pieces.
+                # The materializer checks their lengths when it emits the corners.
+                first_interval_ok = (
+                    np.allclose(parent, curve.points[0], rtol=0, atol=1e-6)
+                    and np.allclose(first, curve.position(expected)[0], rtol=0, atol=1e-6)
+                )
+            else:
+                first_interval_ok = np.isclose(np.linalg.norm(first - parent), expected, rtol=1e-5, atol=1e-6)
+            if not first_interval_ok:
                 return self.cascading_set_invalid_root()
 
     def grow(
@@ -718,6 +772,8 @@ class RootSystemSimulation:
         self.rng = self.streams.native
 
     def get_yaw(self, number_of_roots: int) -> tuple:
+        if number_of_roots == 0:
+            return 0., 0., 0.
         yaw_base = 360 / number_of_roots
         return yaw_base, yaw_base * 0.05, yaw_base
 
@@ -913,13 +969,16 @@ class RootSystemSimulation:
 
         for order in range(2, int(input_parameters.max_order) + 1):
             for parent_organ in self.organs[order - 1]:
+                if laws is not None:
+                    laws.filter_branch_sites(parent_organ)
                 rank_plans = None
                 if order == 3 and validate_rank_strength(getattr(input_parameters, "research_tertiary_length_rank_strength", None)):
-                    sites = parent_organ.parent2_zone_diagnostics["sites_cm"]
+                    zone = parent_organ.parent2_zone_diagnostics
+                    sites = zone.get("eligible_sites_cm", zone["sites_cm"])
                     if len(sites) != len(parent_organ.lateral_attachment_nodes):
                         raise ValueError("Tertiary rank family branch-site count disagrees with parent2 zone")
                     rank_plans, family = plan_tertiary_length_family(
-                        input_parameters.research_current_length_cdfs_cm[3], input_parameters.segments_per_root,
+                        input_parameters.research_current_length_cdfs_cm[3], (input_parameters.segments_per_root or 1),
                         input_parameters.random_seed, int(parent_organ.segments[0].node_data.organ_id),
                         int(self.G.organ_id), sites, input_parameters.research_tertiary_length_rank_strength,
                     )
@@ -939,7 +998,7 @@ class RootSystemSimulation:
                                                           if order < input_parameters.max_order else 0)
                     self.organs[order].append(child)
                     child.construct_root_from_parent(
-                        input_parameters.segments_per_root,
+                        (input_parameters.segments_per_root or 1),
                         input_parameters.apex_diameter,
                     )
                     if laws is not None:
@@ -964,6 +1023,8 @@ class RootSystemSimulation:
                 position_type=position_type,
             )
             for _ in range(int(n_roots)):
+                if laws is not None:
+                    laws.reserve_organ()
                 organ = RootOrgan(
                     self.G.base_node if laws is None else laws.primary_parent(self, len(self.organs[1])),
                     input_parameters=input_parameters,
@@ -978,7 +1039,7 @@ class RootSystemSimulation:
                 if primary_design is not None:
                     organ.primary_design = copy.deepcopy(primary_design[len(self.organs[1])])
                 organ.construct_root(
-                    input_parameters.segments_per_root,
+                    (input_parameters.segments_per_root or 1),
                     input_parameters.apex_diameter,
                     input_parameters.root_tissue_density,
                 )
@@ -1352,41 +1413,34 @@ class RootSystemSimulation:
             if getattr(primary, "validation_reorientations", 0) or primary.invalid_root:
                 raise ValueError("Primary validation changed or invalidated optional yaw/origin/inclination initialization")
 
-    def run(self, input_parameters, *, initial_recorder=None) -> None:
-        """Parse, resolve and execute one fresh generation.
+    def diameter_material(self, density=None):
+        """Measure the finished vine by diameter, using a specified dry-density law.
 
-        Accepts a validated model (flat, schema 2 or schema 3), a raw JSON
-        object, JSON text or a ``pathlib.Path``. Every native input, including
-        legacy flat parameters, runs through the same fixed engine lifecycle.
+        Returns per-order tissue volume, length and dry mass in each band. With
+        no argument, uses the configured bands or the grapevine profile. Crown material
+        is accounted for separately by the field study.
         """
+        from .tissue_density import GRAPEVINE_STEPPED, summarize_diameter_material
+
+        if getattr(self, "result", None) is None:
+            raise ValueError("Run the simulation before measuring diameter material")
+        profile = getattr(self, "diameter_density", GRAPEVINE_STEPPED) if density is None else density
+        return summarize_diameter_material(self, profile)
+
+    def run(self, input_parameters, *, initial_recorder=None) -> None:
+        """Generate a root system from a canonical configuration."""
         from ..data_model.resolution import resolve_config
+        from .engine import execute_canonical
 
         resolved = resolve_config(input_parameters)
-        if resolved.source_schema == "flat":
-            if initial_recorder is not None:
-                raise ValueError('INITIAL recording requires extended construction-step execution')
-            if getattr(self, '_extended_run_started', False):
-                raise ValueError("Use a fresh simulator after an extended run")
-        else:
-            if len(self.G.nodes) != 1 or self.organs or getattr(self, '_extended_run_started', False):
-                raise ValueError("Use a fresh simulator for each extended run")
-            if self.random_seed != resolved.seed:
-                raise ValueError("Simulator and execution random_seed must match")
-            self._extended_run_started = True
-            self.result = None
-            if initial_recorder is not None:
-                # A read-only view of a placed native scaffold: the historical
-                # construction-step contract, or schema-3 native construction.
-                if resolved.source_schema == "2" and not resolved.laws.writer.get("records"):
-                    raise ValueError('INITIAL recording requires construction-step execution')
-                if resolved.laws.construction != "native":
-                    raise ValueError("INITIAL recording requires native construction with a placed scaffold")
-            if resolved.simulator_tag is not None:
-                self.simulation_tag = resolved.simulator_tag
-        # One engine for every input; ``initial_recorder`` is a read-only view
-        # taken at the fixed INITIAL phase after scaffold placement.
-        from .engine import execute
-        execute(self, resolved, initial_recorder=initial_recorder)
+        if len(self.G.nodes) != 1 or self.organs or getattr(self, "_extended_run_started", False):
+            raise ValueError("Use a fresh simulator for each run")
+        if self.random_seed != resolved.seed:
+            raise ValueError("Simulator and configuration random_seed must match")
+        self._extended_run_started = True
+        self.simulation_tag = resolved.simulation_tag
+        self.result = None
+        execute_canonical(self, resolved, initial_recorder=initial_recorder)
 
     def _check_extended_result(self):
         from .integrity import validate_result

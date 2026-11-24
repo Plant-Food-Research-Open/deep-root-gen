@@ -9,9 +9,9 @@ import pandas as pd
 
 from ..data_model import (
     RootCalibrationModel,
-    RootSimulationModel,
     SummaryStatisticsModel,
 )
+from ..data_model.canonical import RootConfig
 from ..model import RootSystemSimulation
 from ..statistics import (
     DistanceMetricBase,
@@ -88,8 +88,22 @@ def run_calibration_simulation(
         tuple:
             The simulation and its parameters.
     """
-    parameter_specs["random_seed"] = input_parameters.random_seed
-    simulation_parameters = RootSimulationModel.parse_obj(parameter_specs)
+    settings = dict(parameter_specs)
+    # Inference libraries may produce NumPy scalars or integral-valued floats.
+    for key in ("segments_per_root", "max_order", "primary_root_count", "daughters_per_parent"):
+        if key in settings:
+            value = settings[key]
+            if isinstance(value, (bool, np.bool_)) or int(value) != value:
+                raise ValueError(f"Expected an integer for {key}")
+            settings[key] = int(value)
+    for key in ("floor_threshold", "ceiling_threshold", "no_root_zone", "max_val_attempts"):
+        value = getattr(input_parameters, key, None)
+        if value is not None:
+            settings.setdefault(key, value)
+    simulation_parameters = RootConfig(
+        schema_version=4, parameters=settings, random_seed=input_parameters.random_seed,
+        simulation_tag=input_parameters.simulation_tag or "default",
+    )
     simulation = RootSystemSimulation(
         simulation_tag=input_parameters.simulation_tag,  # type: ignore
         random_seed=input_parameters.random_seed,  # type: ignore
@@ -197,9 +211,8 @@ def calculate_summary_statistics(
         else:
             statistic_func = get_summary_statistic_func(statistic_name)
 
-            statistic_instance = statistic_func(
-                root_tissue_density=(simulation_parameters.root_tissue_density)
-            )
+            density = simulation_parameters.parameters.root_tissue_density
+            statistic_instance = statistic_func(root_tissue_density=None if hasattr(density, "bounds_mm") else density)
 
             statistic_value = statistic_instance.calculate(node_df)
 

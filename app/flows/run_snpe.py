@@ -46,6 +46,7 @@ from sbi.inference import (
     simulate_for_sbi,
 )
 
+from deeprootgen.data_model.simulation_form import SoilDisplay
 from deeprootgen.calibration import (
     GraphFlowFeatureExtractor,
     PriorCollection,
@@ -557,7 +558,9 @@ def log_summary_stat_task(
         artifacts[name] = outfile
         calibrator_dump(obj, outfile)
 
-    signature_x = pd.DataFrame(observed_values)
+    # MLflow cannot type an all-empty optional column (sample_id, x, ...); the
+    # signature keeps the statistic fields that carry values.
+    signature_x = pd.DataFrame(observed_values).dropna(axis=1, how="all")
     signature_y = pd.DataFrame(posterior_samples, columns=names)
     calibration_model = SnpeModel()
 
@@ -628,7 +631,8 @@ def run_snpe(input_parameters: RootCalibrationModel, simulation_uuid: str) -> No
 
     config = input_parameters.dict()
     log_config(config, TASK)
-    log_simulation(simulation_parameters, simulation, TASK)
+    log_simulation(simulation_parameters, simulation, TASK,
+                   SoilDisplay(**input_parameters.model_dump(include=set(SoilDisplay.model_fields))))
     save_graph_to_db(simulation, TASK, simulation_uuid)
     mlflow.end_run()
 

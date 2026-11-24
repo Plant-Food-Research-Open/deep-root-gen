@@ -172,29 +172,15 @@ def load_config(path):
         raise ValueError("search_space must be a nonempty mapping")
     if set(config["search_space"]) & FROZEN_FIELDS:
         raise ValueError("Seed, time, order, frame and route fields must remain fixed")
-    if not set(config["search_space"]) <= set(parameters):
-        raise ValueError("Every search parameter must exist in the base parameter file")
-    from deeprootgen.data_model import RootSimulationModel
-    from deeprootgen.research.search_evaluation import (
-        evaluate_samples,
-        validate_simulation_parameters,
-    )
+    from deeprootgen.research.search_evaluation import evaluate_samples, validate_simulation_parameters
     from deeprootgen.research.order5_population_evaluation import validate_root_orders
 
-    if not set(config["search_space"]) <= set(RootSimulationModel.model_fields):
-        raise ValueError("Search contains an unknown model parameter")
-    model = RootSimulationModel(**parameters)
+    model = validate_simulation_parameters(parameters, route=config["simulation_route"])
+    if not set(config["search_space"]) <= parameters["parameters"].keys():
+        raise ValueError("Every search parameter must exist in the canonical parameters block")
     orders = validate_root_orders(reference.get("root_orders"))
-    if model.max_order != orders[-1]:
+    if model.parameters.max_order != orders[-1]:
         raise ValueError("parameters.max_order must agree with reference.root_orders")
-    if model.max_order not in (3, 4, 5) or model.soil_surface_z_cm != 20.0:
-        raise ValueError(
-            "This bridge requires explicit order1-3/4/5 and soil_surface_z_cm=20"
-        )
-    steps = model.research_current_length_grid == "construction_steps_v1"
-    if steps != (config["simulation_route"] == "construction_steps_v1"):
-        raise ValueError("Explicit route disagrees with construction-step parameters")
-    validate_simulation_parameters(parameters, route=config["simulation_route"])
     # Validate the observation contract without a model run or rewriting inputs.
     evaluate_samples(
         reference,
