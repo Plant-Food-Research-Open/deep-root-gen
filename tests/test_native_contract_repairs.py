@@ -42,6 +42,51 @@ def test_near_attachment_never_discards_a_real_curve_corner(delta):
     np.testing.assert_array_equal(tangent, points[1] - points[0] if delta == 0 else points[2] - points[1])
 
 
+@pytest.mark.parametrize("tip", [.2, np.nextafter(.2, 0.)])
+def test_reconciliation_preserves_corner_and_attachment_with_chord_lengths(monkeypatch, tip):
+    from deeprootgen.model import engine
+    from deeprootgen.model.native_features import tapered_axis
+
+    stations = np.array([0., .1, .2])
+    points = np.array([[100., 0., -1.], [100.1, 0., -1.], [100.1, .1, -1.]])
+    arcs = np.array([.1 - 1e-7, .2])
+    curve = AxisCurve(7, stations, points, arcs, {"surface_z_cm": 0.})
+
+    def node(xyz):
+        return NS(node_data=RootNodeModel(organ_id=7, **dict(zip("xyz", xyz))))
+
+    split_arcs = np.array([arcs[0], tip])
+    construction = NS(parent_node=node(points[0]), segments=[node(p) for p in curve.position(split_arcs)],
+                      get_lengths=lambda: np.diff(np.r_[0., split_arcs]))
+    state = NS(parameters=NS(fine_root_threshold=.2), resolved=NS(source_schema="4"),
+               laws=NS(materialization=dict(corner_coincidence_cm=1e-9, reconcile_length_metadata=True)),
+               law_counters={"length_metadata_reconciliations": []})
+    intervals = tapered_axis(construction, curve, dict(base=.4, tip=.4, midpoint=.5), state)
+    assert [event.cut_cm for event in intervals] == [arcs[0], stations[1], tip]
+    assert intervals[0].source is construction.segments[0]
+    assert len(state.law_counters["length_metadata_reconciliations"]) == 1
+    lengths = np.array([event.data.length for event in intervals])
+    diameters = np.array([event.data.diameter for event in intervals])
+    assert np.dot(lengths, diameters**2) == pytest.approx(.2 * .4**2, rel=1e-14)
+    assert abs(lengths[:2].sum() - .1) > 64 * np.finfo(float).eps * .2
+    published = NS(parent_node=construction.parent_node,
+                   segments=[NS(node_data=event.data) for event in intervals])
+    state.organs_in_birth_order = lambda: [published]
+    state.axes = {7: intervals}
+    state.curves = {7: curve}
+    state.material_laws = {7: "point_taper"}
+    monkeypatch.setattr(engine, "check_graph", lambda state: None)
+    engine.check(state)
+
+    # Reflect the published chain about y=x-100. This preserves every chord and
+    # the contour length while removing the original corner vertex.
+    for segment in published.segments[:-1]:
+        data = segment.node_data
+        data.x, data.y = 100. + data.y, data.x - 100.
+    with pytest.raises(ValueError, match="lost a direction corner"):
+        engine.check(state)
+
+
 def test_tiny_taper_preserves_midpoint_and_analytic_mass():
     length, base, tip, mid = 1e-10, .2, .01, .9
     cuts = merge_cuts([0., length], [[], [length / 2]], 1e-9)

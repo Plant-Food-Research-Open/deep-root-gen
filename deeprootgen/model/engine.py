@@ -629,10 +629,16 @@ def emit(state):
 def check(state):
     """Pure integrity and law postconditions; draw nothing, repair nothing."""
     check_graph(state)
+    reconciles = (state.resolved.source_schema == "4"
+                  and state.laws.materialization.get("reconcile_length_metadata", False))
     for organ in state.organs_in_birth_order():
-        curve = state.curves.get(organ_id(organ))
+        oid = organ_id(organ)
+        curve = state.curves.get(oid)
         if curve is not None:
-            check_curve_postconditions(organ, curve, curve.law["surface_z_cm"])
+            retained_cuts = None
+            if reconciles and state.material_laws.get(oid) == "point_taper":
+                retained_cuts = [event.cut_cm for event in state.axes[oid]]
+            check_curve_postconditions(organ, curve, curve.law["surface_z_cm"], retained_cuts=retained_cuts)
 
 
 def check_graph(state):
