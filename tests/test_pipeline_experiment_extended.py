@@ -105,7 +105,10 @@ def test_begin_experiment_uses_public_hosts(monkeypatch):
     monkeypatch.setenv("APP_PREFECT_USER_HOST", "https://prefect.example.org")
     subject.begin_experiment.fn("calibration", "uuid", "tag")
     assert dict(tags)["app_url"] == "https://roots.example.org"
-    assert dict(tags)["prefect_flow_url"].startswith("https://prefect.example.org")
+    assert (
+        dict(tags)["prefect_flow_url"]
+        == "https://prefect.example.org/flow-runs/flow-run/flow-2"
+    )
 
 
 def test_log_config_saves_yaml_and_logs_each_parameter(monkeypatch, tmp_path):
