@@ -119,7 +119,9 @@ def lhc_sample(input_parameters: RootCalibrationModel) -> pd.DataFrame:
 
     sample = sampler.random(n=total_samples)
     sample_scaled = qmc.scale(sample, lower_bounds, upper_bounds)
-    sample_df = pd.DataFrame(sample_scaled, columns=names).sample(frac=1)
+    sample_df = pd.DataFrame(sample_scaled, columns=names).sample(
+        frac=1, random_state=np.random.default_rng(input_parameters.random_seed)
+    )
     sim_ids = [str(uuid.uuid4()) for _ in range(total_samples)]  # type: ignore[arg-type]
     sample_df["sim_ids"] = sim_ids
 

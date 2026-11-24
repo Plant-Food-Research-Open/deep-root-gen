@@ -1,0 +1,35 @@
+FROM python:3.10.20-slim-bookworm@sha256:019e31cc1f52e4139d338bca44f27b71339a9da261738fd80fab9cf4595152fc AS base
+ENV PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    VIRTUAL_ENV=/opt/venv PATH=/opt/venv/bin:$PATH
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential libpq-dev graphviz ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+FROM base AS builder
+WORKDIR /app
+RUN python -m venv /opt/poetry && /opt/poetry/bin/pip install \
+    --index-url https://pypi.org/simple poetry==1.8.3 \
+    && python -m venv /opt/venv
+COPY pyproject.toml poetry.lock README.md ./
+RUN POETRY_INSTALLER_MAX_WORKERS=4 /opt/poetry/bin/poetry install --without dev --no-root --no-interaction
+COPY deeprootgen ./deeprootgen
+RUN /opt/poetry/bin/poetry install --only-root --no-interaction
+FROM base AS runtime
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY deeprootgen ./deeprootgen
+COPY app/app.py ./app.py
+COPY app/conf ./conf
+COPY app/pages ./pages
+COPY app/flows ./flows
+COPY app/deployments ./deployments
+COPY bentoml_configuration.yaml ./bentoml_configuration.yaml
+COPY scripts/local ./local
+# sbi opens a TensorBoard writer at the relative path sbi-logs when an SNPE
+# inference object is created or unpickled (worker and model service).
+RUN useradd --create-home --uid 10001 drg \
+    && mkdir -p /app/outputs /app/sbi-logs && chown drg:drg /app/outputs /app/sbi-logs
+USER drg
+ENV HOME=/home/drg DEEPROOTGEN_OUTPUT_DIR=/app/outputs \
+    CUDA_VISIBLE_DEVICES="" OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
+EXPOSE 8000
+CMD ["gunicorn", "-b", "0.0.0.0:8000", "-w", "1", "--worker-class", "gthread", "--threads", "2", "app:server"]

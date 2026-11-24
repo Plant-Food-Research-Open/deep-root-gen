@@ -1,0 +1,254 @@
+{
+  "schema_version": 3,
+  "random_seed": 42,
+  "simulation_tag": "invented-fully-replaced-construction-example",
+  "parameters": {
+    "max_order": 3,
+    "outer_root_num": 1,
+    "inner_root_num": 1,
+    "root_tissue_density": 0.3,
+    "fine_root_threshold": 0.06,
+    "tropism_mode": "fichtl2024",
+    "soil_surface_z_cm": 0.0,
+    "fichtl_probability_down": 0.5,
+    "fichtl_sigma": 0.1,
+    "fichtl_trials_type2": 1.0,
+    "fichtl_trials_type3": 1.0,
+    "fichtl_theta2_deg": 50.0,
+    "fichtl_theta2_sd_deg": 10.0,
+    "fichtl_theta3_deg": 50.0,
+    "fichtl_theta3_sd_deg": 10.0
+  },
+  "features": {
+    "curvature": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "origin_heading"
+          },
+          "2": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 45.0,
+            "insertion_sd_deg": 10.0
+          },
+          "3": {
+            "law": "correlated_curvature",
+            "step_cm": 2.0,
+            "curvature_sd_rad_cm": 0.005,
+            "correlation_length_cm": 10.0,
+            "downward_drift_per_cm": 0.0,
+            "boundary": "reflect_downward",
+            "first_interval": "integrate",
+            "initial_heading": "insertion_angle",
+            "insertion_mean_deg": 45.0,
+            "insertion_sd_deg": 10.0
+          }
+        }
+      }
+    },
+    "taper": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": {
+              "mean": 0.2,
+              "sd": 0.0,
+              "min": 0.2,
+              "max": 0.2
+            },
+            "tip_cm": {
+              "mean": 0.02,
+              "sd": 0.0,
+              "min": 0.02,
+              "max": 0.02
+            }
+          },
+          "2": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": {
+              "mean": 0.1,
+              "sd": 0.0,
+              "min": 0.1,
+              "max": 0.1
+            },
+            "tip_cm": {
+              "mean": 0.01,
+              "sd": 0.0,
+              "min": 0.01,
+              "max": 0.01
+            }
+          },
+          "3": {
+            "law": "piecewise_linear_arclength",
+            "midpoint_diameter_fraction": 0.5,
+            "base_cm": {
+              "mean": 0.06666666666666667,
+              "sd": 0.0,
+              "min": 0.06666666666666667,
+              "max": 0.06666666666666667
+            },
+            "tip_cm": {
+              "mean": 0.006666666666666667,
+              "sd": 0.0,
+              "min": 0.006666666666666667,
+              "max": 0.006666666666666667
+            }
+          }
+        }
+      }
+    },
+    "primary_origins": {
+      "enabled": true,
+      "settings": {
+        "layout": "disk",
+        "radius_cm": 0.5,
+        "depth_range_cm": [
+          1.0,
+          2.0
+        ],
+        "heading": {
+          "law": "radial_inclination",
+          "inclination_mean_deg": 30.0,
+          "inclination_sd_deg": 10.0,
+          "inclination_bounds_deg": [
+            0.0,
+            90.0
+          ]
+        }
+      }
+    },
+    "cohort_maturity": {
+      "enabled": true,
+      "settings": {
+        "groups": [
+          {
+            "label": "established",
+            "primary_indices": [
+              0
+            ],
+            "maturity_range": [
+              1.0,
+              1.0
+            ]
+          },
+          {
+            "label": "later",
+            "primary_indices": [
+              1
+            ],
+            "maturity_range": [
+              0.3,
+              0.6
+            ]
+          }
+        ],
+        "length_power": 0.5,
+        "diameter_power": 0.7,
+        "scale_branch_probability": true,
+        "diameter_target": "base_anchor"
+      }
+    },
+    "lengths": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "bounded_lognormal",
+            "mean": 8.0,
+            "sd": 0.8,
+            "min": 4.0,
+            "max": 16.0
+          },
+          "2": {
+            "law": "bounded_lognormal",
+            "mean": 3.0,
+            "sd": 0.3,
+            "min": 1.5,
+            "max": 6.0
+          },
+          "3": {
+            "law": "bounded_lognormal",
+            "mean": 1.0,
+            "sd": 0.1,
+            "min": 0.5,
+            "max": 2.0
+          }
+        }
+      }
+    },
+    "branching": {
+      "enabled": true,
+      "settings": {
+        "by_order": {
+          "1": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 0.5,
+              "sd": 0.0,
+              "min": 0.5,
+              "max": 0.5
+            },
+            "branch_probability": 0.8,
+            "daughter_probabilities": [
+              0.5,
+              0.5
+            ]
+          },
+          "2": {
+            "law": "first_branch_and_daughter_count",
+            "first_branch_cm": {
+              "mean": 0.5,
+              "sd": 0.0,
+              "min": 0.5,
+              "max": 0.5
+            },
+            "branch_probability": 0.8,
+            "daughter_probabilities": [
+              0.5,
+              0.5
+            ]
+          }
+        }
+      }
+    },
+    "parent_diameter_cap": {
+      "enabled": true,
+      "settings": {
+        "fraction_max": 0.8
+      }
+    },
+    "attachment_relocation": {
+      "enabled": false,
+      "settings": {
+        "orders": [
+          2
+        ],
+        "distal_fraction": 0.25,
+        "preserve_sampled_daughter_dimensions": true
+      }
+    }
+  },
+  "limits": {
+    "max_organs": 10000,
+    "max_nodes": 100000
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "schema_version": 4,
+  "random_seed": 42,
+  "simulation_tag": "invented-fine-root-allocation",
+  "parameters": {
+    "max_order": 2,
+    "primary_root_count": 2,
+    "daughters_per_parent": 1,
+    "segments_per_root": 3,
+    "root_vary": 1.0,
+    "gravitropism": 0.5,
+    "interbranch_distance": 0.5,
+    "root_tissue_density": 0.2,
+    "threshold_root_diameter_cm": 0.25,
+    "min_branching_diameter_cm": 0.093,
+    "root_ratio_length": 0.5,
+    "root_ratio_biomass": 0.1,
+    "allocation_controls": {
+      "length_scale_by_order": {"2": [0.75, 2.5]},
+      "diameter_scale_by_order": {"2": [0.75, 1.8]}
+    }
+  },
+  "features": {
+    "primary_origins": {
+      "enabled": true,
+      "settings": {"layout": "point", "x_cm": 0, "y_cm": 0, "depth_cm": 20}
+    },
+    "lengths": {"enabled": true, "settings": {"by_order": {"1": 6, "2": {"nominal_cm": 3}}}},
+    "taper": {
+      "enabled": true,
+      "settings": {"by_order": {
+        "1": {"base_cm": 0.4, "tip_cm": 0.4},
+        "2": {"base_cm": {"nominal_cm": 0.1}, "tip_cm": {"nominal_cm": 0.1}}
+      }}
+    }
+  }
+}

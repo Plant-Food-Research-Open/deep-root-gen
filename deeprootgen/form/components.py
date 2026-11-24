@@ -12,6 +12,37 @@ from pydoc import locate
 import dash_bootstrap_components as dbc
 import pandas as pd
 from dash import dcc, get_app, html
+from omegaconf import OmegaConf
+
+
+def _component_properties(spec) -> dict:
+    kwargs = spec.kwargs
+    properties = OmegaConf.to_container(kwargs, resolve=True) if OmegaConf.is_config(kwargs) else dict(kwargs)
+    handler = getattr(spec, "handler", None)
+    if handler == "boolean_switch":
+        properties.setdefault("on", False)
+    elif handler == "dropdown":
+        options = locate(spec.options_func)()
+        properties["options"] = options
+        if options and "value" not in properties:
+            first = options[0]
+            value = first["value"] if isinstance(first, dict) else first
+            properties["value"] = [value] if properties.get("multi") else value
+    elif handler == "range_slider":
+        properties.update(
+            value=[spec.min_value, spec.max_value],
+            tooltip={"placement": "top", "always_visible": True},
+        )
+    return properties
+
+
+def form_control_defaults(form_name: str, section: str) -> list:
+    """Return the defaults used when rendering these form controls."""
+    specs = get_app().settings[form_name].components[section]["children"]
+    return [
+        _component_properties(spec).get("on" if spec.get("handler") == "boolean_switch" else "value")
+        for spec in specs
+    ]
 
 
 def build_common_components(
@@ -20,6 +51,7 @@ def build_common_components(
     component_type: str,
     component_data: dict | None = None,
     resize_component: bool = True,
+    switch_component_type: str | None = None,
 ) -> list:
     """Build form components that are common across pages.
 
@@ -34,6 +66,8 @@ def build_common_components(
             A dictionary of data to render within form component.
         resize_component: (bool, optional):
             Whether to resize the last component in the row.
+        switch_component_type: (str | None, optional):
+            Separate pattern group for switches, whose state uses the on property.
 
     Returns:
         list: The common form components.
@@ -67,14 +101,15 @@ def build_common_components(
             delay={"show": "500"},
         )
         component = locate(component_spec.class_name)
-        kwargs = component_spec.kwargs
-
+        group = component_type
+        if switch_component_type and getattr(component_spec, "handler", None) == "boolean_switch":
+            group = switch_component_type
         component_instance = component(
             id={
                 "index": f"{page_id}-{component_spec.id}",
-                "type": f"{page_id}-{component_type}",
+                "type": f"{page_id}-{group}",
             },
-            **kwargs,
+            **_component_properties(component_spec),
         )  # type: ignore
         component_instance.style = {"padding-left": "0.5em"}
 
@@ -83,29 +118,6 @@ def build_common_components(
                 children_func = locate(component_spec.children_func)
                 children = children_func()  # type: ignore
                 component_instance.children = children
-
-            if component_spec.handler == "boolean_switch":
-                component_instance.on = False
-
-            if component_spec.handler == "dropdown":
-                options_func = locate(component_spec.options_func)
-                options_list = options_func()  # type: ignore
-                component_instance.options = options_list
-                if len(options_list) > 0:
-                    if component_spec.kwargs["multi"]:
-                        component_instance.value = [options_list[0]]
-                    else:
-                        component_instance.value = options_list[0]
-
-            if component_spec.handler == "range_slider":
-                component_instance.value = [
-                    component_spec.min_value,
-                    component_spec.max_value,
-                ]
-                component_instance.tooltip = {
-                    "placement": "top",
-                    "always_visible": True,
-                }
 
             if component_spec.handler == "file_upload":
                 component_instance.style = {
@@ -281,39 +293,25 @@ def get_deployment_links() -> list[dbc.NavItem]:
 
 
 def get_external_links() -> dbc.Nav:
-    """Get the list of external links.
-
-    Returns:
-        dbc.Nav:
-            The navigation component for the external links.
-    """
-    return dbc.Nav(
-        [
-            dbc.NavItem(
-                dbc.NavLink("MLflow", href="http://127.0.0.1:5000", target="_blank")
-            ),
-            dbc.NavItem(
-                dbc.NavLink("Prefect", href="http://127.0.0.1:4200", target="_blank")
-            ),
-            dbc.NavItem(
-                dbc.NavLink("MinIO", href="http://127.0.0.1:9001", target="_blank")
-            ),
-            dbc.NavItem(
-                dbc.NavLink("Metabase", href="http://127.0.0.1:3000", target="_blank")
-            ),
-            dbc.NavItem(
-                dbc.NavLink(
-                    "Cloudbeaver", href="http://127.0.0.1:8978", target="_blank"
-                )
-            ),
-            dbc.NavItem(
-                dbc.NavLink("ArangoDB", href="http://127.0.0.1:8529", target="_blank")
-            ),
-        ],
-        pills=True,
-        justified=True,
-        vertical="md",
+    """Link to browser-facing service addresses for this dashboard stack."""
+    services = (
+        ("MLflow", "APP_MLFLOW_USER_HOST", "http://127.0.0.1:5000"),
+        ("Prefect", "APP_PREFECT_USER_HOST", "http://127.0.0.1:4200"),
+        ("MinIO", "APP_MINIO_USER_HOST", ""),
+        ("Metabase", "APP_METABASE_USER_HOST", ""),
+        ("CloudBeaver", "APP_CLOUDBEAVER_USER_HOST", ""),
+        ("ArangoDB", "APP_ARANGODB_USER_HOST", ""),
     )
+    links = []
+    for label, variable, default in services:
+        url = os.environ.get(variable, default).strip()
+        if url:
+            links.append(
+                dbc.NavItem(
+                    html.A(label, href=url, target="_blank", rel="noopener noreferrer", className="nav-link")
+                )
+            )
+    return dbc.Nav(links, pills=True, justified=True, vertical="md")
 
 
 def build_common_layout(
@@ -385,9 +383,12 @@ def build_common_layout(
             is_open=False,
             dismissable=True,
             icon="primary",
-            duration=5000,
-            style={"position": "fixed", "bottom": "0", "left": "0", "zIndex": "9999"},
+            style={"position": "fixed", "bottom": "0", "left": "0", "zIndex": "9999",
+                   "maxWidth": "36rem"},
         ),
+        # Rotated only after Prefect definitely accepts a request (see run_feedback).
+        dcc.Store(id=f"{page_id}-submission-nonce", storage_type="memory"),
+        dcc.Interval(id=f"{page_id}-run-status-poll", interval=5000),
         external_links_collapsible,
     ]
 
@@ -456,7 +457,7 @@ def get_out_table_df() -> pd.DataFrame:
         pd.DataFrame:
             The output table as a dataframe.
     """
-    out_df = pd.DataFrame([], columns=["workflow", "task", "date", "tag"])
+    out_df = pd.DataFrame([], columns=["workflow", "task", "date", "tag", "state"])
     return out_df
 
 
@@ -503,6 +504,7 @@ def get_common_layout(
     app = get_app()
     parameter_form = app.settings[parameter_form_name]
     simulation_form = app.settings[simulation_form_name]
+    is_calibration_form = parameter_form_name == "calibration_form"
     input_components = []
 
     k = data_key
@@ -531,7 +533,8 @@ def get_common_layout(
     if procedure == "Calibration":
         k = task
         calibration_components = build_common_components(
-            parameter_form.components[k]["children"], page_id, k
+            parameter_form.components[k]["children"], page_id, k,
+            switch_component_type=f"{k}-switch" if is_calibration_form else None,
         )
 
         if parameter_form.components[k].get("collapsible"):
@@ -557,6 +560,13 @@ def get_common_layout(
         data_io_components = build_common_components(
             simulation_form.components[k]["children"], page_id, k
         )
+        if is_calibration_form:
+            data_io_components.append(
+                dbc.Button(
+                    "Reset settings", id=f"{page_id}-reset-params",
+                    color="secondary", outline=True, className="m-2",
+                )
+            )
 
         if simulation_form.components[k]["collapsible"]:
             data_io_components = build_collapsible(
@@ -603,10 +613,10 @@ def build_calibration_parameters(
     summary_statistics: list[dict] | None = None,
     observed_data_content: str = "",
     raw_edge_content: str = "",
-    stat_by_layer: bool = False,
-    stat_by_col: bool = False,
-    use_summary_statistics: bool = True,
-) -> dict | None:
+    stat_by_layer: bool | None = None,
+    stat_by_col: bool | None = None,
+    use_summary_statistics: bool | None = None,
+) -> dict:
     """Build calibration parameters for workflow submission from form inputs.
 
     Args:
@@ -627,14 +637,14 @@ def build_calibration_parameters(
         raw_edge_content (str, optional):
             The raw content string for the simulated edge data. Defaults to "".
         stat_by_layer (bool, optional):
-            Whether to calculate statistics by soil layer. Defaults to False.
+            Override the soil-layer switch, if supplied.
         stat_by_col (bool, optional):
-            Whether to calculate statistics by soil column. Defaults to False.
+            Override the soil-column switch, if supplied.
         use_summary_statistics (bool, optional):
-            Whether to use summary statistics rather than graph data. Defaults to True.
+            Override the mode switch, if supplied.
 
     Returns:
-        dict | None:
+        dict:
             The calibration parameters for workflow submission
     """
     form_inputs: dict = {"parameter_intervals": {}}
@@ -659,28 +669,29 @@ def build_calibration_parameters(
     for i, input in enumerate(form_model.components[task]["children"]):
         k = input["param"]
         calibration_value = calibration_values[i]
-        if k == "summary_statistics" or k == "distance_metrics":
-            if (
-                calibration_value is None
-                or len(calibration_value) == 0
-                and use_summary_statistics
-            ):
-                return None
-
         if input.get("statistic_parameter"):
             form_inputs["statistics_comparison"][k] = calibration_value
         else:
             form_inputs["calibration_parameters"][k] = calibration_value
 
-    form_inputs["statistics_comparison"]["stat_by_soil_layer"] = stat_by_layer
-    form_inputs["statistics_comparison"]["stat_by_soil_column"] = stat_by_col
-    form_inputs["statistics_comparison"][
-        "use_summary_statistics"
-    ] = use_summary_statistics
+    comparison = form_inputs["statistics_comparison"]
+    for name, override, default in (
+        ("stat_by_soil_layer", stat_by_layer, False),
+        ("stat_by_soil_column", stat_by_col, False),
+        ("use_summary_statistics", use_summary_statistics, True),
+    ):
+        if override is not None:
+            comparison[name] = override
+        elif comparison.get(name) is None:
+            comparison[name] = default
 
-    if use_summary_statistics:
+    if comparison["use_summary_statistics"]:
         observed_data_content = ""
         raw_edge_content = ""
+    else:
+        comparison.pop("summary_statistics", None)
+        comparison.pop("distance_metrics", None)
+        summary_statistics = None
 
     form_inputs["observed_data"] = observed_data
     form_inputs["summary_statistics"] = summary_statistics

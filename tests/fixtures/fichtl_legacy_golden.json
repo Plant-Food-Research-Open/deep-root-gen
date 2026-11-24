@@ -1,0 +1,73 @@
+{
+  "source_revision": "d5918d8bd182e351817f374426687cb546eeaa10",
+  "cases": [
+    {
+      "parameters": {
+        "random_seed": 42,
+        "max_order": 1,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 20.0,
+        "max_primary_length": 30.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 10.0,
+        "max_sec_root_length": 20.0,
+        "segments_per_root": 5,
+        "length_reduction": 0.5,
+        "root_vary": 30.0,
+        "interbranch_distance": 0.0078,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.1,
+        "t": 0,
+        "enable_soil": false,
+        "simulation_tag": "synthetic-smoke-seed42"
+      },
+      "csv_sha256": [
+        "90705fe9c241ad2feaa03c49a0e28acdc960172615485744a2d9312d285cda6b",
+        "14a3e453e09c7760bc2f58d0c707ef2d7ac0259cf88f3e44cb5c7dfe87a02006"
+      ]
+    },
+    {
+      "parameters": {
+        "random_seed": 73,
+        "max_order": 3,
+        "root_ratio": 0.5,
+        "fine_root_threshold": 0.06,
+        "outer_root_num": 1,
+        "inner_root_num": 1,
+        "min_primary_length": 20.0,
+        "max_primary_length": 30.0,
+        "base_diameter": 0.11,
+        "diameter_reduction": 0.2,
+        "apex_diameter": 0.02,
+        "min_sec_root_num": 1,
+        "max_sec_root_num": 2,
+        "growth_sec_root": 0.2,
+        "min_sec_root_length": 2,
+        "max_sec_root_length": 3,
+        "segments_per_root": 5,
+        "length_reduction": 0.5,
+        "root_vary": 30.0,
+        "interbranch_distance": 2,
+        "mechanical_constraints": 0.5,
+        "root_tissue_density": 0.05,
+        "gravitropism": 0.1,
+        "t": 0,
+        "enable_soil": false,
+        "simulation_tag": "synthetic-smoke-seed42"
+      },
+      "csv_sha256": [
+        "44bc1926326665e1d89432a21431e7b37775f2fb6c420952f04a5ebc26596576",
+        "5b6a1dc0cba7e05c6d288aadb1804619d8429ea381cd1ed42f5b1d2a8fcbc938"
+      ]
+    }
+  ]
+}

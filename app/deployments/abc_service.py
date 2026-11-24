@@ -1,58 +1,27 @@
-#!/usr/bin/env python
+"""Serve accepted particles from the latest ABC calibrator."""
 
-######################################
-# Imports
-######################################
-
-import bentoml
 import pandas as pd
+from bentoml.exceptions import BadInput
 from bentoml.io import JSON, PandasDataFrame
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-######################################
-# Constants
-######################################
+from deeprootgen.serving import load, require, service
 
 TASK = "abc"
-
-######################################
-# Main
-######################################
-
-runner = bentoml.mlflow.get(f"{TASK}:latest").to_runner()
-
-svc = bentoml.Service(TASK, runners=[runner])
+model, missing = load(TASK)
+svc, runner = service(TASK, model)
 
 
 class AbcFeatures(BaseModel):
-    """The Approximate Bayesian Computation features data model."""
+    """Sequential Monte Carlo populations; -1 returns all populations."""
 
-    t: list[int]
-
-
-input_spec = JSON(pydantic_model=AbcFeatures)
+    t: list[int] = Field(min_length=1)
 
 
-@svc.api(input=input_spec, output=PandasDataFrame())
-def predict(inputs: AbcFeatures) -> dict:
-    """Get Approximate Bayesian Computation sampling data.
-
-    Args:
-        inputs (AbcFeatures):
-            The Approximate Bayesian Computation request data.
-
-    Returns:
-        dict:
-            The Approximate Bayesian Computation sampling data.
-    """
-    input_list = []
-    for t in inputs.t:
-        input_list.append({"t": t})
-
-    if len(input_list) == 1:
-        index = [0]
-    else:
-        index = None
-    input_df = pd.DataFrame(input_list, index=index)
-    result = runner.predict.run(input_df)
+@svc.api(input=JSON(pydantic_model=AbcFeatures), output=PandasDataFrame())
+def predict(inputs: AbcFeatures) -> pd.DataFrame:
+    """Return particle rows for the requested populations."""
+    result = require(runner, missing).predict.run(pd.DataFrame({"t": inputs.t}))
+    if len(result) == 0:
+        raise BadInput(f"The served {TASK} model has no accepted population t={inputs.t}")
     return result

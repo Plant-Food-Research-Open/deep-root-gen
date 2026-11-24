@@ -10,6 +10,7 @@ from dash import (
     Output,
     State,
     callback,
+    ctx,
     dcc,
     html,
     no_update,
@@ -17,13 +18,18 @@ from dash import (
 )
 
 from deeprootgen.form import build_calibration_parameters, get_common_layout
-from deeprootgen.io import load_data_from_file, s3_upload_file
-from deeprootgen.pipeline import (
-    dispatch_new_run,
-    load_form_parameters,
-    save_form_parameters,
-    save_simulation_runs,
+from deeprootgen.form.calibration_presets import (
+    calibration_controls,
+    register_calibration_preset_callbacks,
 )
+from deeprootgen.form.run_feedback import (
+    calibration_action,
+    load_statistics_upload,
+    register_run_status_callback,
+)
+from deeprootgen.form.uploads import load_csv_upload
+from deeprootgen.io import s3_upload_file
+from deeprootgen.pipeline import save_simulation_runs
 
 ######################################
 # Constants
@@ -38,6 +44,8 @@ DATA_COMPONENT_KEY = "simulated_data"
 ######################################
 # Callbacks
 ######################################
+
+register_calibration_preset_callbacks(PAGE_ID, FORM_NAME, TASK)
 
 
 @callback(
@@ -153,39 +161,6 @@ def toggle_external_links_collapse(n: int, is_open: bool) -> bool:
 
 
 @callback(
-    Output(f"{PAGE_ID}-download-params", "data"),
-    [Input({"index": f"{PAGE_ID}-save-param-button", "type": ALL}, "n_clicks")],
-    State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
-    State({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
-    prevent_initial_call=True,
-)
-def save_param(
-    n_clicks: int | list[int], param_inputs: list, calibration_inputs: list
-) -> None:
-    """Save parameter form values.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of times that the button has been clicked.
-        param_inputs (list):
-            The parameter input data.
-        calibration_inputs (list):
-            The calibration parameter input data.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    outfile, file_name = save_form_parameters(
-        PAGE_ID, FORM_NAME, param_inputs, TASK, calibration_inputs
-    )
-    s3_upload_file(outfile, file_name)
-    return dcc.send_file(outfile)
-
-
-@callback(
     Output(f"{PAGE_ID}-download-results", "data"),
     [Input({"index": f"{PAGE_ID}-save-runs-button", "type": ALL}, "n_clicks")],
     State("store-simulation-run", "data"),
@@ -235,16 +210,12 @@ def load_runs(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-
-    if list_of_contents[0] is None or list_of_contents[0] == 0:
-        return no_update
-
-    simulation_runs, _, toast_message = load_data_from_file(
-        list_of_contents, list_of_names
+    runs, _, toast_message = load_csv_upload(
+        list_of_contents, list_of_names, required_columns=("workflow", "task", "date", "tag"),
     )
-    return simulation_runs, True, toast_message
+    if toast_message is no_update:
+        return no_update
+    return no_update if runs is no_update else runs["values"], True, toast_message
 
 
 @callback(
@@ -270,42 +241,6 @@ def clear_runs(n_clicks: int | list[int]) -> list:
         return no_update
 
     return []
-
-
-@callback(
-    Output({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
-    Output({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
-    Input({"index": f"{PAGE_ID}-upload-param-file-button", "type": ALL}, "contents"),
-    State({"index": f"{PAGE_ID}-upload-param-file-button", "type": ALL}, "filename"),
-    prevent_initial_call=True,
-)
-def load_params(list_of_contents: list, list_of_names: list) -> tuple:
-    """Load the simulation parameters from file.
-
-    Args:
-        list_of_contents (list):
-            The list of file contents.
-        list_of_names (list):
-            The list of file names.
-
-    Returns:
-        tuple:
-            The updated form state.
-    """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-
-    if list_of_contents[0] is None or list_of_contents[0] == 0:
-        return no_update
-
-    inputs, toast_message = load_form_parameters(
-        list_of_contents, list_of_names, FORM_NAME, TASK
-    )
-
-    parameter_inputs, calibration_inputs = inputs
-    return parameter_inputs, calibration_inputs, True, toast_message
 
 
 @callback(
@@ -418,31 +353,13 @@ def update_uploaded_data_state(
                 clear_disabled = False
                 break
 
-    run_disabled = False
-    use_summary_stat = use_summary_statistics[0]
+    use_summary_stat = bool(use_summary_statistics and use_summary_statistics[0])
     if use_summary_stat:
-        data_list = [summary_data]
+        run_disabled = not ((summary_data or {}).get("values") and summary_stats and summary_stats[0])
     else:
-        data_list = [simulation_data, edge_data]
-
-    for data in data_list:
-        if data is None:
-            run_disabled = True
-            break
-        data_values = data.get("values", [])
-        if len(data_values) == 0:
-            run_disabled = True
-            break
-        if data_values[0] is None:
-            run_disabled = True
-            break
-
-    stats_list = summary_stats[0]
-    if use_summary_stat and not run_disabled:
-        if len(stats_list) == 0:
-            run_disabled = True
-        elif stats_list[0] is None:
-            run_disabled = True
+        run_disabled = not all(
+            (data or {}).get("values") for data in (simulation_data, edge_data)
+        )
 
     return [stats_bttn], [sim_bttn], [edge_bttn], [run_disabled], [clear_disabled]
 
@@ -472,13 +389,9 @@ def load_summary_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
+    summary_data, toast_message = load_statistics_upload(list_of_contents, list_of_names)
+    if toast_message is no_update:
         return no_update
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, _, toast_message = load_data_from_file(list_of_contents, list_of_names)
-    summary_data = {"label": list_of_names[0], "values": loaded_data}
     return summary_data, True, toast_message
 
 
@@ -504,16 +417,12 @@ def load_simulation_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, content_string, toast_message = load_data_from_file(
-        list_of_contents, list_of_names
+    parsed, raw, toast_message = load_csv_upload(
+        list_of_contents, list_of_names, required_columns=("node_id", "parent_id"),
     )
-    summary_data = {"label": list_of_names[0], "values": loaded_data}
-    return summary_data, {"values": content_string}, True, toast_message
+    if toast_message is no_update:
+        return no_update
+    return parsed, raw, True, toast_message
 
 
 @callback(
@@ -542,16 +451,12 @@ def load_edge_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, content_string, toast_message = load_data_from_file(
-        list_of_contents, list_of_names
+    parsed, raw, toast_message = load_csv_upload(
+        list_of_contents, list_of_names, required_columns=("parent_id", "child_id"),
     )
-    summary_data = {"label": list_of_names[0], "values": loaded_data}
-    return summary_data, {"values": content_string}, True, toast_message
+    if toast_message is no_update:
+        return no_update
+    return parsed, raw, True, toast_message
 
 
 @callback(
@@ -599,98 +504,56 @@ def clear_summary_data(n_clicks: int | list[int]) -> tuple:
     Output("store-simulation-run", "data", allow_duplicate=True),
     Output(f"{PAGE_ID}-results-toast", "is_open"),
     Output(f"{PAGE_ID}-results-toast", "children"),
+    Output(f"{PAGE_ID}-submission-nonce", "data"),
     Input({"index": f"{PAGE_ID}-run-sim-button", "type": ALL}, "n_clicks"),
+    Input(f"{PAGE_ID}-preview", "n_clicks"),
     State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
     State({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
-    State({"index": f"{PAGE_ID}-use-summary-statistics-switch", "type": ALL}, "on"),
-    State({"index": f"{PAGE_ID}-stat-by-soil-layer-switch", "type": ALL}, "on"),
-    State({"index": f"{PAGE_ID}-stat-by-soil-col-switch", "type": ALL}, "on"),
+    State({"type": f"{PAGE_ID}-{TASK}-switch", "index": ALL}, "on"),
     State("store-simulation-run", "data"),
     State("store-summary-data", "data"),
     State("store-raw-simulation-data", "data"),
     State("store-raw-edge-data", "data"),
+    State(f"{PAGE_ID}-submission-nonce", "data"),
     prevent_initial_call=True,
 )
 def run_root_model(
     n_clicks: list,
+    preview_clicks: int | None,
     parameter_values: list,
     calibration_values: list,
-    use_summary_statistics: list[bool],
-    stats_by_layer: list[bool],
-    stats_by_col: list[bool],
+    switch_values: list[bool],
     simulation_runs: list,
     summary_data: dict,
     raw_simulation_data: dict,
-    raw_edge_content: dict,
+    raw_edge_data: dict,
+    nonce: str | None,
 ) -> tuple:
-    """Run and plot the root model.
+    """Check the form, or validate and queue the worker run.
 
-    Args:
-        n_clicks (list):
-            Number of times the button has been clicked.
-        parameter_values (list):
-            The parameter form input data.
-        calibration_values (list):
-            The calibration parameter form input data.
-        use_summary_statistics (list):
-            Whether to use summary statistics, rather than graph data.
-        stats_by_layer (list):
-            Whether to calculate statistics by soil layer.
-        stats_by_col (list):
-            Whether to calculate statistics by soil column.
-        simulation_runs (list):
-            A list of simulation run data.
-        summary_data (dict):
-            The dictionary of observed summary statistic data.
-        raw_simulation_data (dict):
-            The content string for the simulation data.
-        raw_edge_content (dict):
-            The content string for the edge data.
+    With the switch on the request uses the uploaded summary statistics;
+    otherwise it uses the uploaded node and edge tables (graph mode). Check
+    setup never submits.
 
     Returns:
         tuple:
-            The updated form state.
+            The run table, toast state and message, and submission nonce.
     """
-    if n_clicks is None or len(n_clicks) == 0:
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:
-        return no_update
-
-    use_summary_stat = use_summary_statistics[0]
-    stat_by_layer = stats_by_layer[0]
-    stat_by_col = stats_by_col[0]
-
-    summary_statistics = summary_data.get("values", None)
-    observed_data_content = raw_simulation_data.get("values", "")
-    raw_edge_content = raw_edge_content.get("values", "")
-
-    if use_summary_stat:
-        if summary_statistics is None:
-            return no_update
-    else:
-        if observed_data_content == "" or raw_edge_content == "":  # type: ignore
-            return no_update  # type: ignore
+    preview = ctx.triggered_id == f"{PAGE_ID}-preview"
+    if not (preview_clicks if preview else n_clicks and n_clicks[0]):
+        return no_update, no_update, no_update, no_update
 
     form_inputs = build_calibration_parameters(
         FORM_NAME,
         TASK,
         parameter_values,
-        calibration_values,
-        summary_statistics=summary_statistics,
-        stat_by_layer=stat_by_layer,
-        stat_by_col=stat_by_col,
-        use_summary_statistics=use_summary_stat,
-        observed_data_content=observed_data_content,
-        raw_edge_content=raw_edge_content,  # type: ignore
+        calibration_controls(FORM_NAME, TASK, calibration_values, switch_values),
+        summary_statistics=(summary_data or {}).get("values"),
+        observed_data_content=(raw_simulation_data or {}).get("values")
+        or (raw_simulation_data or {}).get("value", ""),
+        raw_edge_content=(raw_edge_data or {}).get("values", ""),
     )
-    if form_inputs is None:
-        return no_update
-
-    simulation_runs, toast_message = dispatch_new_run(
-        TASK, form_inputs, simulation_runs
-    )
-    return simulation_runs, True, toast_message
+    return calibration_action(TASK, form_inputs, preview, simulation_runs, nonce)
 
 
 ######################################
@@ -725,4 +588,10 @@ def layout() -> html.Div:
         task=TASK,
         data_key=DATA_COMPONENT_KEY,
     )
-    return layout
+    return html.Div([
+        html.Button("Check setup", id=f"{PAGE_ID}-preview", className="btn btn-outline-primary m-2"),
+        layout,
+    ])
+
+
+register_run_status_callback(PAGE_ID)

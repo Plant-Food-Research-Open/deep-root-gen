@@ -1,0 +1,26 @@
+{
+  "population_id": "invented-three-organ-analytic-fixture",
+  "n_architectures": 1,
+  "root_orders": [1, 2, 3],
+  "comparison": {
+    "coordinate_frame": "invented-soil-frame-v1",
+    "operator": "consecutive_polyline_soil_clip_10cm_v2",
+    "support": "invented-valid-represented-roots"
+  },
+  "trait_means": {
+    "soil_length_cm": 17.0,
+    "mean_depth_cm": 24.58823529411765,
+    "max_depth_cm": 30.0,
+    "across_row_span_cm": 5.0,
+    "along_row_span_cm": 2.0,
+    "primary_mean_length_cm": 10.0,
+    "secondary_mean_length_cm": 5.0,
+    "tertiary_mean_length_cm": 2.0,
+    "primary_count": 1.0,
+    "secondary_count": 1.0,
+    "tertiary_count": 1.0,
+    "row_across_span_ratio": 0.4,
+    "verticality": 0.5882352941176471
+  },
+  "profiles": {"across": {"0": 1.0}, "along": {"0": 1.0}, "depth": {"2": 1.0}}
+}

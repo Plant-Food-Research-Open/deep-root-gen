@@ -85,7 +85,9 @@ class SingleTaskVariationalGPModel(ApproximateGP):
 
 
 def prepare_surrogate_data(
-    sample_df: pd.DataFrame, output_names: list[str] = None, batch_size: int = 1024  # type: ignore [assignment]
+    sample_df: pd.DataFrame,
+    output_names: list[str] | None = None,
+    batch_size: int = 1024,
 ) -> tuple:
     """Prepare data for training the surrogate model.
 
@@ -101,21 +103,28 @@ def prepare_surrogate_data(
         tuple:
             The processed data for the surrogate.
     """
-    training_df = sample_df.loc[:, sample_df.nunique() != 1]
-
     if output_names is None:
         output_names = ["discrepancy"]
 
-    splits = []
-    for i in range(3):
-        split_df = training_df.query(f"training_data_split == {i}").drop(
-            columns=["training_data_split", "sim_ids"]
+    metadata_columns = ["training_data_split", "sim_ids"]
+    feature_columns = sample_df.columns.difference(
+        output_names + metadata_columns, sort=False
+    )
+    constant_features = feature_columns[sample_df[feature_columns].nunique().eq(1)]
+    training_df = sample_df.drop(columns=constant_features)
+    if len(feature_columns) == len(constant_features):
+        raise ValueError(
+            "Surrogate training needs a parameter that varies across the sampled runs. "
+            "Choose a wider range or include another parameter."
         )
-        X = split_df.drop(columns=output_names).values
-        y = split_df[output_names].values
-        if y.shape[-1] == 1:
-            y = y.reshape(-1, 1)
 
+    splits = []
+    for i, name in enumerate(("training", "validation", "holdout")):
+        split_df = training_df.loc[training_df["training_data_split"].eq(i)]
+        if split_df.empty:
+            raise ValueError(f"Surrogate requires at least one {name} sample.")
+        X = split_df.drop(columns=metadata_columns + output_names).to_numpy()
+        y = split_df[output_names].to_numpy()
         splits.append((X, y))
 
     train, val, test = splits
@@ -130,7 +139,7 @@ def prepare_surrogate_data(
         X = torch.Tensor(X_scaler.transform(X)).double()
         y = torch.Tensor(y_scaler.transform(y)).double()
         if y.shape[-1] == 1:
-            y = y.squeeze()
+            y = y.squeeze(-1)
 
         dataset = TensorDataset(X, y)
         loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)

@@ -1,0 +1,474 @@
+{
+  "qualified_at_utc": "2026-10-30T04:11:20.053567+00:00",
+  "repository": "/home/jzhu/Workspace/Github/FruitCropXL/13-deep-root-gen-PFR-open",
+  "branch": "codex/deeprootgen-runtime-ui",
+  "source_head": "39b942ff77098d52cf56cbed43d63c0e10fbbc14",
+  "source_state": "uncommitted development changes; no commit, merge or push performed",
+  "unrelated_concurrent_paths_preserved_and_excluded": [
+    "docs/GRAPEVINE3D_GRID.md",
+    "scripts/data/grapevine3d_grid.py",
+    "tests/test_grapevine3d_grid.py"
+  ],
+  "source_file_sha256_excluding_this_receipt": {
+    ".dockerignore": "3eef3a9fb7488ca3b6fb5cb4fcb8085a5e111510ab1590483530b5dfa82b57a2",
+    ".env.local.example": "545b9ebbd6d8e930a9296b4fefdc5d1eeca0acf756d1837d0ef057439dc12383",
+    ".flake8": "637ad64d599cd1069fc54e3e00955b4aeea89f09ee5169cfd41a308e809fe56f",
+    ".gitignore": "4281e2d0bcc2e79bb512d8ccd6e86aac211ab46492ce7cf069095b9d7cf8c769",
+    "README.md": "000b9d278884cf0a1fa1db8db2c3eccf5b9f3bca3552f45a66c89c82b50f503f",
+    "RUNNING.md": "b3ecdcbcb0a71552c1669222d482609702bfc451c94a457b8aa0dbab3239e2d5",
+    "app/flows/run_simulation.py": "81b6ec4d60a13f1d7b6645dcf17cb37dafaa90e5d7cf4ec1f7a9ba0f78fb1449",
+    "deeprootgen/__main__.py": "bcd2e44608be7ab7d0a3a56aedcdb7e6d33ba12bfd65718c5f4d648c2e52d05f",
+    "deeprootgen/cli.py": "ff59f0abd4f00813db8fd706c39946a8def946bb06c741f17c0b2963c81a8636",
+    "deeprootgen/pipeline/experiment.py": "d719bc7f76fdb9d1f3cb5580ceed0c93a5de4aaa2189b1026bb6da284e0341f8",
+    "docker-compose.local.yaml": "bfda108c8bd484fe4ff1154ac9eac55dc28135b6a728c5090e39111f22ad691d",
+    "dockerfiles/minio/Dockerfile.local": "83ff22db2bd2f3565ecaf1bb1caf0e1d6aa7ddeeefc2f0b704acdcd7d221fa62",
+    "dockerfiles/python/Dockerfile.local": "67160e9ac45a66e1b40701920b14ded5012749cba1766025e1af17b5efa22f3c",
+    "docs/DEVELOPMENT.md": "e4a8e1288e6019b5ed9efd3e8b04f1be1deeb75bd2c4bf62554eb0723626a61f",
+    "examples/run_synthetic.py": "149f533aa5faec9c1e21a5a260cfa3483ca06fe959a56dd215044d70d2c34642",
+    "examples/synthetic_minimal.json": "308cb48bba9772a8af8aaa1e467bb96b454f2c400c239b2cb0fab11e28586204",
+    "examples/synthetic_ui.yaml": "b6f18ae96b6aa450f9d0ecd628028a36848f3b3514ecd1180d8db84df6d3bd8b",
+    "scripts/dev/bootstrap.sh": "5ba9bba13f19f6d0850bb4b3eaa399327d21459e51b4b527093ef176022d94ef",
+    "scripts/local/configure.py": "85cd20d95e13305e9044103a784349a851be03bcccd41c5bbed8668c4fea24e9",
+    "scripts/local/initialize.py": "da1780bdd496f0156ed6e5fb2cf9b0e7f6084ba748280700b0161cc53f2a273f",
+    "tests/test_runtime_paths.py": "6ecd52188c392a9dfe10b66368db3c29061a6e360989a4cd8b40cc838a0ce898",
+    "tests/test_simulation_smoke.py": "91b86a2df0b81abfadb140a6533b348c559af088401f9112a7ed38565989d937"
+  },
+  "poetry_lock_sha256": "8d6a2311736b5d677218d0bee0610348803fb3217ae2e60fc196bfe04b881ffd",
+  "host": {
+    "os": "Ubuntu 26.04.1 LTS",
+    "machine": "x86_64",
+    "kernel": "7.0.0-38-generic",
+    "system_python_preserved": "3.14.4",
+    "private_python": "3.10.20",
+    "private_python_path": ".runtime/cpython/3.10.20/bin/python3.10",
+    "tools_poetry": "1.8.3",
+    "venv": ".runtime/envs/py310-qualification"
+  },
+  "python_source": {
+    "url": "https://www.python.org/ftp/python/3.10.20/Python-3.10.20.tar.xz",
+    "sha256": "de6517421601e39a9a3bc3e1bc4c7b2f239297423ee05e282598c83ec0647505",
+    "installer": "existing pyenv python-build helper; MAKE_OPTS=-j4"
+  },
+  "key_dependencies": {
+    "deeprootgen": "0.1.0",
+    "numpy": "1.26.4",
+    "pandas": "2.2.2",
+    "scipy": "1.11.4",
+    "networkx": "3.3",
+    "torch": "2.4.0",
+    "torch-geometric": "2.5.3",
+    "dash": "2.17.1",
+    "pydantic": "2.8.2",
+    "prefect": "2.20.2",
+    "mlflow": "2.15.1",
+    "gunicorn": "22.0.0",
+    "black": "24.8.0",
+    "flake8": "7.1.1",
+    "pytest": "8.3.2"
+  },
+  "dependency_manifest": "original poetry.lock; complete installed freeze retained in local qualification output",
+  "docker": {
+    "engine": "29.1.3",
+    "compose": "2.40.3",
+    "project": "drg-smoke-local",
+    "images": [
+      {
+        "Id": "sha256:d081702d67074b4c524f13b4445d32dabd695d0f743671548c088354919c4e82",
+        "RepoTags": [
+          "deeprootgen-local:runtime-ui"
+        ],
+        "RepoDigests": [
+          "deeprootgen-local@sha256:d081702d67074b4c524f13b4445d32dabd695d0f743671548c088354919c4e82"
+        ],
+        "Created": "2026-10-30T15:57:42.850931903+13:00",
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 3471203379
+      },
+      {
+        "Id": "sha256:28636ca405e40af9e3cd970263903561c86ca54a5ed95fbc50b8f2ae4c4015a2",
+        "RepoTags": [
+          "deeprootgen-minio-local:2023-05-27"
+        ],
+        "RepoDigests": [
+          "deeprootgen-minio-local@sha256:28636ca405e40af9e3cd970263903561c86ca54a5ed95fbc50b8f2ae4c4015a2"
+        ],
+        "Created": "2026-10-30T16:06:29.955407838+13:00",
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 70144930
+      },
+      {
+        "Id": "sha256:3e66d9cda90a2731880fc267a417937a9552df2a4ffacf1cb37e741e05447c0d",
+        "RepoTags": [
+          "postgres:15.3-bullseye"
+        ],
+        "RepoDigests": [
+          "postgres@sha256:3e66d9cda90a2731880fc267a417937a9552df2a4ffacf1cb37e741e05447c0d"
+        ],
+        "Created": "2023-07-28T10:48:25.986806201Z",
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 138995164
+      },
+      {
+        "Id": "sha256:cc7c3240ef734aae4dacb39d033b2a5b2314537538d433b632a2fe401639c6e2",
+        "RepoTags": [
+          "arangodb:3.11.3"
+        ],
+        "RepoDigests": [
+          "arangodb@sha256:cc7c3240ef734aae4dacb39d033b2a5b2314537538d433b632a2fe401639c6e2"
+        ],
+        "Created": "2023-08-23T20:19:59.793320041Z",
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 246858275
+      }
+    ],
+    "public_runtime_configuration": {
+      "app": {
+        "image": "deeprootgen-local:runtime-ui",
+        "cpus": 0.5,
+        "mem_limit": "3221225472",
+        "ports": [
+          {
+            "mode": "ingress",
+            "host_ip": "127.0.0.1",
+            "target": 8000,
+            "published": "8000",
+            "protocol": "tcp"
+          }
+        ]
+      },
+      "arangodb": {
+        "image": "arangodb:3.11.3@sha256:cc7c3240ef734aae4dacb39d033b2a5b2314537538d433b632a2fe401639c6e2",
+        "cpus": 0.5,
+        "mem_limit": "2147483648"
+      },
+      "minio": {
+        "image": "deeprootgen-minio-local:2023-05-27",
+        "cpus": 0.5,
+        "mem_limit": "1073741824"
+      },
+      "mlflow": {
+        "image": "deeprootgen-local:runtime-ui",
+        "cpus": 0.5,
+        "mem_limit": "2147483648",
+        "ports": [
+          {
+            "mode": "ingress",
+            "host_ip": "127.0.0.1",
+            "target": 5000,
+            "published": "5000",
+            "protocol": "tcp"
+          }
+        ]
+      },
+      "postgres": {
+        "image": "postgres:15.3-bullseye@sha256:3e66d9cda90a2731880fc267a417937a9552df2a4ffacf1cb37e741e05447c0d",
+        "cpus": 0.5,
+        "mem_limit": "1073741824"
+      },
+      "prefect-deployments": {
+        "image": "deeprootgen-local:runtime-ui",
+        "cpus": 0.5,
+        "mem_limit": "2147483648"
+      },
+      "prefect-server": {
+        "image": "deeprootgen-local:runtime-ui",
+        "cpus": 0.5,
+        "mem_limit": "2147483648",
+        "ports": [
+          {
+            "mode": "ingress",
+            "host_ip": "127.0.0.1",
+            "target": 4200,
+            "published": "4200",
+            "protocol": "tcp"
+          }
+        ]
+      },
+      "prefect-worker": {
+        "image": "deeprootgen-local:runtime-ui",
+        "cpus": 2,
+        "mem_limit": "4294967296"
+      },
+      "storage-init": {
+        "image": "deeprootgen-local:runtime-ui",
+        "cpus": 0.5,
+        "mem_limit": "268435456"
+      }
+    },
+    "final_services": [
+      {
+        "Service": "app",
+        "State": "exited",
+        "ExitCode": 0,
+        "Health": ""
+      },
+      {
+        "Service": "arangodb",
+        "State": "exited",
+        "ExitCode": 0,
+        "Health": ""
+      },
+      {
+        "Service": "minio",
+        "State": "exited",
+        "ExitCode": 0,
+        "Health": ""
+      },
+      {
+        "Service": "mlflow",
+        "State": "exited",
+        "ExitCode": 143,
+        "Health": ""
+      },
+      {
+        "Service": "postgres",
+        "State": "exited",
+        "ExitCode": 0,
+        "Health": ""
+      },
+      {
+        "Service": "prefect-deployments",
+        "State": "exited",
+        "ExitCode": 0,
+        "Health": ""
+      },
+      {
+        "Service": "prefect-server",
+        "State": "exited",
+        "ExitCode": 0,
+        "Health": ""
+      },
+      {
+        "Service": "prefect-worker",
+        "State": "exited",
+        "ExitCode": 1,
+        "Health": ""
+      },
+      {
+        "Service": "storage-init",
+        "State": "exited",
+        "ExitCode": 0,
+        "Health": ""
+      }
+    ],
+    "volumes_preserved": true,
+    "final_state": "all task-owned containers stopped; no volume removal"
+  },
+  "checks": {
+    "pip_check_host": "PASS",
+    "pip_check_final_container": "PASS",
+    "bootstrap_repeat": "PASS",
+    "pytest": "4 tests PASS (3 meaningful runtime tests plus 1 pre-existing dummy scaffold), focused runtime suite; unrelated concurrent grapevine-grid tests excluded",
+    "flake8": "PASS, 0 violations",
+    "black": "PASS, 51 files checked in explicit runtime scope; earlier broader check passed 52 files",
+    "git_diff_check": "PASS",
+    "fixtures": "CLI JSON and UI YAML resolve to identical RootSimulationModel values",
+    "next_week_command_block": "PASS; fresh .runtime/week-test.nAHFla CLI/API runs and both CSV comparisons",
+    "docker_build": "PASS app and original MinIO compatibility image with pinned base digests",
+    "dash_browser": "PASS page rendering, synthetic form dispatch and history visible after final recreation",
+    "flow": "PASS Completed, MLflow FINISHED, 11 nodes/10 edges and 0 invalid nodes",
+    "artifact_download_api": "PASS 7 artifacts downloaded via MLflow client; SHA256 recorded",
+    "documented_compose_cp": "PASS, 9 synthetic output files copied locally",
+    "persistence": {
+      "stop_start": "PASS: Prefect state, MLflow artifacts, Arango counts, S3 exports and output-volume hashes identical",
+      "down_up": "PASS: identical Prefect/MLflow/Arango/S3/shared-output receipt after recreation with final images",
+      "documented_copy": "PASS: compose cp copied nine synthetic artifacts to .runtime/docker-export",
+      "browser_reload": "PASS: existing synthetic run and field values visible after final image recreation"
+    }
+  },
+  "synthetic_offline": {
+    "python": "3.10.20",
+    "dependencies": {
+      "deeprootgen": "0.1.0",
+      "numpy": "1.26.4",
+      "pandas": "2.2.2",
+      "torch": "2.4.0",
+      "pydantic": "2.8.2"
+    },
+    "seed": 42,
+    "node_count": 11,
+    "edge_count": 10,
+    "invalid_node_count": 0,
+    "config_sha256": "4a46ee58001ed0383f75dbf447e181fcebf248c346e52479f7d7f3b10b23a09c",
+    "outputs": {
+      "edges.csv": "14a3e453e09c7760bc2f58d0c707ef2d7ac0259cf88f3e44cb5c7dfe87a02006",
+      "nodes.csv": "bffa9e8b59050275ffb547edca067216220fffdc31bee3420ee34b9eaf6be47b",
+      "parameters.json": "7ae5fa758c6542336214cd22ba718dc841784cf417b1db532dc6966dc4d17884",
+      "roots.html": "8964a6e1cbba8da9f0237ffc531eeebe48735ecb0b9288f005dbd31f38b40e43"
+    },
+    "scientific_validation": "not performed"
+  },
+  "synthetic_docker": {
+    "flow_id": "a77d09dc-bfb3-439b-b114-b2c66d64b3c1",
+    "flow_state": "COMPLETED",
+    "simulation_uuid": "169d8a0c-3d5c-436d-8288-8d873bb2713f",
+    "mlflow_run_id": "ecdc886d81624e59a4e7bc8b849f9e03",
+    "mlflow_status": "FINISHED",
+    "artifacts": [
+      {
+        "path": "2026-10-30-03-53-43-simulation_config.yaml",
+        "bytes": 755,
+        "sha256": "9ed2aa547d302f66f49f1d65ce34440cf2a2f4bfa41e6cd53c9fa5aecd581425"
+      },
+      {
+        "path": "2026-10-30-03-53-43-simulation_data_profile.html",
+        "bytes": 1764638,
+        "sha256": "c369cb68ce97799945bafc61e78e78231c158326fd6d159fd06fca670c5bd53f"
+      },
+      {
+        "path": "2026-10-30-03-53-43-simulation_edges.csv",
+        "bytes": 60,
+        "sha256": "14a3e453e09c7760bc2f58d0c707ef2d7ac0259cf88f3e44cb5c7dfe87a02006"
+      },
+      {
+        "path": "2026-10-30-03-53-43-simulation_hgraph.html",
+        "bytes": 3660379,
+        "sha256": "987b79c9a72ebcd58d5847b99fb2f633255414a8330b6db9f9bc463660212aa4"
+      },
+      {
+        "path": "2026-10-30-03-53-43-simulation_nodes.csv",
+        "bytes": 1800,
+        "sha256": "bffa9e8b59050275ffb547edca067216220fffdc31bee3420ee34b9eaf6be47b"
+      },
+      {
+        "path": "2026-10-30-03-53-43-simulation_roots.html",
+        "bytes": 3655304,
+        "sha256": "a59034984351beb3e0de7676af1c587baf533975f1fcad372c85eac76edc6701"
+      },
+      {
+        "path": "2026-10-30-03-53-43-simulation_summary_statistics.csv",
+        "bytes": 463,
+        "sha256": "70c89b1cc8222b88d903173ceda4c122bdf9e15882d53407992ac33e527c22d5"
+      }
+    ],
+    "counts": {
+      "nodes": 11,
+      "edges": 10
+    },
+    "arango_graph": "simulation-169d8a0c-3d5c-436d-8288-8d873bb2713f",
+    "s3_data_exports": [
+      {
+        "name": "2026-10-30-03-54-21-root-simulation-runs.csv",
+        "bytes": 222,
+        "sha256": "5d8b3fee27ed8c8a42ce16c277fdfaeada1c0e0f0c2129764cdc29b3bb66a569"
+      },
+      {
+        "name": "2026-10-30-03-55-15-simulation-root-system-page.yaml",
+        "bytes": 640,
+        "sha256": "57c0930c0c3873baa6fece709ebc59b3aeac8c58757db962cd6dfda260f1cb5d"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "2026-10-30-03-53-43-simulation_config.yaml",
+        "bytes": 755,
+        "sha256": "9ed2aa547d302f66f49f1d65ce34440cf2a2f4bfa41e6cd53c9fa5aecd581425"
+      },
+      {
+        "name": "2026-10-30-03-53-43-simulation_data_profile.html",
+        "bytes": 1764638,
+        "sha256": "c369cb68ce97799945bafc61e78e78231c158326fd6d159fd06fca670c5bd53f"
+      },
+      {
+        "name": "2026-10-30-03-53-43-simulation_edges.csv",
+        "bytes": 60,
+        "sha256": "14a3e453e09c7760bc2f58d0c707ef2d7ac0259cf88f3e44cb5c7dfe87a02006"
+      },
+      {
+        "name": "2026-10-30-03-53-43-simulation_hgraph.html",
+        "bytes": 3660379,
+        "sha256": "987b79c9a72ebcd58d5847b99fb2f633255414a8330b6db9f9bc463660212aa4"
+      },
+      {
+        "name": "2026-10-30-03-53-43-simulation_nodes.csv",
+        "bytes": 1800,
+        "sha256": "bffa9e8b59050275ffb547edca067216220fffdc31bee3420ee34b9eaf6be47b"
+      },
+      {
+        "name": "2026-10-30-03-53-43-simulation_roots.html",
+        "bytes": 3655304,
+        "sha256": "a59034984351beb3e0de7676af1c587baf533975f1fcad372c85eac76edc6701"
+      },
+      {
+        "name": "2026-10-30-03-53-43-simulation_summary_statistics.csv",
+        "bytes": 463,
+        "sha256": "70c89b1cc8222b88d903173ceda4c122bdf9e15882d53407992ac33e527c22d5"
+      },
+      {
+        "name": "2026-10-30-03-54-21-root-simulation-runs.csv",
+        "bytes": 222,
+        "sha256": "5d8b3fee27ed8c8a42ce16c277fdfaeada1c0e0f0c2129764cdc29b3bb66a569"
+      },
+      {
+        "name": "2026-10-30-03-55-15-simulation-root-system-page.yaml",
+        "bytes": 640,
+        "sha256": "57c0930c0c3873baa6fece709ebc59b3aeac8c58757db962cd6dfda260f1cb5d"
+      }
+    ],
+    "metrics": {
+      "total_volume": 0.3533616820351603,
+      "average_volume": 0.17668084101758014,
+      "total_length": 54.423433553637906,
+      "average_length": 27.211716776818953,
+      "total_diameter": 0.74489105935452,
+      "average_diameter": 0.37244552967726,
+      "total_weight": 0.017668084101758012,
+      "average_weight": 0.008834042050879006,
+      "average_depth_distribution": 9.59999955732029,
+      "average_radial_distribution": 7.305350720596419,
+      "convex_hull_area": 1099.5547597063733,
+      "convex_hull_volume": 735.3944743657646
+    }
+  },
+  "browser_limitations": [
+    {
+      "action": "Upload examples/synthetic_ui.yaml through Chrome extension",
+      "status": "blocked, not pending",
+      "reason": "extension lacks Allow access to file URLs; permission unchanged",
+      "alternative_completed": "manual form entry and real simulation submission"
+    },
+    {
+      "action": "Capture final browser file-download completion",
+      "status": "not verified",
+      "reason": "download event capture timed out",
+      "alternative_completed": "browser callbacks produced YAML/history CSV in local volume and S3; compose cp and MLflow API downloads verified"
+    },
+    {
+      "action": "Save final browser screenshot",
+      "status": "not completed",
+      "reason": "Page.captureScreenshot timed out; earlier screenshot was visible in tool output",
+      "alternative_completed": "post-recreation accessibility state showed synthetic run UUID, parameters and tag"
+    }
+  ],
+  "scientific_limits": [
+    "synthetic t=0 plumbing check only; no biological validation",
+    "no inference, optimisation, calibration adoption, GPU tests or measured-data compatibility claims",
+    "Calvin raw data not inspected or uploaded",
+    "legacy archived MinIO compatibility source, not a production deployment"
+  ],
+  "local_evidence_directory": "/home/jzhu/Documents/Codex/2026-10-28/task/deep-root-gen-runtime-task-2026-10-30",
+  "evidence_files": [
+    "aggregate-tests.log",
+    "focused-tests.log",
+    "final-runtime-tests.log",
+    "final-runtime-flake8.log",
+    "final-runtime-black.log",
+    "flake8.log",
+    "black-check.log",
+    "bootstrap-repeat.log",
+    "python-build.log",
+    "locked-install.log",
+    "installed-dependencies.txt",
+    "docker-build-pinned.log",
+    "stack-before-restart.json",
+    "stack-after-start.json",
+    "stack-after-recreate.json",
+    "persistence-checks.json",
+    "services-final.json",
+    "stats-final.jsonl"
+  ]
+}

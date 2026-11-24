@@ -16,3 +16,7 @@ from .simulation_data_models import (
     StatisticsComparisonModel,
     SummaryStatisticsModel,
 )
+from .execution import RootSimulationConfig
+from .features import RootSimulationConfigV3
+from .resolution import explain_config, load_json_config, parse_config, resolve_config
+from .canonical import RootConfig

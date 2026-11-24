@@ -23,7 +23,7 @@ is an independent Codex project; no supervisor integration is enabled.
 
 - Record revision/status and preserve intervening work before edits.
 - Read [architecture](docs/ARCHITECTURE.md) and inspect the relevant source.
-  Simulation entrypoint: `RootSystemSimulation.run(RootSimulationModel(...))`.
+  Simulation entrypoint: `RootSystemSimulation.run(RootConfig(...))`.
   UI: `app/app.py`, `app/pages/`, Hydra `app/conf/`. Flows: `app/flows/`.
 - Inspect pyproject.toml, poetry.lock, CI/container recipes and pytest settings
   before selecting commands. Current Python constraint is `>=3.10,<3.11`;
@@ -75,3 +75,19 @@ for source-specific Python work. When available, shared
 `fruitcropxl-python-data-workflows` supplements it; use `fruitcropxl-data-curator`
 only for scoped data work and `fruitcropxl-ci-containers` for scoped infrastructure
 work. Do not install workers or register supervisor roles as a side effect.
+
+## Active SO4/T2 reconstruction state
+
+For the current population-reconstruction task, read
+[the active research state](docs/research/ACTIVE_SO4_RESEARCH.md) before historical
+plans. The authoritative observation convention is `grapevine3d-soil-frame-v2`,
+verified locally against raw hierarchical IDs. Earlier point-1/root-base grids
+and shallow-allocation recommendations are historical; do not optimize to them.
+The accepted target is thirteen population traits within20% relative error and
+three profile TV differences <=.20. The owner has superseded the former attempt
+caps and permits further recorded trials as needed. Keep one construction change
+at a time, retain legacy defaults, and keep observations/comparisons local.
+
+## Active Calvin cohort research
+
+For mature-vine population work, read [ACTIVE_CALVIN_RESEARCH.md](docs/research/ACTIVE_CALVIN_RESEARCH.md). Fresh simulations use a separate Calvin schema-4 configuration through the shared generator. The archived research constructor reproduces the earlier study protocol. Preserve historical Fichtl defaults and sealed results. The full crown graph includes support connectors. Its historical observation projection identifies primary trees within a vine. Keep the supplied summary, photographs, empirical configurations and comparison outputs local. Consult the run receipts and review dispositions before repeating or interpreting trials. Population qualification requires evidence on the relevant observation support.

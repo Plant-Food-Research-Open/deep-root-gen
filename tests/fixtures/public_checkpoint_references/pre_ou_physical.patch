@@ -1,0 +1,253 @@
+diff --git a/deeprootgen/research/physical_step_replay.py b/deeprootgen/research/physical_step_replay.py
+--- a/deeprootgen/research/physical_step_replay.py
++++ b/deeprootgen/research/physical_step_replay.py
+@@ -42,14 +42,6 @@
+     validate_saved_order_controls,
+ )
+ 
+-from .curvature_process import (
+-    VERSION as OU_VERSION,
+-    curvature_rng,
+-    ou_joint_step,
+-    spherical_exp_heading,
+-    validate_curvature_controls,
+-)
+-
+ VERSION = "so4-physical-steps-v1"
+ 
+ 
+@@ -95,49 +87,6 @@
+     return stations
+ 
+ 
+-def _ou_proposal(moving_frame, curvature, length, controls, seed, oid, index, assigned):
+-    """Advance latent curvature even on the preserved insertion chord."""
+-    next_curvature, integral = ou_joint_step(
+-        curvature,
+-        length,
+-        controls["curvature_sd_rad_cm"],
+-        controls["correlation_length_cm"],
+-        curvature_rng(seed, oid, index, "joint_curvature_integral"),
+-    )
+-    tangent = moving_frame[:, 0]
+-    down = np.array([0.0, 0.0, -1.0])
+-    row = np.array([0.0, 1.0, 0.0])
+-    row_sign = float(np.sign(assigned[1]))
+-    drift = controls["tropism_drift_rad_cm"] * (
+-        down - tangent * (tangent @ down)
+-    ) + controls["row_drift_rad_cm"] * row_sign * (row - tangent * (tangent @ row))
+-    drift_angle = length * (moving_frame[:, 1:].T @ drift)
+-    total_angle = integral + drift_angle
+-    proposed = (
+-        assigned.copy()
+-        if index == 0
+-        else spherical_exp_heading(moving_frame, total_angle)
+-    )
+-    return (
+-        proposed,
+-        next_curvature,
+-        dict(
+-            curvature_start_rad_cm=curvature.tolist(),
+-            curvature_end_rad_cm=next_curvature.tolist(),
+-            integrated_curvature_rad=integral.tolist(),
+-            drift_turn_rad=drift_angle.tolist(),
+-            integrated_turn_rad=total_angle.tolist(),
+-            integrated_turn_magnitude_rad=float(np.hypot(*total_angle)),
+-            integrated_turn_applied=index != 0,
+-            insertion_chord=index == 0,
+-            row_drift_frozen_sign=row_sign,
+-            candidate_selection="none_unselected_ou",
+-            latent_boundary_policy="retain_curvature_transport_frame_through_accepted_heading",
+-            antiparallel_transport_convention="deterministic_least_aligned_axis",
+-        ),
+-    )
+-
+-
+ def _physical_organ(
+     organ,
+     partition,
+@@ -150,7 +99,6 @@
+     cap,
+     next_id,
+     parent_tangent,
+-    curvature_controls=None,
+ ):
+     oid, order, parent_id = organ["organ_id"], organ["order"], organ["parent_id"]
+     parent = nodes.loc[parent_id]
+@@ -171,7 +119,6 @@
+         control["theta_sd_deg"],
+         step_rng(seed, oid, 0, "insertion"),
+     )
+-    route = VERSION if curvature_controls is None else OU_VERSION
+     row_report = None
+     if row_kappas is not None:
+         assigned, row_report = row_axial_insertion_heading(
+@@ -182,42 +129,25 @@
+             oid,
+             order,
+         )
+-        row_report.update(realisation_stage=route, row_alignment_by_arc=[])
++        row_report.update(realisation_stage=VERSION, row_alignment_by_arc=[])
+     assigned = unit(assigned)
+     current_frame, position = frame(assigned), parent[XYZ].to_numpy(float)
+-    curvature = None
+-    if curvature_controls is not None:
+-        curvature = curvature_controls["curvature_sd_rad_cm"] * curvature_rng(
+-            seed, oid, 0, "stationary_curvature_start"
+-        ).normal(size=2)
+     records = []
+     for index, (start, end, construction_index) in enumerate(
+         _physical_stations(partition, cap)
+     ):
+         length = end - start
+-        if curvature_controls is None:
+-            proposed, proposal_receipt = (
+-                (assigned.copy(), {})
+-                if index == 0
+-                else fichtl_proposal(
+-                    current_frame,
+-                    length,
+-                    order,
+-                    settings,
+-                    physical_step_rng(seed, oid, index, "continuation"),
+-                )
+-            )
+-        else:
+-            proposed, curvature, proposal_receipt = _ou_proposal(
++        proposed, proposal_receipt = (
++            (assigned.copy(), {})
++            if index == 0
++            else fichtl_proposal(
+                 current_frame,
+-                curvature,
+                 length,
+-                curvature_controls,
+-                seed,
+-                oid,
+-                index,
+-                assigned,
+-            )
++                order,
++                settings,
++                physical_step_rng(seed, oid, index, "continuation"),
++            )
++        )
+         boundary_receipt = {}
+         accepted, endpoint, intervention = apply_boundary(
+             position,
+@@ -225,18 +155,9 @@
+             length,
+             surface_z,
+             policy,
+-            (
+-                physical_step_rng(seed, oid, index, "boundary")
+-                if curvature_controls is None
+-                else curvature_rng(seed, oid, index, "boundary")
+-            ),
++            physical_step_rng(seed, oid, index, "boundary"),
+             boundary_receipt,
+         )
+-        if curvature_controls is not None:
+-            proposal_receipt["antiparallel_frame_transport"] = bool(
+-                current_frame[:, 0] @ accepted < 0
+-                and np.linalg.norm(np.cross(current_frame[:, 0], accepted)) <= 1e-12
+-            )
+         realised = position + length * accepted
+         correction = (
+             float(np.arccos(np.clip(proposed @ accepted, -1.0, 1.0)))
+@@ -372,15 +293,8 @@
+         ),
+         initial_frame=frame(assigned).tolist(),
+         construction_steps=copy.deepcopy(organ["construction_steps"]),
+-        integration_route=route,
+-    )
+-    if curvature_controls is not None:
+-        receipt["curvature_process"] = dict(
+-            **curvature_controls,
+-            initial_state="stationary_isotropic_normal",
+-            continuation="unselected_joint_ou_integral_plus_tangent_plane_drift",
+-            first_chord="preserved_insertion_with_latent_process_advanced",
+-        )
++        integration_route=VERSION,
++    )
+     if row_report is not None:
+         receipt["row_axial_insertion"] = row_report
+     return records, mappings, receipt, incoming, next_id
+@@ -468,10 +382,6 @@
+     max_step_cm=2.0,
+     orders=(2,),
+     direction_seed=None,
+-    curvature_sd_rad_cm=None,
+-    correlation_length_cm=None,
+-    tropism_drift_rad_cm=0.0,
+-    row_drift_rad_cm=0.0,
+ ):
+     """Replay selected orders with capped steps, retaining INITIAL arc landmarks.
+ 
+@@ -480,21 +390,9 @@
+     and RNG, but follow their parent's moved attachment and incoming tangent.
+     ``direction_seed`` optionally changes only direction/boundary innovations;
+     source sampler authentication always uses the immutable INITIAL seed.
+-    Optional paired q/ell controls select a separate transported OU law with
+-    declared downward/row drift; they are engineering assumptions. None keeps
+-    the original capped Fichtl operator and its RNG/output exactly unchanged.
+     """
+     _, requested = _scope(skeleton, settings, "D", surface_z)
+     selected = _selected_orders(orders, requested.max_order)
+-    curvature_controls = validate_curvature_controls(
+-        curvature_sd_rad_cm,
+-        correlation_length_cm,
+-        tropism_drift_rad_cm,
+-        row_drift_rad_cm,
+-    )
+-    if curvature_controls is not None and not selected:
+-        raise ValueError("Active OU curvature requires at least one selected order")
+-    route = VERSION if curvature_controls is None else OU_VERSION
+     if direction_seed is not None and (
+         isinstance(direction_seed, (bool, np.bool_))
+         or not isinstance(direction_seed, (int, np.integer))
+@@ -547,7 +445,6 @@
+                 float(max_step_cm),
+                 next_id,
+                 incoming.get(organ["parent_id"]),
+-                curvature_controls,
+             )
+         else:
+             records, mapping, receipt = _replay_organ(
+@@ -604,7 +501,7 @@
+         edges=edges,
+         proposals=proposals,
+         diagnostics=dict(
+-            route=route,
++            route=VERSION,
+             grid=GRID,
+             arm="D",
+             seed=skeleton.payload["seed"],
+@@ -619,26 +516,11 @@
+             initial_invariant_hashes=invariant_hashes(original),
+             conservation=conservation,
+             organs=organs,
+-            physical_steps=[r for r in steps if r["integration_route"] == route],
++            physical_steps=[r for r in steps if r["integration_route"] == VERSION],
+             construction_steps=steps,
+             graph_fragments=fragments,
+             replays=dict(physical=1, counterfactual=0),
+             proposals="One-step integration proposals from actual starts; not a coherent graph; no per-fragment searches",
+-            **(
+-                {
+-                    "curvature_process": dict(
+-                        **curvature_controls,
+-                        process="stationary_isotropic_ou_in_transported_coordinates",
+-                        candidate_selection="none",
+-                        tropism_drift="lambda_d * P_t(-ez)",
+-                        row_drift="lambda_r * sign(assigned_y) * P_t(ey)",
+-                        geometric_integration="spherical_exponential_then_length_preserving_chord",
+-                        boundary_latent_state="retained_after_projection",
+-                    )
+-                }
+-                if curvature_controls is not None
+-                else {}
+-            ),
+             **validate_saved_order_controls(skeleton, settings),
+             **order_sigma_metadata(
+                 requested.fichtl_sigma,

@@ -119,7 +119,7 @@ class RootEdge:
 class RootSystemGraph:
     """The hierarchical graph representation of the root system."""
 
-    def __init__(self) -> None:
+    def __init__(self, create_base: bool = True) -> None:
         """RootSystemGraph constructor.
 
         Returns:
@@ -132,9 +132,13 @@ class RootSystemGraph:
         self.organ_id = 0
 
         # Base organ node
-        node_data = RootNodeModel()
-        node_data.organ_id = self.increment_organ_id()
-        self.base_node = self.add_node(node_data)
+        self.base_node = None
+        self.bases = []
+        if create_base:
+            node_data = RootNodeModel()
+            node_data.organ_id = self.increment_organ_id()
+            self.base_node = self.add_node(node_data)
+            self.bases.append(self.base_node)
 
         self.organ_columns = dict(
             organ_coordinates=["x", "y", "z"],
@@ -155,6 +159,9 @@ class RootSystemGraph:
             RootNode:
                 The new RootNode.
         """
+        budget = getattr(self, "allocation_budget", None)
+        if budget is not None:
+            budget.check_nodes(len(self.nodes) + 1)
         node_data.node_id = self.increment_node_id()
         node = RootNode(self, node_data)
 
@@ -254,14 +261,15 @@ class RootSystemGraph:
         elif edge_df is None:
             _, edge_df = self.as_df()
 
-        G = nx.from_pandas_edgelist(
+        G = (nx.Graph() if edge_df.empty else nx.from_pandas_edgelist(
             edge_df, "parent_id", "child_id", create_using=nx.Graph()
-        )
+        ))
+        G.add_nodes_from(node_df.node_id)
 
         def set_node_attributes(k: str, columns: list) -> None:
             columns.append("node_id")
             node_features = (
-                node_df[columns].set_index("node_id", drop=drop).T.squeeze().to_dict()
+                node_df[columns].set_index("node_id", drop=drop).T.to_dict()
             )
             nx.set_node_attributes(G, node_features, k)
 
@@ -273,7 +281,7 @@ class RootSystemGraph:
         set_node_attributes("organ_size", ["diameter", "length", "root_tissue_density"])
         set_node_attributes("organ_meta", ["simulation_tag", "invalid_root"])
 
-        node_features = node_df.set_index("node_id", drop=drop).T.squeeze().to_dict()
+        node_features = node_df.set_index("node_id", drop=drop).T.to_dict()
         nx.set_node_attributes(G, node_features, "x")
 
         return G
@@ -324,6 +332,112 @@ class RootSystemGraph:
         edge_df = pd.read_csv(StringIO(decoded_edge))
 
         return node_df, edge_df
+
+
+def publish_graph(workspace, organs, *, axes=None, records=None, organ_records=None, first_node_id=0):
+    """The sole writer of published graphs and their organ registry.
+
+    Two declared identity-allocation policies exist, one per serialization
+    contract: ``birth_order`` (``axes``: bases first, then each organ's
+    materialized intervals in arc order) and ``records`` (record-based interval
+    laws: construction points keep IDs, inserted attachment cuts carry their
+    reserved IDs, edges ordered by parent then child).
+    """
+    if records is not None:
+        objects = {int(o.segments[0].node_data.organ_id): o for o in organs}
+        return _publish_records(workspace, records, organ_records, objects)
+    return _publish_birth_order(workspace, organs, axes, first_node_id)
+
+
+def _publish_birth_order(workspace: RootSystemGraph, organs: list, axes: dict, first_node_id: int = 0) -> RootSystemGraph:
+    """Birth-order allocation of a published graph and its organ registry.
+
+    ``workspace`` holds provisional construction points; ``organs`` are the
+    biological organs in birth order; ``axes`` maps each organ ID to its
+    materialized intervals. Bases are written first, then each organ's
+    intervals in arc order, so unchanged forests keep their historical IDs.
+    Organ objects are rebound to the published nodes in the same step.
+    """
+    published = RootSystemGraph(create_base=False)
+    published.node_id = first_node_id
+    ledger = {}
+    for base in workspace.nodes:
+        if base.node_data.order != 0:
+            continue
+        node = published.add_node(base.node_data.model_copy())
+        ledger[base.node_data.node_id] = node
+        published.bases.append(node)
+    if workspace.base_node is not None:
+        published.base_node = ledger[workspace.base_node.node_data.node_id]
+    elif published.bases:
+        published.base_node = published.bases[0]
+    for organ in organs:
+        parent = ledger[organ.parent_node.node_data.node_id]
+        attachment = parent
+        segments = []
+        for rank, interval in enumerate(axes[int(organ.segments[0].node_data.organ_id)], 1):
+            data = (interval.template if interval.data is None else interval.data).model_copy()
+            data.parent_id = parent.node_data.node_id
+            data.segment_rank = rank
+            if interval.data is None and interval.xyz is not None:
+                data.x, data.y, data.z = interval.xyz
+                data.length, data.diameter = interval.length, interval.diameter
+            node = published.add_node(data)
+            published.add_edge(RootEdgeModel(parent_id=parent.node_data.node_id, child_id=node.node_data.node_id))
+            node.organ = organ
+            if interval.source is not None:
+                ledger[interval.source.node_data.node_id] = node
+            segments.append(node)
+            parent = node
+        organ.segments = segments
+        organ.base_node = segments[0]
+        organ.parent_node = attachment
+    for organ in organs:
+        organ.lateral_attachment_nodes = [ledger[n.node_data.node_id] for n in organ.lateral_attachment_nodes]
+    published.organ_id = workspace.organ_id
+    return published
+
+
+def _publish_records(workspace: RootSystemGraph, rows: dict, organ_records: list, organs: dict) -> RootSystemGraph:
+    """Record-based allocation for interval laws (construction steps).
+
+    Existing construction points keep their IDs; attachment cuts inserted by
+    relocation carry the explicit IDs reserved for them. Nodes are ordered by
+    ID and material edges by (parent_id, child_id), the historical contract.
+    """
+    published = RootSystemGraph(create_base=False)
+    data = {nid: RootNodeModel(**row) for nid, row in rows.items()}
+    if not {node.node_data.node_id for node in workspace.nodes}.issubset(data):
+        raise ValueError("A geometry edit cannot silently remove native nodes")
+    live = {}
+    for nid in sorted(data):
+        live[nid] = RootNode(published, data[nid])
+        published.nodes.append(live[nid])
+    published.node_id = max(live) + 1
+    published.edges = [
+        RootEdge(published, RootEdgeModel(parent_id=rows[n]["parent_id"], child_id=n))
+        for n in sorted(rows, key=lambda n: (rows[n]["parent_id"], n))
+        if rows[n]["order"] > 0
+    ]
+    published.organ_id = workspace.organ_id
+    published.base_node = live[workspace.base_node.node_data.node_id]
+    published.bases = [published.base_node]
+    for record in organ_records:
+        organ = organs[record["organ_id"]]
+        organ.segments = [live[n] for n in record["node_ids"]]
+        organ.parent_node = live[record["parent_id"]]
+        organ.base_node = organ.segments[0]
+        organ.child_organs = []
+        for node in organ.segments:
+            node.organ = organ
+        organ.mass = organ.calculate_mass()
+    for record in organ_records:
+        organ = organs[record["organ_id"]]
+        if record["order"] > 1:
+            organs[rows[record["parent_id"]]["organ_id"]].child_organs.append(organ)
+        # Branch-node queues were consumed during construction.
+        organ.lateral_attachment_nodes = []
+    return published
 
 
 def process_graph(
