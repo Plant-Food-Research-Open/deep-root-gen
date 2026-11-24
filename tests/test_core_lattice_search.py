@@ -68,8 +68,10 @@ def test_band_edges_and_lattice_offsets():
 
 
 def test_parameter_edits():
-    config = dict(irrigation=dict(upper_radius_cm=20.0), features=dict(groups=[dict(c=1.0), dict(c=2.0)],
-                                                                         lengths=dict(mean=10.0, sd=2.0)))
+    config = dict(
+        irrigation=dict(upper_radius_cm=20.0),
+        features=dict(groups=[dict(c=1.0), dict(c=2.0)], lengths=dict(mean=10.0, sd=2.0)),
+    )
     defs = dict(
         up=dict(kind="float", edits=[dict(op="set", path="irrigation.upper_radius_cm")]),
         gain=dict(kind="float", edits=[dict(op="set", paths=["irrigation.moisture_tropism.4", "irrigation.moisture_tropism.5"])]),
@@ -182,7 +184,9 @@ def test_stages_end_to_end_with_identity_checked_cache(spec_dir):
     assert "4 cached, 0 to run" in logs[-1] or any("4 cached, 0 to run" in m for m in logs[-3:])
     # A record from another source revision is never reused.
     path = next((out / "arms_pair" / "results").rglob("1.json"))
-    rec = json.loads(path.read_text()); rec["source_sha"] = "other"; path.write_text(json.dumps(rec))
+    rec = json.loads(path.read_text())
+    rec["source_sha"] = "other"
+    path.write_text(json.dumps(rec))
     search.run_arms(ctx, out, "pair", logs.append)
     assert any("3 cached, 1 to run" in m for m in logs)
     with pytest.raises(RuntimeError, match="Run failed"):
