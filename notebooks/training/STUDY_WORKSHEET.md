@@ -13,6 +13,7 @@ to design the search or running the final field assessment.
 | Candidate variants | Exact law names and setting paths, affected orders, bounds and reasons |
 | Manual exploration | Changes seen in Dash, graph and branching checks, and comparison with the baseline |
 | Objective and feasibility | Score components and scales, mass definition and acceptable bounds, geometry requirements |
+| Sobol sensitivity analysis | Law, active input ranges and distributions, base sample size, seeds, development outcome, S1 and ST with uncertainty, and reasons to fit or fix each control |
 | Search design | Trial count per variant, seed panel, startup and resource limits, planned output directory |
 | Frozen evaluation | Freeze date, saved JSON and hash, fixed law, fresh seeds, held positions and success criteria |
 | Result | Trial counts, failures, best score, baseline and candidate results, uncertainty and limitations |
