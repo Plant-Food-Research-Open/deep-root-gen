@@ -20,6 +20,39 @@ from deeprootgen.research.neighbourhood import (
 ORIGINS = [(x, y) for x in (-1, 0, 1) for y in (-2, 0, 2)]
 
 
+@pytest.mark.parametrize("layout", [
+    {"row_distance_cm": 300}, {"vine_distance_cm": 200},
+    {"row_distance_cm": -1, "vine_distance_cm": 200},
+    {"row_distance_cm": 300, "vine_distance_cm": 0},
+    {"row_distance_cm": float("inf"), "vine_distance_cm": 200},
+    {"row_distance_cm": 300, "vine_distance_cm": True},
+])
+def test_config_requires_two_positive_finite_distances(layout):
+    from deeprootgen.data_model import parse_config
+
+    example = Path(__file__).resolve().parents[1] / "examples/synthetic_minimal.json"
+    with pytest.raises(ValueError, match="distance_cm"):
+        parse_config(dict(json.loads(example.read_text()), planting_layout=layout))
+
+
+def test_cli_uses_configured_planting_layout(tmp_path):
+    from deeprootgen.cli import main
+
+    example = Path(__file__).resolve().parents[1] / "examples/synthetic_minimal.json"
+    layout = dict(row_distance_cm=310, vine_distance_cm=175)
+    config = tmp_path / "vine.json"
+    config.write_text(json.dumps(dict(json.loads(example.read_text()), planting_layout=layout)))
+    out = tmp_path / "garden"
+    assert main(["neighbourhood", "--config", str(config), "--outdir", str(out)]) == 0
+    expected = [[x, y] for x in (-310, 0, 310) for y in (-175, 0, 175)]
+    assert json.loads((out / "origins.json").read_text()) == expected
+    assert pd.read_csv(out / "plants.csv")[["x_cm", "y_cm"]].values.tolist() == expected
+    manifest = json.loads((out / "manifest.json").read_text())
+    assert {key: manifest[key] for key in layout} == layout
+    explicit = generate_neighbourhood(config, [(0, 0)])
+    assert len(explicit.plants) == 1
+
+
 def test_seed_assignment_is_reproducible_and_invariant_to_input_order():
     sites = neighbourhood_plan(ORIGINS, 42, "independent")
     assert len(set(s.seed for s in sites)) == 9
