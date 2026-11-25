@@ -3,7 +3,9 @@
 Replace bracketed placeholders with approved material. Start with the
 [quickstart](QUICKSTART.md) to see what DeepRootGen should return on invented
 inputs. Keep restricted data in the separate local workflow described in the
-[fresh-data guide](FRESH_DATA_WITH_CLAUDE.md).
+[fresh-data guide](FRESH_DATA_WITH_CLAUDE.md). Start each study with its
+[task-log instruction](FRESH_DATA_WITH_CLAUDE.md#keep-a-task-log-across-claude-sessions)
+so the next Claude session can resume from the last recorded decision.
 
 ## 1. Check data and describe what to reproduce
 
@@ -33,13 +35,26 @@ inputs. Keep restricted data in the separate local workflow described in the
 > Using the reviewed JSON and my baseline results [insert cleared results],
 > give me a short Dash exercise that changes one active control at a time.
 > Specify the baseline and two values to try, shared seeds, what to look for in
-> the graph and branch report, and what outcome would justify moving to fitting.
+> the graph and branch report, and what outcome would justify a sensitivity analysis.
 > Use the observation route we agreed on. Ask me to record the exported
 > configuration and checks.
 
-## 4. Run a bounded search using DeepRootGen
+## 4. Screen active controls with Sobol sensitivity analysis
 
-> The manual checks passed [insert checks]. My target and observation operator
+> The manual checks passed [insert cleared checks]. For each candidate law
+> [list], design a Sobol analysis of [development loss] using [active controls
+> and plausible ranges], [shared simulation seeds] and [simulation budget].
+> Show the design size and total simulator calls. Use the same observation
+> rule and seed aggregation we plan to use for fitting. For restricted data,
+> give me the script to run locally. From the cleared results, report S1 and
+> ST with uncertainty, flag rankings that change with sample size, and explain
+> which controls to fit, fix or leave open. Save those decisions in the task log
+> using only information cleared for this workspace.
+
+## 5. Run a bounded search using DeepRootGen
+
+> Use the controls retained after the Sobol analysis [insert cleared decisions].
+> My target and observation operator
 > are [describe], with baseline [JSON], candidate law variants [list], active
 > control bounds [list], loss [definition], shared training seeds [list],
 > evaluation budget [trial count per variant] and output folder [new local
