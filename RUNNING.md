@@ -72,6 +72,21 @@ Use invented fixtures for dashboard and storage checks. Keep private
 observations, fitted inputs, environments, credentials and run outputs in
 their local research locations.
 
+## PFR candidate container
+
+The **Candidate Container** GitHub Actions check builds the same pinned runtime
+from tracked application files. It runs a schema-4 simulation, checks both
+dashboard routes and physical-core scoring, and fits an invented target using
+TPE and Latin hypercube. The smoke test runs without network access or worker
+services.
+
+A PFR maintainer can select **Run workflow** on `main` and enable **publish**
+to publish the tested image to `ghcr.io/plant-food-research-open/deep-root-gen`
+under `sha-<full-commit-SHA>`. The job summary records the registry digest.
+Publishing requires the workflow token to have write access to the package.
+Use the digest to pull the tested image. Existing release tags use the
+separate release workflow.
+
 ## Historical upstream 1.0 integration (13 November 2026)
 
 The approved PFR upstream update at `80315af` is integrated with the local

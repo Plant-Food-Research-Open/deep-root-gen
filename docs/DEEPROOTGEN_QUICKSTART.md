@@ -9,7 +9,7 @@ urlcolor: "blue!50!black"
 
 # DeepRootGen quickstart
 
-**A 15-minute walkthrough for Kelvin · Schema 4**
+**A 15-minute walkthrough · Schema 4**
 
 DeepRootGen generates a 3D root system from a JSON configuration and a random
 seed. An optimiser varies selected settings, simulates each candidate on the
@@ -35,7 +35,7 @@ placement, branch initiation and terminal retention as separate choices.
 
 Open this notebook in JupyterLab or VS Code.
 
-`notebooks/grapevine_root_architecture/architecture_search_quickstart.ipynb`
+[Architecture Search notebook](../notebooks/grapevine_root_architecture/architecture_search_quickstart.ipynb)
 
 Select the project's Python 3.10 kernel and use **Run All**. The notebook runs
 locally from the invented `examples/synthetic_minimal.json`.
@@ -63,9 +63,8 @@ archived study bundle locally. Use the synthetic lesson first on a new machine.
 
 # Run the example in the web interface
 
-Use **Architecture Search** on the current local dashboard at
-[127.0.0.1:18002/architecture-search](http://127.0.0.1:18002/architecture-search).
-For a different installation use its Dash address and the same page name.
+Open **Architecture Search** on the Dash installation described in
+[RUNNING.md](../RUNNING.md). The page path is `/architecture-search`.
 
 1. Click **Load architecture JSON** and select
    `examples/synthetic_minimal.json`. Enter **2** and **4** in the
