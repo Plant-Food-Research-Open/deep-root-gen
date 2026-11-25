@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         with:
           persist-credentials: false
 
@@ -52,9 +52,13 @@ jobs:
 
       - name: Publish and verify the image digest
         env:
-          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The package was created with the GHCR_TOKEN personal access token, so the
+          # workflow token is refused (permission_denied: write_package) until the
+          # package grants this repository write access under "Manage Actions access".
+          REGISTRY_TOKEN: ${{ secrets.GHCR_TOKEN || secrets.GITHUB_TOKEN }}
+          REGISTRY_USER: ${{ secrets.GHCR_TOKEN && github.repository_owner || github.actor }}
         run: |
-          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$REGISTRY_USER" --password-stdin
           docker push "$DRG_IMAGE"
           digest_ref="$(docker image inspect --format '{{index .RepoDigests 0}}' "$DRG_IMAGE")"
           test "${digest_ref%@*}" = "${DRG_IMAGE%:*}"
