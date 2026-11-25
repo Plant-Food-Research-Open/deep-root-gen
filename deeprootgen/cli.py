@@ -168,7 +168,8 @@ def _main(argv, run_config, explain=None):
         action="store_true",
         help="print the resolved laws, inactive values and hashes, then exit without running",
     )
-    group = commands.add_parser("neighbourhood", help="grow vines at supplied horizontal offsets")
+    group = commands.add_parser("neighbourhood", help="grow vines at configured spacing or supplied offsets",
+                                description="Use planting_layout from the model JSON, or supply both distances or explicit origins.")
     group.add_argument("--config", type=Path, required=True, help="seeded model parameter JSON")
     group.add_argument("--origins", type=Path, help="JSON array of [x_cm, y_cm] offsets")
     group.add_argument("--vine-distance-cm", type=float, help="distance along a row")

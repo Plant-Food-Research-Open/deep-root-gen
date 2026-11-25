@@ -19,6 +19,13 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
 
+class PlantingLayout(StrictModel):
+    """Centre-to-centre crown spacing for neighbourhood placement, in cm."""
+
+    row_distance_cm: Positive = Field(description="Distance between rows along model x")
+    vine_distance_cm: Positive = Field(description="Distance between plants in a row along model y")
+
+
 class BirthDepthTransfer(StrictModel):
     """Move eligible ordinary daughters along their own parent's contour."""
 
@@ -166,6 +173,7 @@ class RootParameters(StrictModel):
 
 
 class RootConfig(StrictModel):
+    planting_layout: PlantingLayout | None = None
     irrigation: Irrigation | None = None
     daughter_placement: DaughterPlacement | None = None
     birth_depth_transfer: BirthDepthTransfer | None = None

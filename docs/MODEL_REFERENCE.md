@@ -111,6 +111,7 @@ Fresh generation accepts only `schema_version: 4`. Older flat and schema-2/3 inp
 | `parameters` | object, required | Global and native values ([section 16.1](#161-global-parameters)) |
 | `features` | object | Fourteen optional feature blocks, each `{"enabled": bool, "settings": {...}}` |
 | `limits` | object | Resource limits ([section 17](#17-reproducibility-and-limits)) |
+| `planting_layout` | `null` or object | Crown-to-crown distances used for neighbourhood placement and core RLD ([section 12](#12-vineyard-neighbourhood)) |
 | `irrigation` | `null`, `"rainfed"` or object | Wet-zone response ([section 11](#11-irrigation-response)) |
 | `daughter_placement` | `null` or object | Rainfed terminal-daughter preference ([section 9.4](#94-terminal-daughter-placement-daughter_placement)) |
 | `birth_depth_transfer` | `null` or object | Moves shallow buds deeper on the same parent ([section 9.3](#93-birth-depth-transfer)) |
@@ -690,7 +691,15 @@ The examples are illustrative. A runnable synthetic vine is in [`examples/resear
 | `translated` | The same seeded vine is copied to each crown position |
 | `independent` | The focal vine keeps the configured seed; every other position gets a distinct, reproducible seed |
 
-Positions come from `--vine-distance-cm` and `--row-distance-cm`, which give a 3 × 3 grid, or from `--origins` with explicit [x, y] offsets that include [0, 0]. An active irrigation footprint is evaluated at each crown's field position, even for translated copies. The export holds the graph in the surveyed horizontal frame, plus `plants.csv` (seed, placement and geometry identity per vine) and `origins.json`.
+To store the measured planting distances in the model input, add this top-level block to the schema-4 JSON (example values in cm).
+
+```json
+"planting_layout": {"row_distance_cm": 300, "vine_distance_cm": 200}
+```
+
+`row_distance_cm` is the distance between row centres along model x. `vine_distance_cm` is the distance between successive plant centres within a row along model y. Both must be positive and finite. A single-vine simulation still generates one vine. Run `python -m deeprootgen neighbourhood --config vineyard.json --outdir garden` to position the focal vine and its eight neighbours. In this example their x offsets are −300, 0 and 300 cm and their y offsets are −200, 0 and 200 cm.
+
+For a different planting, override the saved layout with both distance flags or supply `--origins` with explicit [x, y] offsets including [0, 0]. An active irrigation footprint is evaluated at each crown's field position, even for translated copies. The export holds the graph in the surveyed horizontal frame, plus `plants.csv` (seed, placement and geometry identity per vine) and `origins.json`.
 
 The core-lattice scorer (section 15.4) emulates a planting differently. It sums the contributions of translated copies of one simulated vine at lattice offsets. Its `independent_loss` variant takes the neighbours from other seeds.
 
@@ -799,7 +808,7 @@ Report miss and false-hit rates together, so filling every cylinder cannot pass 
 |---|---|
 | `base_config` | Schema-4 configuration every candidate starts from |
 | `cores` | CSV path, equality `filter`, `exclude_cores` (must be absent, for example a hold-out), `frame` (column and sign for model x and y), `folds` (`k`, `seed`, `strata` listing every core once), optional `columns` |
-| `lattice` | `x_spacing_cm`, `y_spacing_cm`, `extent` (1 gives 3 × 3) |
+| `lattice` | `extent` (default 1 gives 3 × 3). Spacing comes from the base model's `planting_layout` or from `x_spacing_cm` and `y_spacing_cm` in the search spec. Values supplied in both places must agree. |
 | `band_mm` | Diameter band, for example `[0.5, 2.5]` |
 | `crown_kg` | Fixed below-ground mass added to each simulated vine's root mass |
 | `dry_density_g_cm3` | Density used only for segment support |

@@ -93,6 +93,17 @@ def layout_origins(origins_cm, vine_distance_cm, row_distance_cm):
     return origins_cm
 
 
+def _resolve_layout(document, origins_cm, vine_distance_cm, row_distance_cm):
+    if origins_cm is None and vine_distance_cm is None and row_distance_cm is None:
+        if document.planting_layout is None:
+            raise ValueError("Supply planting_layout in the config, both spacing distances, or explicit origins")
+        vine_distance_cm = document.planting_layout.vine_distance_cm
+        row_distance_cm = document.planting_layout.row_distance_cm
+    origins = layout_origins(origins_cm, vine_distance_cm, row_distance_cm)
+    spacing = {} if origins_cm is not None else dict(vine_distance_cm=vine_distance_cm, row_distance_cm=row_distance_cm)
+    return origins, spacing
+
+
 def generate_neighbourhood(
     config,
     origins_cm=None,
@@ -108,10 +119,15 @@ def generate_neighbourhood(
     that vine's original crown location. Lengths and diameters remain in cm.
     """
     from deeprootgen.data_model.resolution import parse_config
-    from deeprootgen.model import RootSystemSimulation
 
     document = parse_config(config)
-    origins_cm = layout_origins(origins_cm, vine_distance_cm, row_distance_cm)
+    origins, _ = _resolve_layout(document, origins_cm, vine_distance_cm, row_distance_cm)
+    return _grow_neighbourhood(document, origins, mode)
+
+
+def _grow_neighbourhood(document, origins_cm, mode):
+    from deeprootgen.model import RootSystemSimulation
+
     plan = neighbourhood_plan(origins_cm, document.random_seed, mode)
 
     active = document.irrigation is not None and document.irrigation.peak_multiplier > 1
@@ -198,22 +214,16 @@ def export_neighbourhood(
     from pathlib import Path
     from tempfile import TemporaryDirectory
 
-    from deeprootgen.data_model.resolution import load_json_config
+    from deeprootgen.data_model.resolution import load_json_config, parse_config
 
     target = Path(outdir).resolve()
     if target.exists():
         raise FileExistsError(f"Output directory already exists: {target}")
-    origins = layout_origins(
-        (
-            json.loads(Path(origins_path).read_text())
-            if origins_path is not None
-            else None
-        ),
-        vine_distance_cm,
-        row_distance_cm,
-    )
+    origins = json.loads(Path(origins_path).read_text()) if origins_path is not None else None
     config = load_json_config(Path(config_path))
-    graph = generate_neighbourhood(config, origins, mode)
+    document = parse_config(config)
+    origins, spacing = _resolve_layout(document, origins, vine_distance_cm, row_distance_cm)
+    graph = _grow_neighbourhood(document, origins, mode)
     receipt = dict(
         mode=mode,
         plant_count=len(graph.plants),
@@ -221,11 +231,8 @@ def export_neighbourhood(
         coordinate_units="cm",
         node_count=len(graph.nodes),
         edge_count=len(graph.edges),
+        **spacing,
     )
-    if vine_distance_cm is not None:
-        receipt.update(
-            vine_distance_cm=vine_distance_cm, row_distance_cm=row_distance_cm
-        )
     target.parent.mkdir(parents=True, exist_ok=True)
     with TemporaryDirectory(dir=target.parent) as tmp:
         stage = Path(tmp) / "export"
