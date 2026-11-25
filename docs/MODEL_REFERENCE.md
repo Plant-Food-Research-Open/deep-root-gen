@@ -2,7 +2,7 @@
 
 This reference describes every function of the schema-4 root generator, the options each function offers, the observation operators that sample a simulated vine like a soil core, and the scores used to compare simulated and measured roots. It gives definitions, units, equations and code defaults.
 
-**Source basis.** Written on 25 November 2026 from the source on branch `site4-irrigation-core-search-20261124` (commit `0463a03`), including the uncommitted numerical fixes in that working tree (interval-length reconciliation and the stricter `core-search --stage confirm` freeze rule). It was written from source inspection. It reports no simulation results and does not qualify any configuration biologically.
+**Source basis.** Written on 25 November 2026 from the source on branch `site4-irrigation-core-search-20261124` after it was merged with `main` at `2424ad8`. That branch adds the Site 4 irrigation options (`order_sensitivity`, `moisture_tropism`, `max_extra_fraction`) and the crown `azimuth_groups` to `main`. The offline research modules in `deeprootgen/research/` that are not schema-4 options (for example `relative_core_surface` and `terminal_elongation`) are not covered here. The reference was written from source inspection. It reports no simulation results and does not qualify any configuration biologically.
 
 **Site-specific values are not in this file.** Values fitted to Calvin's survey sites are private and stay in local, git-ignored files. In a checkout that holds them, see the [Site 1 reference parameters](research/Calvin_private/SITE1_REFERENCE_PARAMETERS.md) and the [coring-to-architecture methods](research/Calvin_private/CORING_TO_ARCHITECTURE_METHODS.md). Those links do not resolve in a public clone.
 
