@@ -57,14 +57,26 @@ def sha(obj):
 def load_search_spec(path):
     path = Path(path).resolve()
     spec = json.loads(path.read_text())
+    spec_sha = sha(spec)
     root = path.parent
     base = json.loads((root / spec["base_config"]).read_text())
+    lattice = spec.setdefault("lattice", {})
+    if base.get("planting_layout") is not None:
+        from ..data_model.canonical import PlantingLayout
+
+        layout = PlantingLayout.model_validate(base["planting_layout"])
+        for key, distance in (("x_spacing_cm", layout.row_distance_cm), ("y_spacing_cm", layout.vine_distance_cm)):
+            if key in lattice and float(lattice[key]) != distance:
+                raise ValueError(f"Search lattice {key} conflicts with the base config planting_layout")
+            lattice[key] = distance
+    elif not {"x_spacing_cm", "y_spacing_cm"} <= lattice.keys():
+        raise ValueError("Supply planting_layout in the base config or both search lattice spacings")
     cores, cores_sha = scoring.load_cores(spec, root)
     for name, d in spec["parameters"].items():
         if any(c in name for c in ".[]") or d.get("kind") not in ("float", "int", "categorical") or not d.get("edits"):
             raise ValueError(f"Parameter {name!r} needs a plain name, a kind and edits")
     return dict(spec=spec, root=root, base=base, cores=cores, offsets=scoring.lattice_offsets(spec["lattice"]),
-                identity=dict(version=VERSION, scorer=scoring.VERSION, spec_sha256=sha(spec),
+                identity=dict(version=VERSION, scorer=scoring.VERSION, spec_sha256=spec_sha,
                               cores_sha256=cores_sha, base_config_sha256=sha(base)))
 
 
@@ -223,9 +235,12 @@ class Runner:
         from concurrent.futures import as_completed
 
         spec, cores_sha = self.ctx["spec"], self.ctx["identity"]["cores_sha256"]
+        offsets_sha = sha(self.ctx["offsets"])
         (self.outdir / "configs").mkdir(parents=True, exist_ok=True)
         jobs, have = [], {}
         for label, cfg in configs.items():
+            if cfg.get("planting_layout") != self.ctx["base"].get("planting_layout"):
+                raise ValueError("Planting layout is fixed across candidates in a core search")
             cs = sha(cfg)
             (self.outdir / "configs" / f"{cs}.json").write_text(json.dumps(cfg, indent=1))
             for seed in seeds:
@@ -234,6 +249,7 @@ class Runner:
                     rec = json.loads(path.read_text())
                     if (rec.get("source_sha") == self.source_sha and rec.get("config_sha") == cs and rec.get("seed") == seed
                             and rec.get("scorer") == scoring.VERSION and rec.get("cores_sha") == cores_sha
+                            and rec.get("offsets_sha") == offsets_sha
                             and rec.get("status") in ("ok", "infeasible") and (not probes or "probes" in rec or rec["status"] != "ok")):
                         have[(label, seed)] = dict(rec, label=label)
                         continue
@@ -253,6 +269,7 @@ class Runner:
                            reason="MemoryError in worker", seconds=0.0)
             if rec["source_sha"] != self.source_sha:
                 raise RuntimeError("Worker source fingerprint differs from the controller")
+            rec["offsets_sha"] = offsets_sha
             path = self.outdir / stage / "results" / rec["config_sha"] / f"{rec['seed']}.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(json.dumps(rec))

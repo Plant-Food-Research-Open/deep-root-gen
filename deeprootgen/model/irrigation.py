@@ -40,6 +40,90 @@ def exposure(zone, xyz):
     return np.where(d >= 0, k, 0.0)
 
 
+def _dcosine(r):
+    """d cosine(r) / dr; zero where cosine is clipped (r <= 0 or r >= 1)."""
+    r = np.asarray(r, float)
+    return np.where((r > 0) & (r < 1), -0.5 * np.pi * np.sin(np.pi * r), 0.0)
+
+
+def exposure_gradient(zone, xyz):
+    """Analytic dK/d(x, y, depth) in surveyed coordinates, on soil support only.
+
+    Above the surface K and its gradient are zero; no evaluation probes air.
+    At the outlet centre and beyond the footprint the gradient is exactly zero.
+    """
+    xyz = np.atleast_2d(np.asarray(xyz, float))
+    x, y, d = xyz.T
+    n = len(x)
+    r2, dr2_dx, dr2_dy = np.zeros(n), np.zeros(n), np.zeros(n)
+    if zone.line_offsets_cm is not None:
+        lines = np.asarray(zone.line_offsets_cm, float)
+        if zone.row_period_cm:
+            step = zone.row_period_cm
+            dx = (x - lines[0] + step / 2) % step - step / 2
+        else:
+            signed = x[:, None] - lines
+            dx = signed[np.arange(n), np.argmin(np.abs(signed), axis=1)]
+        r2 = (dx / zone.across_radius_cm) ** 2
+        dr2_dx = 2 * dx / zone.across_radius_cm**2
+        if zone.emitter_spacing_cm is not None:
+            spacing = zone.emitter_spacing_cm
+            dy = (y - zone.emitter_origin_y_cm + spacing / 2) % spacing - spacing / 2
+            r2 = r2 + (dy / zone.along_radius_cm) ** 2
+            dr2_dy = 2 * dy / zone.along_radius_cm**2
+    with np.errstate(divide="ignore", invalid="ignore"):
+        if zone.treatment == "buried_drip":
+            dz = d - zone.irrigation_depth_cm
+            radius = np.where(dz < 0, zone.upper_radius_cm, zone.lower_radius_cm)
+            big_r = np.sqrt(r2 + (dz / radius) ** 2)
+            f = np.where(big_r > 0, _dcosine(big_r) / (2 * big_r), 0.0)
+            grad = np.column_stack([f * dr2_dx, f * dr2_dy, f * 2 * dz / radius**2])
+        else:
+            rh = np.sqrt(r2)
+            fh = np.where(rh > 0, _dcosine(rh) / (2 * rh), 0.0)
+            if zone.surface_profile == "deep_peak":
+                upper = d <= 37.5
+                s = np.where(upper, (37.5 - d) / 37.5, (d - 37.5) / 12.5)
+                dv = _dcosine(s) * np.where(upper, -1 / 37.5, 1 / 12.5)
+            else:
+                s = (d - 40.0) / 10.0
+                dv = _dcosine(s) / 10.0
+            v = cosine(s)
+            grad = np.column_stack([fh * dr2_dx * v, fh * dr2_dy * v, cosine(rh) * dv])
+    return np.where((d >= 0)[:, None], grad, 0.0)
+
+
+def gradient_bound(zone):
+    """Upper bound on |grad K| per cm: pi / (2 * shortest kernel length scale)."""
+    scales = []
+    if zone.line_offsets_cm is not None:
+        scales.append(zone.across_radius_cm)
+        if zone.emitter_spacing_cm is not None:
+            scales.append(zone.along_radius_cm)
+    if zone.treatment == "buried_drip":
+        scales += [zone.upper_radius_cm, zone.lower_radius_cm]
+    else:
+        scales.append(12.5 if zone.surface_profile == "deep_peak" else 10.0)
+    return np.pi / (2 * min(scales))
+
+
+class MoistureTropism:
+    """Per-cm heading increment gain * grad K at a model-frame point (z up).
+
+    K is the long-term wet-zone exposure; its analytic gradient is zero outside
+    the footprint and at its centre, so roots are turned back into the zone
+    near its edge and soil beyond the footprint exerts no pull.
+    """
+
+    def __init__(self, zone, surface_z, gain):
+        self.zone, self.surface_z, self.gain = zone, surface_z, float(gain)
+        self.flip = np.array([zone.reflect_x, zone.reflect_y, -1.0])
+
+    def __call__(self, point):
+        s = survey_points(np.asarray(point, float)[None, :], self.zone, self.surface_z)
+        return self.gain * self.flip * exposure_gradient(self.zone, s)[0]
+
+
 def survey_points(points, zone, surface_z):
     return np.array([zone.origin_x_cm, zone.origin_y_cm, surface_z]) + points * [
         zone.reflect_x,

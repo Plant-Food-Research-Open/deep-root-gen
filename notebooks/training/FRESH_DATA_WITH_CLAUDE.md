@@ -83,7 +83,7 @@ these one at a time before combining them. Check each proposed path against the 
 source and confirm that its consumer is active with `--explain-config`.
 [Schema-4 guide](../../docs/NATIVE_EXECUTION.md)
 
-## 3. Explore the baseline and alternatives in the interface
+## 3. Explore the baseline and alternatives in the interface (optional)
 
 Run **Simulation** on the local dashboard with the base JSON. Open
 **Active laws by order** in **Architecture Search** before choosing bounds.

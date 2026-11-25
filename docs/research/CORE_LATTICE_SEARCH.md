@@ -13,7 +13,7 @@ python -m deeprootgen core-search --spec spec.json --stage confirm --outdir runs
 
 - **Diameter band.** Observed and simulated length are compared in one root-diameter band. Simulated length counts on graph segments whose constant child diameter d satisfies `band_mm[0] < 10 d <= band_mm[1]`.
 - **Intersection.** The finite-cylinder intersection comes from `core_observation`.
-- **Planting.** Each simulated vine is summed over a translated lattice of planting positions (`lattice`: x and y spacing, extent 1 gives 3 × 3), so one seed represents a periodic planting.
+- **Planting.** Set `planting_layout.row_distance_cm` (across rows, x) and `planting_layout.vine_distance_cm` (along a row, y) in the base model JSON. The default lattice includes the focal plant and eight neighbours. Set `lattice.extent` in the search spec to change the number of rings. Existing specs can supply `lattice.x_spacing_cm` and `lattice.y_spacing_cm` directly. Spacings supplied in both files must agree. The scorer sums intercepted length from all positions and divides by each core section's volume.
 - **Independent neighbours.** Per-copy contributions are kept, so a variant can take neighbours from other seeds (`independent_loss`).
 - **Loss.** `score_core_placement` on whole-core folds, normalised by each fold's training cores, averaged over folds and then seeds. It is reported with its three weighted components: 0.5 × normalised MAE, 0.25 × joint TV and 0.25 × depth TV.
 - **Objective.** The search minimises J = loss + `kg_weight` × (mean kg outside `mass_band_kg`) + `ratio_weight` × (seed-mean RLD ratio units outside `ratio_band`). Any infeasible seed (organ, memory or time limit) gives J = 2 + the infeasible share.

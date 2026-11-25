@@ -245,7 +245,7 @@ def place_origins(state):
     receipts = []
     for index, primary in enumerate(sim.organs.get(1, [])):
         oid = int(primary.segments[0].node_data.organ_id)
-        start, phi = disk_origin(law, law_stream(state.streams, laws.streams, "origin", oid))
+        start, phi = disk_origin(law, law_stream(state.streams, laws.streams, "origin", oid), index)
         _translate_primary(primary, sim.G.bases[index].node_data, start)
         if "heading" in law:
             primary.plan["initial_heading"] = radial_inclination(

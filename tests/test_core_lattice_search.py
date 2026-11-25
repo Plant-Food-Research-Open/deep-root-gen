@@ -173,6 +173,29 @@ def test_hold_out_core_in_the_table_is_rejected(spec_dir):
         search.load_search_spec(spec_dir / "leaky.json")
 
 
+def test_configured_spacing_positions_neighbours_for_core_rld(spec_dir):
+    base_path = spec_dir / "base.json"
+    base = json.loads(base_path.read_text())
+    base["planting_layout"] = dict(row_distance_cm=310, vine_distance_cm=175)
+    base_path.write_text(json.dumps(base))
+    path = spec_dir / "spec.json"
+    with pytest.raises(ValueError, match="conflicts"):
+        search.load_search_spec(path)
+    spec = json.loads(path.read_text())
+    del spec["lattice"]
+    path.write_text(json.dumps(spec))
+    offsets = search.load_search_spec(path)["offsets"]
+    support = scoring.band_support(*_graph([(0, 0, 0, -30, 0.1, 1)]), (0.5, 2.5))
+    cores = _cores({"adjacent_row": (310, 0), "next_vine": (0, 175), "swapped": (175, 0)})
+    contributions = scoring.lattice_contributions(support, cores, offsets)
+    for name, position in (("adjacent_row", (310, 0)), ("next_vine", (0, 175))):
+        rows = contributions[cores.core_id.eq(name)]
+        expected = 10 / (np.pi * 2**2 * 10)
+        np.testing.assert_allclose(rows[:, offsets.index(position)], expected)
+        np.testing.assert_allclose(rows.sum(axis=1), expected)
+    assert not contributions[cores.core_id.eq("swapped")].any()
+
+
 def test_stages_end_to_end_with_identity_checked_cache(spec_dir):
     ctx = search.load_search_spec(spec_dir / "spec.json")
     out = spec_dir / "out"
@@ -187,6 +210,12 @@ def test_stages_end_to_end_with_identity_checked_cache(spec_dir):
     rec = json.loads(path.read_text())
     rec["source_sha"] = "other"
     path.write_text(json.dumps(rec))
+    search.run_arms(ctx, out, "pair", logs.append)
+    assert any("3 cached, 1 to run" in m for m in logs)
+    rec = json.loads(path.read_text())
+    rec["offsets_sha"] = "other planting"
+    path.write_text(json.dumps(rec))
+    logs.clear()
     search.run_arms(ctx, out, "pair", logs.append)
     assert any("3 cached, 1 to run" in m for m in logs)
     with pytest.raises(RuntimeError, match="Run failed"):
