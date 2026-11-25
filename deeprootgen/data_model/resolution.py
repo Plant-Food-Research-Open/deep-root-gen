@@ -256,12 +256,7 @@ def _keyed_features(laws):
         yield "taper"
 
 
-def resolve_config(spec):
-    """Resolve a schema-4 input against the shared native construction kernels."""
-    from .consumers import spatial_feature_consumers
-
-    parsed = parse_config(spec)
-    p = parsed.parameters
+def _active_settings(p, irrigation, placement, transfer, floor):
     settings = {"daughters_by_parent_order": p.daughters_by_parent_order}
     if hasattr(p.root_tissue_density, "bounds_mm"):
         settings["tissue_density_by_diameter"] = p.root_tissue_density.model_dump()
@@ -270,44 +265,49 @@ def resolve_config(spec):
     if p.allocation_controls is not None:
         settings["allocation"] = dict(root_ratio_biomass=p.root_ratio_biomass, root_ratio_length=p.root_ratio_length,
                                       controls=p.allocation_controls.model_dump())
-    irrigation = parsed.irrigation
     if irrigation is not None and irrigation.peak_multiplier > 1:
         settings["irrigation"] = irrigation.model_dump(exclude_none=True)
-    placement = parsed.daughter_placement
     if placement is not None and (placement.strength or placement.mode == "retention"):
         settings["daughter_placement"] = placement.model_dump(exclude_none=True)
-    transfer = parsed.birth_depth_transfer
     if transfer is not None and transfer.transfer_probability:
         settings["birth_depth_transfer"] = dict(transfer.model_dump(), parent_orders=sorted(transfer.parent_orders))
-    floor = parsed.minimum_realized_primary_length_cm
     if floor is not None:
         settings["minimum_realized_primary_length_cm"] = floor
-    resolved = _resolve_features(parsed, p.kernel_parameters(), "4", contract=settings)
-    if "birth_depth_transfer" in settings:
-        if parsed.random_seed is None:
-            raise ValueError("Birth depth transfer requires an explicit random_seed")
-        for order in transfer.parent_orders:
-            parent = resolved.laws.direction.get(order, {})
-            daughter = resolved.laws.direction.get(order + 1, {})
-            if (order >= p.max_order or order not in resolved.laws.branching
-                    or parent.get("law") != "correlated_curvature"
-                    or daughter.get("initial_heading") != "insertion_angle"
-                    or daughter.get("law") != "correlated_curvature"):
-                raise ValueError("Birth depth transfer requires ordinary branching, a realized curved parent "
-                                 "and an insertion-angle daughter at each selected order")
-            if ((order == 1 and resolved.laws.relocation is not None)
-                    or ("irrigation" in settings and order == irrigation.parent_order)
-                    or ("daughter_placement" in settings and placement.mode != "surface_bearing"
-                        and order == placement.parent_order)):
-                raise ValueError("Conflicting attachment controls on the birth depth transfer parent order")
-        resolved.description["birth_depth_transfer"] = settings["birth_depth_transfer"]
-    if floor is not None:
-        primary = resolved.laws.lengths.get(1, {})
-        if primary.get("law") != "bounded_lognormal" or not primary.get("sd") or p.allocation_controls is not None:
-            raise ValueError("A realized primary floor requires a stochastic lognormal length law without allocation")
-        primary["realized_floor_cm"] = floor
-        resolved.description["minimum_realized_primary_length_cm"] = floor
-    if "daughter_placement" in settings and placement.mode == "surface_bearing":
+    return settings
+
+
+def _validate_birth_depth_transfer(parsed, resolved, settings, transfer):
+    p, irrigation, placement = parsed.parameters, parsed.irrigation, parsed.daughter_placement
+    if parsed.random_seed is None:
+        raise ValueError("Birth depth transfer requires an explicit random_seed")
+    for order in transfer.parent_orders:
+        parent = resolved.laws.direction.get(order, {})
+        daughter = resolved.laws.direction.get(order + 1, {})
+        if (order >= p.max_order or order not in resolved.laws.branching
+                or parent.get("law") != "correlated_curvature"
+                or daughter.get("initial_heading") != "insertion_angle"
+                or daughter.get("law") != "correlated_curvature"):
+            raise ValueError("Birth depth transfer requires ordinary branching, a realized curved parent "
+                             "and an insertion-angle daughter at each selected order")
+        if ((order == 1 and resolved.laws.relocation is not None)
+                or ("irrigation" in settings and order == irrigation.parent_order)
+                or ("daughter_placement" in settings and placement.mode != "surface_bearing"
+                    and order == placement.parent_order)):
+            raise ValueError("Conflicting attachment controls on the birth depth transfer parent order")
+    resolved.description["birth_depth_transfer"] = settings["birth_depth_transfer"]
+
+
+def _apply_primary_length_floor(p, resolved, floor):
+    primary = resolved.laws.lengths.get(1, {})
+    if primary.get("law") != "bounded_lognormal" or not primary.get("sd") or p.allocation_controls is not None:
+        raise ValueError("A realized primary floor requires a stochastic lognormal length law without allocation")
+    primary["realized_floor_cm"] = floor
+    resolved.description["minimum_realized_primary_length_cm"] = floor
+
+
+def _validate_daughter_placement(parsed, resolved, settings, placement):
+    p = parsed.parameters
+    if placement.mode == "surface_bearing":
         if parsed.random_seed is None:
             raise ValueError("Surface bearing requires an explicit random_seed")
         for order in placement.bearing_orders:
@@ -317,7 +317,7 @@ def resolve_config(spec):
             if "sibling_sectors" in law or law.get("row_axial_kappa", 0.) > 0:
                 raise ValueError(f"Surface bearing conflicts with sibling sectors or row-axial insertion on order {order}")
         resolved.description["daughter_placement"] = settings["daughter_placement"]
-    elif "daughter_placement" in settings:
+    else:
         order = placement.parent_order
         parent = resolved.laws.direction.get(order, {})
         daughter = resolved.laws.direction.get(order + 1, {})
@@ -337,44 +337,68 @@ def resolve_config(spec):
         if placement.mode.startswith("sparse_") and resolved.laws.branching[order]["branch_probability"] != 0:
             raise ValueError("Sparse recruitment requires an inactive ordinary terminal branch law")
         resolved.description["daughter_placement"] = settings["daughter_placement"]
-    if "irrigation" in settings:
-        order = irrigation.parent_order
-        if order + 1 != p.max_order or parsed.random_seed is None:
-            raise ValueError("Irrigation requires a seeded terminal daughter order")
-        if order not in resolved.laws.branching or p.daughters_by_parent_order.get(str(order)) is not None or getattr(resolved.parameters, "research_root_counts_by_order", None):
-            raise ValueError("Irrigation requires a stochastic branching law without an exact daughter quota")
-        parent = resolved.laws.direction.get(order, {})
-        daughter = resolved.laws.direction.get(order + 1, {})
-        if parent.get("law") != "correlated_curvature" or daughter.get("initial_heading") != "insertion_angle":
-            raise ValueError("Irrigation requires realized parent curvature and terminal insertion-angle curvature")
-        if order == 1 and resolved.laws.relocation is not None:
-            raise ValueError("Irrigation of relocated primary sites is outside the terminal-order pilot")
-        for daughter_order in sorted(irrigation.upstream_sensitivity()):
-            parent_order = daughter_order - 1
-            if (parent_order not in resolved.laws.branching
-                    or p.daughters_by_parent_order.get(str(parent_order)) is not None):
-                raise ValueError("Non-terminal irrigation requires a stochastic parent branching law without a quota")
-            if resolved.laws.direction.get(parent_order, {}).get("law") != "correlated_curvature" or any(
-                    resolved.laws.direction.get(k, {}).get("law") != "correlated_curvature"
-                    or resolved.laws.direction.get(k, {}).get("initial_heading") != "insertion_angle"
-                    for k in range(daughter_order, p.max_order + 1)):
-                raise ValueError("Non-terminal irrigation requires a realized curved parent and insertion-angle "
-                                 "curvature at the recruited order and every descendant order")
-            if parent_order == 1 and resolved.laws.relocation is not None:
-                raise ValueError("Irrigation of relocated primary sites is outside the recruitment law")
-            if "birth_depth_transfer" in settings and parent_order in transfer.parent_orders:
-                raise ValueError("Conflicting attachment controls on a non-terminal irrigation parent order")
-        for key, gain in (irrigation.moisture_tropism or {}).items():
-            law = resolved.laws.direction.get(int(key), {})
-            if gain and (int(key) > p.max_order or law.get("law") != "correlated_curvature"):
-                raise ValueError("Moisture tropism requires correlated curvature at each listed root order")
-            if gain:
-                from ..model.irrigation import gradient_bound
 
-                if law["step_cm"] * (law["downward_drift_per_cm"] + gain * gradient_bound(irrigation)) >= 1:
-                    raise ValueError(f"Moisture tropism gain {gain} at order {key} could reverse a heading in "
-                                     "one step; reduce the gain or the curvature step")
-        resolved.description["irrigation"] = settings["irrigation"]
+
+def _validate_irrigation(parsed, resolved, settings, irrigation):
+    p = parsed.parameters
+    order = irrigation.parent_order
+    if order + 1 != p.max_order or parsed.random_seed is None:
+        raise ValueError("Irrigation requires a seeded terminal daughter order")
+    if order not in resolved.laws.branching or p.daughters_by_parent_order.get(str(order)) is not None or getattr(resolved.parameters, "research_root_counts_by_order", None):
+        raise ValueError("Irrigation requires a stochastic branching law without an exact daughter quota")
+    parent = resolved.laws.direction.get(order, {})
+    daughter = resolved.laws.direction.get(order + 1, {})
+    if parent.get("law") != "correlated_curvature" or daughter.get("initial_heading") != "insertion_angle":
+        raise ValueError("Irrigation requires realized parent curvature and terminal insertion-angle curvature")
+    if order == 1 and resolved.laws.relocation is not None:
+        raise ValueError("Irrigation of relocated primary sites is outside the terminal-order pilot")
+    transfer = parsed.birth_depth_transfer
+    for daughter_order in sorted(irrigation.upstream_sensitivity()):
+        parent_order = daughter_order - 1
+        if (parent_order not in resolved.laws.branching
+                or p.daughters_by_parent_order.get(str(parent_order)) is not None):
+            raise ValueError("Non-terminal irrigation requires a stochastic parent branching law without a quota")
+        if resolved.laws.direction.get(parent_order, {}).get("law") != "correlated_curvature" or any(
+                resolved.laws.direction.get(k, {}).get("law") != "correlated_curvature"
+                or resolved.laws.direction.get(k, {}).get("initial_heading") != "insertion_angle"
+                for k in range(daughter_order, p.max_order + 1)):
+            raise ValueError("Non-terminal irrigation requires a realized curved parent and insertion-angle "
+                             "curvature at the recruited order and every descendant order")
+        if parent_order == 1 and resolved.laws.relocation is not None:
+            raise ValueError("Irrigation of relocated primary sites is outside the recruitment law")
+        if "birth_depth_transfer" in settings and parent_order in transfer.parent_orders:
+            raise ValueError("Conflicting attachment controls on a non-terminal irrigation parent order")
+    for key, gain in (irrigation.moisture_tropism or {}).items():
+        law = resolved.laws.direction.get(int(key), {})
+        if gain and (int(key) > p.max_order or law.get("law") != "correlated_curvature"):
+            raise ValueError("Moisture tropism requires correlated curvature at each listed root order")
+        if gain:
+            from ..model.irrigation import gradient_bound
+
+            if law["step_cm"] * (law["downward_drift_per_cm"] + gain * gradient_bound(irrigation)) >= 1:
+                raise ValueError(f"Moisture tropism gain {gain} at order {key} could reverse a heading in "
+                                 "one step; reduce the gain or the curvature step")
+    resolved.description["irrigation"] = settings["irrigation"]
+
+
+def resolve_config(spec):
+    """Resolve a schema-4 input against the shared native construction kernels."""
+    from .consumers import spatial_feature_consumers
+
+    parsed = parse_config(spec)
+    p = parsed.parameters
+    irrigation, placement = parsed.irrigation, parsed.daughter_placement
+    transfer, floor = parsed.birth_depth_transfer, parsed.minimum_realized_primary_length_cm
+    settings = _active_settings(p, irrigation, placement, transfer, floor)
+    resolved = _resolve_features(parsed, p.kernel_parameters(), "4", contract=settings)
+    if "birth_depth_transfer" in settings:
+        _validate_birth_depth_transfer(parsed, resolved, settings, transfer)
+    if floor is not None:
+        _apply_primary_length_floor(p, resolved, floor)
+    if "daughter_placement" in settings:
+        _validate_daughter_placement(parsed, resolved, settings, placement)
+    if "irrigation" in settings:
+        _validate_irrigation(parsed, resolved, settings, irrigation)
     if parsed.random_seed is None:
         keyed = list(_keyed_features(resolved.laws))
         if keyed:

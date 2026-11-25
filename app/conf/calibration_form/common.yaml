@@ -654,6 +654,7 @@ components:
           searchable: true
           clearable: true
           placeholder: Select include parameters
+          value: []
           persistence: true
       - id: exclude-parameters-dropdown
         param: exclude_parameters 
@@ -668,6 +669,7 @@ components:
           searchable: true
           clearable: true
           placeholder: Select exclude parameters
+          value: []
           persistence: true
       - id: lr-input
         param: lr
@@ -749,11 +751,12 @@ components:
       - id: use-cost-emulation-switch
         param: use_summary_statistics
         label: Use cost emulation
-        help: Whether to train a surrogate model on the discrepancy between simulated and observed data (cost emulation), rather than simulation output data (output emulation)
+        help: Train on the discrepancy between simulated and observed summary statistics. Graph output emulation is currently unavailable.
         class_name: dash_daq.BooleanSwitch.BooleanSwitch 
         handler: boolean_switch
         statistic_parameter: true
         kwargs: 
+          "on": true
           persistence: true
       - id: select-summary-stats-dropdown
         param: summary_statistics
@@ -917,6 +920,7 @@ components:
         handler: boolean_switch
         statistic_parameter: true
         kwargs: 
+          "on": true
           persistence: true
       - id: select-summary-stats-dropdown
         param: summary_statistics

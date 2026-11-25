@@ -1,6 +1,7 @@
 """Page-side submission feedback and run-state refresh for worker-backed pages."""
 
 import os
+from math import isfinite
 from pathlib import Path
 from uuid import UUID
 
@@ -152,8 +153,8 @@ def load_statistics_upload(contents: list | None, names: list | None) -> tuple:
         frame.columns = [str(column).strip() for column in frame.columns]
         rows = statistics_rows(frame.to_dict("records"))
         values = pd.to_numeric(frame["statistic_value"], errors="coerce")
-        if values.isna().any():
-            raise ValueError("Every statistic_value must be a number.")
+        if not all(isfinite(value) for value in values):
+            raise ValueError("Every statistic_value must be a finite number.")
     except (ValueError, UnicodeDecodeError, pd.errors.ParserError) as error:
         return no_update, message(f"Could not use {name}", str(error), tone="danger")
     return {"label": name, "values": rows}, f"Loaded {len(rows)} statistics from {name}"

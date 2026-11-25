@@ -22,8 +22,12 @@ def row_distance(x_cm, period_cm):
 def depth_basis(depth_cm):
     depth_cm = np.asarray(depth_cm)
     return np.stack(
-        [np.ones_like(depth_cm), depth_cm / 100,
-         np.maximum(depth_cm - 30, 0) / 100, np.maximum(depth_cm - 90, 0) / 100],
+        [
+            np.ones_like(depth_cm),
+            depth_cm / 100,
+            np.maximum(depth_cm - 30, 0) / 100,
+            np.maximum(depth_cm - 90, 0) / 100,
+        ],
         axis=-1,
     )
 
@@ -36,7 +40,7 @@ def profile_preference(profile, depth, cross):
     zone = np.searchsorted(profile.zone_boundaries, cross, side="right")
     support = np.minimum(np.asarray(profile.zone_tube_counts)[zone] / 2, 1)
     beta = profile.coefficients
-    row_term = beta[4] + (profile.row_depth_slope or 0.) * (supported - 90.) / 100.
+    row_term = beta[4] + (profile.row_depth_slope or 0.0) * (supported - 90.0) / 100.0
     score = depth_basis(supported) @ beta[:4] + row_term * cross * support
     return np.clip((score - profile.training_mean) / 0.20, -1, 1) * fade
 
@@ -53,9 +57,9 @@ def vineyard_3d_preference(profile, depth_cm, x_cm, y_cm):
     y_phase = np.remainder(y_cm, profile.along_period_cm) / profile.along_period_cm
     x_cos, y_cos = np.cos(2 * np.pi * x_phase), np.cos(2 * np.pi * y_phase)
     score = intercept + across * x_cos + along * y_cos + interaction * x_cos * y_cos
-    outside = np.maximum(np.maximum(knots[0] - depth, depth - knots[-1]), 0.)
-    fade = np.clip(1. - outside / profile.fade_cm, 0., 1.)
-    return np.clip(score, -1., 1.) * fade
+    outside = np.maximum(np.maximum(knots[0] - depth, depth - knots[-1]), 0.0)
+    fade = np.clip(1.0 - outside / profile.fade_cm, 0.0, 1.0)
+    return np.clip(score, -1.0, 1.0) * fade
 
 
 def _crown_xy(state):
@@ -67,57 +71,87 @@ def _crown_xy(state):
         entry, _ = state.vine_origin
         if entry["layout"] == "common_point":
             return entry["origin"]["x_cm"], entry["origin"]["y_cm"]
-    return 0., 0.
+    return 0.0, 0.0
 
 
-BEARING_PROBE_CM = 40.
-BEARING_GAIN = 2.
+BEARING_PROBE_CM = 40.0
+BEARING_GAIN = 2.0
 
 
-def surface_bearing_heading(state, settings, tangent, heading, position, length_cm, order, organ_id):
+def surface_bearing_heading(
+    state, settings, tangent, heading, position, length_cm, order, organ_id
+):
     """Tilt the native uniform azimuth over four quarter turns at its original polar angle."""
     axis = tangent / np.linalg.norm(tangent)
     parallel = (axis @ heading) * axis
     radial = heading - parallel
     quarter_turn = np.cross(axis, radial)
-    candidates = np.array([heading, parallel + quarter_turn, parallel - radial, parallel - quarter_turn])
+    candidates = np.array(
+        [heading, parallel + quarter_turn, parallel - radial, parallel - quarter_turn]
+    )
     probe_cm = min(BEARING_PROBE_CM, length_cm)
     probes = position + probe_cm * candidates
     # The native integrator reflects the entire vertical step when it would cross the soil surface.
     reflected = probes[:, 2] > state.laws.surface_z_cm
     probes[reflected, 2] = position[2] - probe_cm * np.abs(candidates[reflected, 2])
     x0, y0 = _crown_xy(state)
-    scores = vineyard_3d_preference(settings.profile, state.laws.surface_z_cm - probes[:, 2],
-                                    probes[:, 0] - x0, probes[:, 1] - y0)
+    scores = vineyard_3d_preference(
+        settings.profile,
+        state.laws.surface_z_cm - probes[:, 2],
+        probes[:, 0] - x0,
+        probes[:, 1] - y0,
+    )
     weights = np.exp(BEARING_GAIN * settings.strength * scores)
     probabilities = weights / weights.sum()
     # Native uniform rotations supply 1/4 of each quartet. Keep the common probability
     # mass; only transfer its excess to directions with a target probability above 1/4.
-    keep = min(1., 4. * probabilities[0])
+    keep = min(1.0, 4.0 * probabilities[0])
     chosen = 0
-    if keep < 1.:
-        rng = state.streams.keyed("daughter_placement.surface_bearing", "1", order, organ_id)
+    if keep < 1.0:
+        rng = state.streams.keyed(
+            "daughter_placement.surface_bearing", "1", order, organ_id
+        )
         if rng.random() >= keep:
-            excess = np.maximum(probabilities - .25, 0.)
+            excess = np.maximum(probabilities - 0.25, 0.0)
             chosen = int(rng.choice(4, p=excess / excess.sum()))
-    receipt = dict(quarter_turns=chosen, probe_cm=float(probe_cm), reflected_probes=int(reflected.sum()),
-                   native_preference=float(scores[0]),
-                   selected_preference=float(scores[chosen]), score_range=float(np.ptp(scores)))
+    receipt = dict(
+        quarter_turns=chosen,
+        probe_cm=float(probe_cm),
+        reflected_probes=int(reflected.sum()),
+        native_preference=float(scores[0]),
+        selected_preference=float(scores[chosen]),
+        score_range=float(np.ptp(scores)),
+    )
     return candidates[chosen], receipt
 
 
-def _weights(settings, xyz, surface, crown_xy=(0., 0.)):
+def _weights(settings, xyz, surface, crown_xy=(0.0, 0.0)):
     depth = surface - xyz[:, 2]
     profile = settings.profile
     if profile is None:
-        start, top, bottom, stop = settings.layer_depths_cm or (80., 90., 150., 170.)
+        start, top, bottom, stop = settings.layer_depths_cm or (
+            80.0,
+            90.0,
+            150.0,
+            170.0,
+        )
         peak = settings.layer_peak_multiplier or 1.5
-        ramp = np.clip(np.minimum((depth-start)/(top-start), (stop-depth)/(stop-bottom)),0,1)
-        return 1 + settings.strength * ((peak-1)/2) * (1 - np.cos(np.pi * ramp))
+        ramp = np.clip(
+            np.minimum(
+                (depth - start) / (top - start), (stop - depth) / (stop - bottom)
+            ),
+            0,
+            1,
+        )
+        return 1 + settings.strength * ((peak - 1) / 2) * (1 - np.cos(np.pi * ramp))
     if profile.version == "vineyard_3d_v1":
-        score = vineyard_3d_preference(profile, depth, xyz[:, 0] - crown_xy[0], xyz[:, 1] - crown_xy[1])
+        score = vineyard_3d_preference(
+            profile, depth, xyz[:, 0] - crown_xy[0], xyz[:, 1] - crown_xy[1]
+        )
     else:
-        score = profile_preference(profile, depth, row_distance(xyz[:, 0], profile.row_period_cm))
+        score = profile_preference(
+            profile, depth, row_distance(xyz[:, 0], profile.row_period_cm)
+        )
     return np.power(1.5, settings.strength * score)
 
 
@@ -127,11 +161,16 @@ def eligible_contour(parent, curve, threshold, lower, upper):
         return np.empty(0), np.empty(0)
     taper = parent.axis_state.material
     ends = curve.construction_arcs
-    material = profile_cuts(taper["length"], taper, threshold) if taper is not None else ends
-    bounds = np.unique(np.clip(np.r_[curve.stations, material, lower, upper], lower, upper))
+    material = (
+        profile_cuts(taper["length"], taper, threshold) if taper is not None else ends
+    )
+    bounds = np.unique(
+        np.clip(np.r_[curve.stations, material, lower, upper], lower, upper)
+    )
     mid = (bounds[:-1] + bounds[1:]) / 2
     diameters = (
-        point_diameter(mid, taper["length"], taper) if taper is not None
+        point_diameter(mid, taper["length"], taper)
+        if taper is not None
         else parent.get_diameters()[np.searchsorted(ends, mid).clip(max=len(ends) - 1)]
     )
     keep = diameters >= threshold
@@ -140,32 +179,37 @@ def eligible_contour(parent, curve, threshold, lower, upper):
 
 def _depth_add_envelope(settings, curve, starts, stops, surface):
     """Bound excess intensity on monotone pieces of each eligible linear segment."""
-    knots = np.asarray(settings.layer_depths_cm or (80., 90., 150., 170.))
+    knots = np.asarray(settings.layer_depths_cm or (80.0, 90.0, 150.0, 170.0))
     pieces = []
     for left, right in zip(starts, stops):
         first, last = surface - curve.position([left, right])[:, 2]
         cuts = np.array([left, right])
         if first != last:
             fractions = (knots - first) / (last - first)
-            interior = fractions[(fractions > 0.) & (fractions < 1.)]
+            interior = fractions[(fractions > 0.0) & (fractions < 1.0)]
             cuts = np.sort(np.r_[left, left + (right - left) * interior, right])
-        values = _weights(settings, curve.position(cuts), surface) - 1.
-        for a, b, bound in zip(cuts[:-1], cuts[1:], np.maximum(values[:-1], values[1:])):
-            if bound > 0. and b > a:
+        values = _weights(settings, curve.position(cuts), surface) - 1.0
+        for a, b, bound in zip(
+            cuts[:-1], cuts[1:], np.maximum(values[:-1], values[1:])
+        ):
+            if bound > 0.0 and b > a:
                 pieces.append((a, b, bound))
     if not pieces:
         raise ValueError("No eligible contour with positive deep-add intensity")
     return np.asarray(pieces).T
 
 
-def _sample_sites(state, settings, parent, curve, starts, stops, count, *, uniform=False):
+def _sample_sites(
+    state, settings, parent, curve, starts, stops, count, *, uniform=False
+):
     oid = parent.axis_state.biological_id
     rng = state.streams.keyed("daughter_placement.position", "1", oid)
     cdf = np.cumsum(stops - starts)
     sites = []
     occupied = np.r_[curve.construction_arcs, curve.stations]
     max_weight = (
-        1.5 ** settings.strength if settings.profile
+        1.5**settings.strength
+        if settings.profile
         else 1 + ((settings.layer_peak_multiplier or 1.5) - 1) * settings.strength
     )
     envelope = None
@@ -178,7 +222,11 @@ def _sample_sites(state, settings, parent, curve, starts, stops, count, *, unifo
             # A grazing contour can have negligible acceptance from the whole
             # parent. Change only the rejection proposal for the remaining sites.
             starts, stops, envelope = _depth_add_envelope(
-                settings, curve, starts, stops, state.laws.surface_z_cm,
+                settings,
+                curve,
+                starts,
+                stops,
+                state.laws.surface_z_cm,
             )
             cdf = np.cumsum((stops - starts) * envelope)
         target = rng.random(count - len(sites)) * cdf[-1]
@@ -198,7 +246,13 @@ def _sample_sites(state, settings, parent, curve, starts, stops, count, *, unifo
                 bound = max_weight
             arcs = arcs[rng.random(len(arcs)) * bound < weight]
         for arc in arcs:
-            if min(np.min(abs(occupied - arc)), min((abs(s - arc) for s in sites), default=np.inf)) > 1e-9:
+            if (
+                min(
+                    np.min(abs(occupied - arc)),
+                    min((abs(s - arc) for s in sites), default=np.inf),
+                )
+                > 1e-9
+            ):
                 sites.append(arc)
     if len(sites) == count:
         return sorted(sites)
@@ -207,19 +261,23 @@ def _sample_sites(state, settings, parent, curve, starts, stops, count, *, unifo
 
 def _average_weight(state, settings, curve, starts, stops):
     if not len(starts):
-        return 1.
+        return 1.0
     # A bounded/even subdivision reduces quadrature error near profile hinges.
     fraction = (1 + QUAD_POINTS) / 2
     width = stops - starts
     arcs = starts[:, None] + width[:, None] * fraction
     xyz = curve.position(arcs.ravel())
-    values = _weights(settings, xyz, state.laws.surface_z_cm, _crown_xy(state)).reshape(arcs.shape)
-    return float(width @ (values @ (QUAD_WEIGHTS/2)) / width.sum())
+    values = _weights(settings, xyz, state.laws.surface_z_cm, _crown_xy(state)).reshape(
+        arcs.shape
+    )
+    return float(width @ (values @ (QUAD_WEIGHTS / 2)) / width.sum())
 
 
 def _replay_stream(state, purpose, oid):
     # The live stream has already been consumed by scaffold construction.
-    return law_stream(RandomStreams(state.resolved.seed), state.laws.streams, purpose, oid)
+    return law_stream(
+        RandomStreams(state.resolved.seed), state.laws.streams, purpose, oid
+    )
 
 
 def _fresh_dimensions(state, parent, child, node):
@@ -231,9 +289,14 @@ def _fresh_dimensions(state, parent, child, node):
     diameter = float(attachment_diameters(parent, [node])[0])
     features = parent.feature_laws
     base, tip = point_taper_dimensions(
-        law, child.plan["maturity"], None if maturity is None else maturity["diameter_power"],
-        diameter, state.laws.cap, _replay_stream(state, "taper", oid),
-        dict(diameter_constrained=0, tip_constrained=0), diameter_scale=features.diameter_factor(child),
+        law,
+        child.plan["maturity"],
+        None if maturity is None else maturity["diameter_power"],
+        diameter,
+        state.laws.cap,
+        _replay_stream(state, "taper", oid),
+        dict(diameter_constrained=0, tip_constrained=0),
+        diameter_scale=features.diameter_factor(child),
     )
     child.parent_node = node
     child.segments[0].node_data.parent_id = node.node_data.node_id
@@ -242,24 +305,35 @@ def _fresh_dimensions(state, parent, child, node):
     material.pop("rate_per_cm", None)
     material.pop("thick_min_cm", None)
     if "rate_per_cm" in law and base >= law["thick_min_cm"]:
-        material.update(rate_per_cm=law["rate_per_cm"], thick_min_cm=law["thick_min_cm"])
+        material.update(
+            rate_per_cm=law["rate_per_cm"], thick_min_cm=law["thick_min_cm"]
+        )
     child.plan.update(base=base, tip=tip)
 
 
 def _birth(state, parent, curve, child, arc, **extra):
     x, y, z = curve.position([arc])[0]
-    return dict(parent_id=parent.axis_state.biological_id, daughter_id=child.axis_state.biological_id,
-                arc_cm=float(arc), x_cm=float(x), y_cm=float(y), depth_cm=float(state.laws.surface_z_cm - z), **extra)
+    return dict(
+        parent_id=parent.axis_state.biological_id,
+        daughter_id=child.axis_state.biological_id,
+        arc_cm=float(arc),
+        x_cm=float(x),
+        y_cm=float(y),
+        depth_cm=float(state.laws.surface_z_cm - z),
+        **extra
+    )
 
 
 def _new_daughters(state, parent, curve, sites, receipt):
     oid = parent.axis_state.biological_id
     order = int(parent.segments[0].node_data.order)
-    state.budget.reserve_branch_proposals(len(sites), len(state.simulation.G.nodes), 0, oid)
+    state.budget.reserve_branch_proposals(
+        len(sites), len(state.simulation.G.nodes), 0, oid
+    )
     for index, arc in enumerate(sites):
         node = _insert(parent, curve, state, arc)
         child = _add_child(parent, node, state, oid, index)
-        state.simulation.organs[order+1].append(child)
+        state.simulation.organs[order + 1].append(child)
         receipt["births"].append(_birth(state, parent, curve, child, arc))
 
 
@@ -270,7 +344,9 @@ def _discard(state, order, removed):
     terminal = state.simulation.organs[order + 1]
     terminal[:] = [child for child in terminal if child not in doomed]
     for parent in {child.parent_node.organ for child in removed}:
-        parent.child_organs[:] = [child for child in parent.child_organs if child not in doomed]
+        parent.child_organs[:] = [
+            child for child in parent.child_organs if child not in doomed
+        ]
     ids = {id(node) for child in removed for node in child.segments}
     graph = state.simulation.G
     graph.nodes[:] = [node for node in graph.nodes if id(node) not in ids]
@@ -286,23 +362,43 @@ def _place_parent(state, settings, parent, curve, threshold):
     if not width:
         return receipt
     if settings.mode in ("add", "uniform_extra"):
-        expected = (_average_weight(state, settings, curve, starts, stops) - 1) * width * rate
-        count = int(state.streams.keyed("daughter_placement.count", "1", oid).poisson(max(0., expected))) if active and expected > 0 else 0
-        receipt.update(expected_extra=max(0., expected), drawn_extra=count)
+        expected = (
+            (_average_weight(state, settings, curve, starts, stops) - 1) * width * rate
+        )
+        count = (
+            int(
+                state.streams.keyed("daughter_placement.count", "1", oid).poisson(
+                    max(0.0, expected)
+                )
+            )
+            if active and expected > 0
+            else 0
+        )
+        receipt.update(expected_extra=max(0.0, expected), drawn_extra=count)
         if count:
-            sites = _sample_sites(state, settings, parent, curve, starts, stops, count,
-                                  uniform=settings.mode == "uniform_extra")
+            sites = _sample_sites(
+                state,
+                settings,
+                parent,
+                curve,
+                starts,
+                stops,
+                count,
+                uniform=settings.mode == "uniform_extra",
+            )
             _new_daughters(state, parent, curve, sites, receipt)
         return receipt
     if len(children) < 2:
         return receipt
     if settings.profile is None:
         z = state.laws.surface_z_cm - curve.position(np.r_[starts, stops])[:, 2]
-        start, _, _, stop = settings.layer_depths_cm or (80., 90., 150., 170.)
+        start, _, _, stop = settings.layer_depths_cm or (80.0, 90.0, 150.0, 170.0)
         if z.max() <= start or z.min() >= stop:
             return receipt
     # The earliest realized site is kept even when the proposed first was thin.
-    sites = _sample_sites(state, settings, parent, curve, starts, stops, len(children) - 1)
+    sites = _sample_sites(
+        state, settings, parent, curve, starts, stops, len(children) - 1
+    )
     for child, site in zip(children[1:], sites):
         node = _insert(parent, curve, state, site)
         _fresh_dimensions(state, parent, child, node)
@@ -332,27 +428,56 @@ def _branch_probability(state, settings, parents):
     candidates = []
     for parent, curve, starts, stops, active in _terminal_support(state, parents):
         oid = parent.axis_state.biological_id
-        factor = parent.plan["maturity"] if maturity and maturity["scale_branch_probability"] else 1.
-        baseline = factor * law["branch_probability"] if len(starts) else 0.
+        factor = (
+            parent.plan["maturity"]
+            if maturity and maturity["scale_branch_probability"]
+            else 1.0
+        )
+        baseline = factor * law["branch_probability"] if len(starts) else 0.0
         rng = _replay_stream(state, "branching", oid)
         if bounded_draw(law["first_branch_cm"], rng) != parent.plan["first_draw"]:
-            raise ValueError("Terminal branch replay did not reproduce the scaffold's first draw")
+            raise ValueError(
+                "Terminal branch replay did not reproduce the scaffold's first draw"
+            )
         draw = float(rng.uniform())
         multiplier = _average_weight(state, settings, curve, starts, stops)
         sites = []
         if not active and baseline > 0:
             _, proposed = first_branch_sites(
-                dict(law, branch_probability=1.), order, order+1, float(curve.stations[-1]),
-                1., False, _replay_stream(state, "branching", oid), dict(branch_beyond_tip=0),
+                dict(law, branch_probability=1.0),
+                order,
+                order + 1,
+                float(curve.stations[-1]),
+                1.0,
+                False,
+                _replay_stream(state, "branching", oid),
+                dict(branch_beyond_tip=0),
             )
             occupied = curve.construction_arcs
-            sites = [arc for arc in proposed if np.any((starts <= arc) & (arc <= stops))
-                     and np.min(abs(occupied - arc)) > 1e-9]
+            sites = [
+                arc
+                for arc in proposed
+                if np.any((starts <= arc) & (arc <= stops))
+                and np.min(abs(occupied - arc)) > 1e-9
+            ]
         n = len(parent.child_organs) if active else len(sites)
-        candidates.append((parent, curve, sites, draw, baseline, multiplier, n, float((stops-starts).sum())))
+        candidates.append(
+            (
+                parent,
+                curve,
+                sites,
+                draw,
+                baseline,
+                multiplier,
+                n,
+                float((stops - starts).sum()),
+            )
+        )
     if not candidates:
-        return dict(parents=[], expected_daughters=0., guided_expected_daughters=0.)
-    old, weights, counts = (np.array(values) for values in zip(*(entry[4:7] for entry in candidates)))
+        return dict(parents=[], expected_daughters=0.0, guided_expected_daughters=0.0)
+    old, weights, counts = (
+        np.array(values) for values in zip(*(entry[4:7] for entry in candidates))
+    )
 
     def probability(multiplier):
         return old * multiplier / (1 - old + old * multiplier)
@@ -362,31 +487,49 @@ def _branch_probability(state, settings, parents):
     uniform = None
     if settings.mode == "branch_probability_uniform":
         low, high = weights.min(), weights.max()
-        if low == high or not np.any(counts * old * (1-old)):
+        if low == high or not np.any(counts * old * (1 - old)):
             uniform = float(low)
         else:
-            uniform = float(brentq(lambda x: counts @ probability(x) - target, low, high))
+            uniform = float(
+                brentq(lambda x: counts @ probability(x) - target, low, high)
+            )
         probs = probability(uniform)
     records, removed = [], []
-    for (parent, curve, sites, draw, base, multiplier, n, eligible), p in zip(candidates, probs):
+    for (parent, curve, sites, draw, base, multiplier, n, eligible), p in zip(
+        candidates, probs
+    ):
         chosen = draw < p
-        result = dict(parent_id=parent.axis_state.biological_id, eligible_cm=eligible,
-                      baseline_probability=base, multiplier=multiplier, probability=float(p), selected=bool(chosen),
-                      conditional_daughters=n, births=[], realized_daughters=n if chosen else 0)
+        result = dict(
+            parent_id=parent.axis_state.biological_id,
+            eligible_cm=eligible,
+            baseline_probability=base,
+            multiplier=multiplier,
+            probability=float(p),
+            selected=bool(chosen),
+            conditional_daughters=n,
+            births=[],
+            realized_daughters=n if chosen else 0,
+        )
         if chosen:
             _new_daughters(state, parent, curve, sites, result)
         else:
             removed.extend(parent.child_organs)
         records.append(result)
     _discard(state, order, removed)
-    return dict(parents=records, expected_daughters=float(counts @ probs),
-                guided_expected_daughters=target, uniform_multiplier=uniform)
+    return dict(
+        parents=records,
+        expected_daughters=float(counts @ probs),
+        guided_expected_daughters=target,
+        uniform_multiplier=uniform,
+    )
 
 
 def _deep_intervals(curve, starts, stops, z_limit):
     a, b = curve.position(starts)[:, 2], curve.position(stops)[:, 2]
     crossing = (a > z_limit) != (b > z_limit)
-    cuts = starts[crossing] + (stops[crossing] - starts[crossing]) * (z_limit - a[crossing]) / (b[crossing] - a[crossing])
+    cuts = starts[crossing] + (stops[crossing] - starts[crossing]) * (
+        z_limit - a[crossing]
+    ) / (b[crossing] - a[crossing])
     left, right = starts.copy(), stops.copy()
     left[crossing & (a > z_limit)] = cuts[a[crossing] > z_limit]
     right[crossing & (b > z_limit)] = cuts[b[crossing] > z_limit]
@@ -411,20 +554,28 @@ def _balanced_cell_selection(xy, count, width_cm, rng):
         visits[cell] += 1
     # A separate tie break gives each available cell an equal chance in a partial round.
     selected = np.lexsort((rng.random(len(labels)), rounds))[:count]
-    diagnostics = dict(grid_origin_offset_cm=(offset * width_cm).tolist(),
-                       occupied_candidate_cells=len(occupied),
-                       occupied_birth_cells=len(np.unique(labels[selected])))
+    diagnostics = dict(
+        grid_origin_offset_cm=(offset * width_cm).tolist(),
+        occupied_candidate_cells=len(occupied),
+        occupied_birth_cells=len(np.unique(labels[selected])),
+    )
     return np.sort(selected), diagnostics
 
 
 def _balanced_sparse_sites(state, settings, candidates, count):
     arcs, xy = [], []
     for _, parent, curve, starts, stops in candidates:
-        arc, = _sample_sites(state, settings, parent, curve, starts, stops, 1, uniform=True)
+        (arc,) = _sample_sites(
+            state, settings, parent, curve, starts, stops, 1, uniform=True
+        )
         arcs.append(arc)
         xy.append(curve.position([arc])[0, :2])
-    rng = state.streams.keyed("daughter_placement.sparse_balance", "1", settings.parent_order)
-    selected, diagnostics = _balanced_cell_selection(xy, count, settings.spatial_cell_width_cm, rng)
+    rng = state.streams.keyed(
+        "daughter_placement.sparse_balance", "1", settings.parent_order
+    )
+    selected, diagnostics = _balanced_cell_selection(
+        xy, count, settings.spatial_cell_width_cm, rng
+    )
     diagnostics["deep_eligible_parents"] = len(candidates)
     return ((candidates[i], arcs[i]) for i in selected), diagnostics
 
@@ -437,8 +588,10 @@ def _sparse_recruitment(state, settings, parents):
         if not len(starts):
             continue
         oid = parent.axis_state.biological_id
-        draw = state.streams.keyed("daughter_placement.sparse_activation", "1", oid).random()
-        lo, hi = _deep_intervals(curve, starts, stops, surface - 90.)
+        draw = state.streams.keyed(
+            "daughter_placement.sparse_activation", "1", oid
+        ).random()
+        lo, hi = _deep_intervals(curve, starts, stops, surface - 90.0)
         eligible.append((oid, parent, curve, starts, stops))
         if len(lo):
             candidate = (oid, parent, curve, lo, hi)
@@ -447,22 +600,35 @@ def _sparse_recruitment(state, settings, parents):
             if draw < settings.strength:
                 deep.append(candidate)
     # Every sparse arm uses the same realized count, with one birth per selected parent.
-    diagnostics = dict(all_depth_eligible_parents=len(eligible), deep_activated_parents=len(deep))
+    diagnostics = dict(
+        all_depth_eligible_parents=len(eligible), deep_activated_parents=len(deep)
+    )
     if balanced:
-        placements, coverage = _balanced_sparse_sites(state, settings, deep_candidates, len(deep))
+        placements, coverage = _balanced_sparse_sites(
+            state, settings, deep_candidates, len(deep)
+        )
         diagnostics.update(coverage)
     else:
         chosen = deep
         if settings.mode == "sparse_uniform":
-            def priority(item):
-                return state.streams.keyed("daughter_placement.sparse_uniform_rank", "1", item[0]).random()
 
-            chosen = sorted(eligible, key=priority)[:len(deep)]
-        placements = ((item, _sample_sites(state, settings, *item[1:], 1, uniform=True)[0])
-                      for item in chosen)
+            def priority(item):
+                return state.streams.keyed(
+                    "daughter_placement.sparse_uniform_rank", "1", item[0]
+                ).random()
+
+            chosen = sorted(eligible, key=priority)[: len(deep)]
+        placements = (
+            (item, _sample_sites(state, settings, *item[1:], 1, uniform=True)[0])
+            for item in chosen
+        )
     records = []
     for (_, parent, curve, starts, stops), arc in placements:
-        result = dict(parent_id=parent.axis_state.biological_id, eligible_cm=float((stops-starts).sum()), births=[])
+        result = dict(
+            parent_id=parent.axis_state.biological_id,
+            eligible_cm=float((stops - starts).sum()),
+            births=[],
+        )
         _new_daughters(state, parent, curve, [arc], result)
         records.append(result)
     return dict(parents=records, **diagnostics)
@@ -477,7 +643,9 @@ def _retention(state, settings, parents):
         curve = state.curves.get(parent.axis_state.biological_id)
         if curve is None or parent.invalid_root:
             continue
-        arcs = {id(node): arc for node, arc in zip(parent.segments, curve.construction_arcs)}
+        arcs = {
+            id(node): arc for node, arc in zip(parent.segments, curve.construction_arcs)
+        }
         for child in parent.child_organs:
             arc = arcs[id(child.parent_node)]
             candidates.append(child)
@@ -485,13 +653,21 @@ def _retention(state, settings, parents):
             records.append(_birth(state, parent, curve, child, arc))
     if not candidates:
         return records
-    weights = _weights(settings, np.asarray(positions), state.laws.surface_z_cm, _crown_xy(state))
-    logits = logit(.85) + np.log(weights)
-    shift = brentq(lambda a: expit(logits+a).mean()-.85, -2, 2) if settings.strength else 0.
+    weights = _weights(
+        settings, np.asarray(positions), state.laws.surface_z_cm, _crown_xy(state)
+    )
+    logits = logit(0.85) + np.log(weights)
+    shift = (
+        brentq(lambda a: expit(logits + a).mean() - 0.85, -2, 2)
+        if settings.strength
+        else 0.0
+    )
     probabilities = expit(logits + shift)
     removed = []
     for child, record, probability in zip(candidates, records, probabilities):
-        rng = state.streams.keyed("daughter_placement.retention", "1", child.axis_state.biological_id)
+        rng = state.streams.keyed(
+            "daughter_placement.retention", "1", child.axis_state.biological_id
+        )
         kept = rng.uniform() < probability
         record.update(probability=float(probability), kept=bool(kept))
         if not kept:
@@ -504,8 +680,11 @@ def apply_terminal_preference(state, settings):
     order = settings.parent_order
     threshold = state.parameters.min_branching_diameter_cm
     parents = state.simulation.organs.get(order, [])
-    state.simulation.organs.setdefault(order+1, [])
-    receipt = dict(settings=settings.model_dump(exclude_none=True), minimum_parent_diameter_cm=threshold)
+    state.simulation.organs.setdefault(order + 1, [])
+    receipt = dict(
+        settings=settings.model_dump(exclude_none=True),
+        minimum_parent_diameter_cm=threshold,
+    )
     state.diagnostics["daughter_placement"] = receipt
     if settings.mode == "retention":
         receipt["retentions"] = _retention(state, settings, parents)

@@ -18,7 +18,7 @@ explicitly. The public project is at
 `DeepRootGen on GitHub <https://github.com/Plant-Food-Research-Open/deep-root-gen>`_.
 
 1. What format should spatial RLD observations use? Is the feature available?
-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
 
 **Recommended exchange format:** a UTF-8 CSV file with **one row per sampled
 core depth increment**, retaining the sampling location, depth, observed RLD,
@@ -161,7 +161,7 @@ as time-consuming, first assess sensitivity to angular parameters and whether
 existing 2D angles discriminate simulated architectures.
 
 3. How is the location and sampled volume of RLD incorporated?
--------------------------------------------------------------
+--------------------------------------------------------------
 
 The ``Data description`` worksheet specifies **14 core locations per site**,
 with 10 cm depth increments of **74.22 cm3**. An observation therefore
@@ -201,7 +201,7 @@ and potentially a 3-by-3 neighbourhood. A single simulated vine should not
 be assumed to explain every observed core without testing this assumption.
 
 4. Is the apple calibration input and run script available as a template?
-------------------------------------------------------------------------
+-------------------------------------------------------------------------
 
 **Not confirmed from the accessible public repository materials.** DeepRootGen
 has a calibration framework, but no specific, verifiable public apple
@@ -224,7 +224,7 @@ separately, they can serve as a workflow template, but their observation
 schema should not be assumed to support cylindrical core locations.
 
 5. What does a secondary root represent: structural branches or fine roots?
---------------------------------------------------------------------------
+---------------------------------------------------------------------------
 
 **Secondary denotes branching order, not diameter or tissue class.** In the
 supplied model, order 1 grows from the trunk/base, order 2 branches from

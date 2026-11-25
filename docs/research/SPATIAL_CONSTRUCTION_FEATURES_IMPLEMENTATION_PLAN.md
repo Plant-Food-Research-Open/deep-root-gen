@@ -1,16 +1,10 @@
 # Spatial construction features: detailed implementation plan
 
 19 November 2026. **Design complete; implementation and empirical runs not started
-by this planning task.** This expands the three remaining construction features
-in the [issue-closure task](../tasks/SO4_T4_SCHEMA4_ISSUE_CLOSURE.md).
+by this planning task.** This expands the design for three schema-4 construction features.
 
 The [implementation follow-up](SPATIAL_CONSTRUCTION_IMPLEMENTATION.md)
 records the completed software checks and current field-evaluation status.
-
-The owner's later [excavation-conditioning proposal](OPTIONAL_EXCAVATION_CONDITIONED_RECONSTRUCTION.md)
-adds optional order-1–3 measurements as reconstruction inputs, priors and targets.
-It does not require importing or extending measured roots, and is separate from
-the implemented primary-origin catalogue and the three features designed here.
 
 ## 1. Outcome, scope and inspected baseline
 
@@ -41,12 +35,6 @@ curvature realization, local parent-diameter filtering, branch receipts,
 excavation observations and raw/RSML archive reconciliation. Reuse these rather
 than repeating earlier repair tasks. This plan does not claim a fresh runtime
 pass for those additions.
-
-The earlier [issue-closure execution record](../../.runtime/schema4-issue-closure-20261119/REPORT.md)
-reports completed contract fixes, source-qualified software checks and bounded
-development comparisons, while retaining these three feature gaps. Read its
-latest candidate and source-crosswalk dispositions before reusing an older
-parameter proposal or treating an earlier data ambiguity as still unresolved.
 
 ## 2. Shared architecture and invariants
 
@@ -525,11 +513,8 @@ raw observations, CONTRIBUTING, CODE_OF_CONDUCT or programme repositories.
 
 ## 8. P5: evaluate scientific usefulness separately from code correctness
 
-The owner's subsequent cutoff request adds the
-[Calvin diameter-cutoff and measurement-QC plan](CALVIN_DIAMETER_CUTOFF_AND_QC_PLAN.md).
-Prepare and freeze its 0.50/0.93 mm targets and source-QC masks before Calvin
-evaluation. This supersedes the parent task's former exclusion of raw-workbook
-reprocessing for this specific local preparation; other data boundaries remain.
+Specify the diameter cutoff and freeze the quality masks before field
+evaluation.
 
 ### Frozen comparisons
 

@@ -19,17 +19,18 @@ from dash import (
 )
 
 from deeprootgen.form import build_calibration_parameters, get_common_layout
+from deeprootgen.form.calibration_presets import (
+    calibration_controls,
+    register_calibration_preset_callbacks,
+)
 from deeprootgen.form.run_feedback import (
     calibration_action,
     load_statistics_upload,
     register_run_status_callback,
 )
-from deeprootgen.io import load_data_from_file, s3_upload_file
-from deeprootgen.pipeline import (
-    load_form_parameters,
-    save_form_parameters,
-    save_simulation_runs,
-)
+from deeprootgen.form.uploads import load_csv_upload
+from deeprootgen.io import s3_upload_file
+from deeprootgen.pipeline import save_simulation_runs
 
 ######################################
 # Constants
@@ -44,6 +45,8 @@ DATA_COMPONENT_KEY = "simulated_data"
 ######################################
 # Callbacks
 ######################################
+
+register_calibration_preset_callbacks(PAGE_ID, FORM_NAME, TASK)
 
 
 @callback(
@@ -159,39 +162,6 @@ def toggle_external_links_collapse(n: int, is_open: bool) -> bool:
 
 
 @callback(
-    Output(f"{PAGE_ID}-download-params", "data"),
-    [Input({"index": f"{PAGE_ID}-save-param-button", "type": ALL}, "n_clicks")],
-    State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
-    State({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
-    prevent_initial_call=True,
-)
-def save_param(
-    n_clicks: int | list[int], param_inputs: list, calibration_inputs: list
-) -> None:
-    """Save parameter form values.
-
-    Args:
-        n_clicks (int | list[int]):
-            The number of times that the button has been clicked.
-        param_inputs (list):
-            The parameter input data.
-        calibration_inputs (list):
-            The calibration parameter input data.
-    """
-    if n_clicks is None or len(n_clicks) == 0:  # type: ignore
-        return no_update
-
-    if n_clicks[0] is None or n_clicks[0] == 0:  # type: ignore
-        return no_update
-
-    outfile, file_name = save_form_parameters(
-        PAGE_ID, FORM_NAME, param_inputs, TASK, calibration_inputs
-    )
-    s3_upload_file(outfile, file_name)
-    return dcc.send_file(outfile)
-
-
-@callback(
     Output(f"{PAGE_ID}-download-results", "data"),
     [Input({"index": f"{PAGE_ID}-save-runs-button", "type": ALL}, "n_clicks")],
     State("store-simulation-run", "data"),
@@ -241,16 +211,12 @@ def load_runs(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-
-    if list_of_contents[0] is None or list_of_contents[0] == 0:
-        return no_update
-
-    simulation_runs, _, toast_message = load_data_from_file(
-        list_of_contents, list_of_names
+    runs, _, toast_message = load_csv_upload(
+        list_of_contents, list_of_names, required_columns=("workflow", "task", "date", "tag"),
     )
-    return simulation_runs, True, toast_message
+    if toast_message is no_update:
+        return no_update
+    return no_update if runs is no_update else runs["values"], True, toast_message
 
 
 @callback(
@@ -276,42 +242,6 @@ def clear_runs(n_clicks: int | list[int]) -> list:
         return no_update
 
     return []
-
-
-@callback(
-    Output({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
-    Output({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
-    Output(f"{PAGE_ID}-load-toast", "is_open", allow_duplicate=True),
-    Output(f"{PAGE_ID}-load-toast", "children", allow_duplicate=True),
-    Input({"index": f"{PAGE_ID}-upload-param-file-button", "type": ALL}, "contents"),
-    State({"index": f"{PAGE_ID}-upload-param-file-button", "type": ALL}, "filename"),
-    prevent_initial_call=True,
-)
-def load_params(list_of_contents: list, list_of_names: list) -> tuple:
-    """Load the simulation parameters from file.
-
-    Args:
-        list_of_contents (list):
-            The list of file contents.
-        list_of_names (list):
-            The list of file names.
-
-    Returns:
-        tuple:
-            The updated form state.
-    """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-
-    if list_of_contents[0] is None or list_of_contents[0] == 0:
-        return no_update
-
-    inputs, toast_message = load_form_parameters(
-        list_of_contents, list_of_names, FORM_NAME, TASK
-    )
-
-    parameter_inputs, calibration_inputs = inputs
-    return parameter_inputs, calibration_inputs, True, toast_message
 
 
 @callback(
@@ -410,7 +340,6 @@ def update_input_output_data_state(simulation_data: dict) -> tuple:
     Input({"index": f"{PAGE_ID}-select-summary-stats-dropdown", "type": ALL}, "value"),
     Input({"index": f"{PAGE_ID}-distance-dropdown", "type": ALL}, "value"),
     Input({"index": f"{PAGE_ID}-use-cost-emulation-switch", "type": ALL}, "on"),
-    Input({"index": f"{PAGE_ID}-output-column-dropdown", "type": ALL}, "value"),
 )
 def update_uploaded_data_state(
     summary_data: dict | None,
@@ -419,7 +348,6 @@ def update_uploaded_data_state(
     summary_stats: list,
     distances: list,
     use_cost_emulations: list[bool],
-    output_column_list: list[str],
 ) -> tuple:
     """Update the state of the uploaded data.
 
@@ -436,8 +364,6 @@ def update_uploaded_data_state(
             The list of distance metrics.
         use_cost_emulations (list):
             Whether to use cost emulation rather than output emulation.
-        output_column_list (list):
-            The list of simulation output data.
 
     Returns:
         tuple:
@@ -466,40 +392,13 @@ def update_uploaded_data_state(
                 clear_disabled = False
                 break
 
-    run_disabled = False
-    use_cost_emulation = use_cost_emulations[0]
-    if use_cost_emulation:
-        data_list = [summary_data]
-    else:
-        data_list = [simulation_data, edge_data]
-
-    for data in data_list:
-        if data is None:
-            run_disabled = True
-            break
-        data_values = data.get("values", [])
-        if len(data_values) == 0:
-            run_disabled = True
-            break
-        if data_values[0] is None:
-            run_disabled = True
-            break
-
-    stats_list = summary_stats[0]
-    distance = distances[0]
-    output_columns = output_column_list[0]
-
-    if not run_disabled:
-        if use_cost_emulation:
-            if len(stats_list) == 0 or len(distance) == 0:
-                run_disabled = True
-            elif stats_list[0] is None or distance[0] is None:
-                run_disabled = True
-        else:
-            if len(output_columns) == 0:
-                run_disabled = True
-            elif output_columns[0] is None:
-                run_disabled = True
+    use_cost_emulation = bool(use_cost_emulations and use_cost_emulations[0])
+    run_disabled = not (
+        use_cost_emulation
+        and (summary_data or {}).get("values")
+        and summary_stats and summary_stats[0]
+        and distances and distances[0]
+    )
 
     return [stats_bttn], [sim_bttn], [edge_bttn], [run_disabled], [clear_disabled]
 
@@ -557,16 +456,12 @@ def load_simulation_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, content_string, toast_message = load_data_from_file(
-        list_of_contents, list_of_names
+    parsed, raw, toast_message = load_csv_upload(
+        list_of_contents, list_of_names, required_columns=("node_id", "parent_id"),
     )
-    summary_data = {"label": list_of_names[0], "values": loaded_data}
-    return summary_data, {"values": content_string}, True, toast_message
+    if toast_message is no_update:
+        return no_update
+    return parsed, raw, True, toast_message
 
 
 @callback(
@@ -595,16 +490,12 @@ def load_edge_data(list_of_contents: list, list_of_names: list) -> tuple:
         tuple:
             The updated form state.
     """
-    if list_of_contents is None or len(list_of_contents) == 0:
-        return no_update
-    if list_of_contents[0] is None:
-        return no_update
-
-    loaded_data, content_string, toast_message = load_data_from_file(
-        list_of_contents, list_of_names
+    parsed, raw, toast_message = load_csv_upload(
+        list_of_contents, list_of_names, required_columns=("parent_id", "child_id"),
     )
-    summary_data = {"label": list_of_names[0], "values": loaded_data}
-    return summary_data, {"values": content_string}, True, toast_message
+    if toast_message is no_update:
+        return no_update
+    return parsed, raw, True, toast_message
 
 
 @callback(
@@ -657,9 +548,7 @@ def clear_summary_data(n_clicks: int | list[int]) -> tuple:
     Input(f"{PAGE_ID}-preview", "n_clicks"),
     State({"type": f"{PAGE_ID}-parameters", "index": ALL}, "value"),
     State({"type": f"{PAGE_ID}-{TASK}", "index": ALL}, "value"),
-    State({"index": f"{PAGE_ID}-use-cost-emulation-switch", "type": ALL}, "on"),
-    State({"index": f"{PAGE_ID}-stat-by-soil-layer-switch", "type": ALL}, "on"),
-    State({"index": f"{PAGE_ID}-stat-by-soil-col-switch", "type": ALL}, "on"),
+    State({"type": f"{PAGE_ID}-{TASK}-switch", "index": ALL}, "on"),
     State("store-simulation-run", "data"),
     State("store-summary-data", "data"),
     State("store-raw-simulation-data", "data"),
@@ -672,9 +561,7 @@ def run_root_model(
     preview_clicks: int | None,
     parameter_values: list,
     calibration_values: list,
-    use_summary_statistics: list[bool],
-    stats_by_layer: list[bool],
-    stats_by_col: list[bool],
+    switch_values: list[bool],
     simulation_runs: list,
     summary_data: dict,
     raw_simulation_data: dict,
@@ -695,17 +582,14 @@ def run_root_model(
     if not (preview_clicks if preview else n_clicks and n_clicks[0]):
         return no_update, no_update, no_update, no_update
 
-    use_summary = bool(use_summary_statistics and use_summary_statistics[0])
     form_inputs = build_calibration_parameters(
         FORM_NAME,
         TASK,
         parameter_values,
-        calibration_values,
+        calibration_controls(FORM_NAME, TASK, calibration_values, switch_values),
         summary_statistics=(summary_data or {}).get("values"),
-        stat_by_layer=bool(stats_by_layer and stats_by_layer[0]),
-        stat_by_col=bool(stats_by_col and stats_by_col[0]),
-        use_summary_statistics=use_summary,
-        observed_data_content=(raw_simulation_data or {}).get("values", ""),
+        observed_data_content=(raw_simulation_data or {}).get("values")
+        or (raw_simulation_data or {}).get("value", ""),
         raw_edge_content=(raw_edge_data or {}).get("values", ""),
     )
     return calibration_action(TASK, form_inputs, preview, simulation_runs, nonce)

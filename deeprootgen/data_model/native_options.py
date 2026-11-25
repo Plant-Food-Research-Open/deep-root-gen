@@ -122,6 +122,8 @@ def _assign_curved_insertion(updates, laws, max_order):
         elif direction["initial_heading"] != "insertion_angle":
             raise ValueError(f"Row-axial insertion requires an insertion heading on curved order {order}")
         elif kappa > 0:
+            if "sibling_sectors" in direction:
+                raise ValueError(f"Sibling sectors and row-axial insertion both set the bearing on order {order}")
             direction["row_axial_kappa"] = kappa
     if native:
         updates[field] = native

@@ -91,10 +91,8 @@ The full integration suite passed 2,072 tests on Python 3.10.20. Frozen
 feature-off comparisons reproduce geometry, material, branch diagnostics,
 effective-model identities and native and keyed RNG states. The caller
 matrix covers the Python and notebook loader, CLI export/reload and the
-application's advanced configuration mapping. The [local receipts](../../.runtime/spatial-construction-20261119/)
-bind the test source and lock and record each implementation stage.
+application's advanced configuration mapping.
 
 The SO4/Calvin field evaluation of the new construction controls is pending.
-The [Calvin cutoff and QC plan](CALVIN_DIAMETER_CUTOFF_AND_QC_PLAN.md) treats
-diameter support and parent branching eligibility as separate variables and
-preserves the existing core locations and diameter classes.
+Field evaluations should treat diameter support and parent branching
+eligibility as separate variables and preserve the observation support.

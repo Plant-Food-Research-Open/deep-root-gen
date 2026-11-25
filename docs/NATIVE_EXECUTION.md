@@ -353,8 +353,8 @@ the space around it. Neither uses observation coordinates.
   jitter inside its sector. A frame transported along the curved parent keeps
   those bearings comparable at adjacent sites. The insertion angle to the
   local parent tangent and the downstream curvature draws are retained.
-  A nonzero row-axial insertion control acts afterward and can change the
-  resulting azimuth. The curve receipt records `sibling_sector_applied`.
+  A nonzero row-axial insertion control conflicts with active sibling sectors
+  on the same order. The curve receipt records `sibling_sector_applied`.
 
 Both settings are off by default. A fraction of 0.5 selects half the eligible
 windows in expectation. Singleton windows retain their original bearing.
@@ -381,5 +381,63 @@ and parent IDs, orders and source taper parameters. It can be generated before
 any observation coordinates are available. The native run describes the
 potential population. Compute mature-vine mass and spatial summaries from
 the retained axes and the study's tissue-density and taper recipe.
+
+[Configure irrigation depth, daughter recruitment and vineyard spacing](research/IRRIGATION_INPUTS.md)
+
+### Growing a neighbourhood of vines
+
+Use the offline Python generator to compare translated copies of a focal vine
+with vines grown from independent seeds. Supply crown offsets in centimetres
+in the model's x/y frame, including the focal position (0, 0) exactly once.
+Here the distances and configuration are synthetic.
+
+```python
+import json
+from pathlib import Path
+from deeprootgen.research.neighbourhood import generate_neighbourhood
+
+config = json.loads(Path("examples/synthetic_minimal.json").read_text())
+origins = [(x, y) for x in (-180, 0, 180) for y in (-140, 0, 140)]
+translated = generate_neighbourhood(config, origins)
+independent = generate_neighbourhood(config, origins, mode="independent")
+```
+
+The translated mode grows the focal vine once. Independent mode uses the same
+focal realization and grows a new vine for each other position under the same
+parameters. Generation precedes translation. Each result has node and edge
+tables with globally unique node IDs, plus a plant table with offsets, seeds
+and single-vine run identities. Identify the focal plant by its zero offsets.
+The single-vine generation API continues to produce one vine. The neighbourhood
+wrapper represents overlapping root systems grown without plant competition.
+
+For a comparison, keep origins, rotations, physical core volumes and diameter
+filters identical. Measure root length density (RLD) by summing intercepted
+length across plants and dividing once by the volume of each core. Keep the
+focal contribution as a separate output. The finite-cylinder observation API
+accepts root-only node and edge tables and can report a row per plant. Where
+the growth configuration includes crown support or a tapered-axis observation
+model, retain the matching root projection and observer for both arms.
+See the [finite-core method](research/FINITE_CORE_RESEARCH.md).
+
+Review how often a section is empty, how much RLD a positive section contains,
+and how often every section in a whole core is empty. A shift in mean RLD on
+a small panel can reflect the vines drawn for the neighbours. A balanced
+check can isolate spatial overlap: within a set of nine generated vines, let
+each vine occupy each of the nine positions exactly once across nine different
+layouts, then compare with the nine all-copy layouts. The pooled mean is equal
+by construction, while occupancy and the amount conditional on a hit can vary.
+Treat all layouts reusing the same nine vines as one block for uncertainty.
+
+The offline CLI also accepts the layout as a JSON array of coordinate pairs:
+
+```bash
+python -m deeprootgen neighbourhood --config examples/synthetic_minimal.json \
+  --origins offsets_cm.json --mode independent --outdir independent-vines
+```
+
+The new directory contains the node and edge tables, the plant seed map, both
+input documents and a manifest. Omit `--mode` for the translated comparison.
+See the [placement experiment options](research/PLACEMENT_EXPERIMENT_OPTIONS.md)
+for review questions and tests that separate placement from total root length.
 
 [Configure irrigation depth, daughter recruitment and vineyard spacing](research/IRRIGATION_INPUTS.md)

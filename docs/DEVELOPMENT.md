@@ -5,8 +5,25 @@ and [lessons learned](AI_CODING_LESSONS.md). They cover change boundaries,
 source verification and task-appropriate checks; the historical recipes below
 must be rechecked against current code before use.
 
-Current environment/CLI/UI qualification is tracked in [RUNNING.md](../RUNNING.md).
-The evidence below is the historical 28 October reconnaissance snapshot.
+Start with [RUNNING.md](../RUNNING.md) for the current build and execution
+commands.
+
+## Schema-4 build checks (19 November 2026)
+
+| Check | Local result |
+| --- | --- |
+| Python package | Poetry checked the lock and built the wheel and source distribution. The installed wheel generated the invented crown fixture with seed 42, 32 nodes, 30 edges and zero invalid nodes. |
+| Simulator and caller tests | Python 3.10.20 ran 2,005 tests with integration checks enabled. The suite passed with zero failures and skips. Dependency deprecation and serialization warnings remain visible in the log. |
+| Export and reload | The engine matrix replayed all eight invented or public reference cases with exact checked exports. |
+| Local app image | `dockerfiles/python/Dockerfile.local` built successfully. In a network-isolated container, the non-root runtime passed `pip check`, generated the seed-42 crown fixture, returned HTTP 200 from Dash and preserved the schema-4 input through the Simulation load and save callbacks. |
+| Lint and docs | Repository-wide flake8 passed. Sphinx built the HTML with warnings treated as errors. The three standalone Python examples ran, including the soil voxel and segment-length checks. |
+
+Use the [workflow guide](source/usage/native_workflow.rst) for a synthetic
+exploration exercise. Calibration quality still depends on the study's
+observations, sampling support and held checks. Preserve geometry failures
+in search records alongside the input and seed that produced them.
+
+## Historical 28 October reconnaissance
 
 Commands refer to the verified checkout at
 `/home/jzhu/Workspace/Github/FruitCropXL/13-deep-root-gen-PFR-open`.

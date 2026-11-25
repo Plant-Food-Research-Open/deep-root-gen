@@ -370,6 +370,45 @@ def _irrigated_directions(state, order, organs, law, transverse):
     return transverse
 
 
+def _realize_replaced_order(state, order, tangent_at, placement, transfer, bearing, receipts, skipped):
+    organs = state.simulation.organs.get(order, [])
+    transverse = {}
+    law = state.laws.direction[order]
+    if transfer is not None and transfer.transfer_probability and order - 1 in transfer.parent_orders:
+        from .birth_depth import transfer_birth_sites
+
+        transfer_birth_sites(state, order - 1, transfer)
+    if (placement is not None and placement.mode != "surface_bearing"
+            and (placement.strength or placement.mode == "retention")
+            and order == placement.parent_order + 1):
+        from .daughter_placement import apply_terminal_preference
+
+        apply_terminal_preference(state, placement)
+    if "sibling_sectors" in law:
+        from .sibling_placement import sibling_directions
+
+        transverse = sibling_directions(state, organs, law["sibling_sectors"])
+    transverse = _irrigated_directions(state, order, organs, law, transverse)
+    order_bearing = bearing if bearing is not None and order in bearing.bearing_orders else None
+    for organ in organs:
+        if organ.invalid_root:
+            # A scaffold invalidated by a native pre-direction correction
+            # stays native and invalid, exactly as the native laws treat it.
+            skipped.append(organ_id(organ))
+            continue
+        if law["law"] == "construction_step_intervals":
+            curve = _realize_construction_curve(state, organ, law)
+        else:
+            curve = _realize_native_curve(state, organ, law, tangent_at,
+                                          transverse.get(organ_id(organ)), order_bearing)
+        if law["law"] != "construction_step_intervals":
+            _place_construction_points(organ, curve)
+        state.curves[organ_id(organ)] = curve
+        if hasattr(organ, "axis_state"):
+            organ.axis_state.curve = curve
+        receipts.append(curve.receipt)
+
+
 def _realize_native(state):
     sim, p, laws = state.simulation, state.parameters, state.laws
     replaced = state.replaced_organs()
@@ -411,42 +450,7 @@ def _realize_native(state):
         state.diagnostics["moisture_tropism"] = {str(k): t.gain for k, t in state.tropism.items()}
     for order in range(1, int(p.max_order) + 1):
         if order in laws.direction:
-            organs = sim.organs.get(order, [])
-            transverse = {}
-            law = laws.direction[order]
-            if transfer is not None and transfer.transfer_probability and order - 1 in transfer.parent_orders:
-                from .birth_depth import transfer_birth_sites
-
-                transfer_birth_sites(state, order - 1, transfer)
-            if (placement is not None and placement.mode != "surface_bearing"
-                    and (placement.strength or placement.mode == "retention")
-                    and order == placement.parent_order + 1):
-                from .daughter_placement import apply_terminal_preference
-
-                apply_terminal_preference(state, placement)
-            if "sibling_sectors" in law:
-                from .sibling_placement import sibling_directions
-
-                transverse = sibling_directions(state, organs, law["sibling_sectors"])
-            transverse = _irrigated_directions(state, order, organs, law, transverse)
-            order_bearing = bearing if bearing is not None and order in bearing.bearing_orders else None
-            for organ in organs:
-                if organ.invalid_root:
-                    # A scaffold invalidated by a native pre-direction correction
-                    # stays native and invalid, exactly as the native laws treat it.
-                    skipped.append(organ_id(organ))
-                    continue
-                if law["law"] == "construction_step_intervals":
-                    curve = _realize_construction_curve(state, organ, law)
-                else:
-                    curve = _realize_native_curve(state, organ, law, tangent_at,
-                                                  transverse.get(organ_id(organ)), order_bearing)
-                if law["law"] != "construction_step_intervals":
-                    _place_construction_points(organ, curve)
-                state.curves[organ_id(organ)] = curve
-                if hasattr(organ, "axis_state"):
-                    organ.axis_state.curve = curve
-                receipts.append(curve.receipt)
+            _realize_replaced_order(state, order, tangent_at, placement, transfer, bearing, receipts, skipped)
         elif fichtl and order >= 2 and (lateral_orders is None or order in lateral_orders):
             sim.apply_fichtl_tropism(p, scaffold=state.scaffold, tangent_at=tangent_at, orders=[order],
                                      reset_diagnostics=first_native_lateral)
@@ -546,8 +550,9 @@ def _realize_native_curve(state, organ, law, tangent_at, transverse=None, bearin
 
             order = int(organ.segments[0].node_data.order)
             length_cm = float(organ.get_lengths().sum())
-            heading, bearing_receipt = surface_bearing_heading(state, bearing, tangent, heading, position,
-                                                              length_cm, order, oid)
+            heading, bearing_receipt = surface_bearing_heading(
+                state, bearing, tangent, heading, position, length_cm, order, oid,
+            )
         curve = realize_correlated_curvature(organ, law, state.streams, start=position, heading=heading,
                                              reserve_stations=state.budget.reserve,
                                              bias=state.tropism.get(int(organ.segments[0].node_data.order)))

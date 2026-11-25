@@ -76,7 +76,7 @@ def statistics_rows(rows: list[dict] | None) -> list[dict]:
 
 def _csv_columns(content: str, label: str) -> set[str]:
     try:
-        text = base64.b64decode(content, validate=True).decode("utf-8")
+        text = base64.b64decode(content, validate=True).decode("utf-8-sig")
         header = next(csv.reader(StringIO(text)))
     except (ValueError, UnicodeDecodeError, StopIteration) as exc:
         raise ValueError(f"The {label} upload is not a readable CSV.") from exc

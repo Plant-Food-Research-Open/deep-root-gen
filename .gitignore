@@ -177,6 +177,14 @@ coverage.json
 # Local observed root grids are excluded from public checkpoints
 /data/grapevine/
 
+# Calvin's grapevine RLD/excavation workbook (Paper2_full_RLD_*.xlsx, formerly
+# committed as wong_2026_rld.xlsx) and its CSV export stay local and were purged
+# from history. Match them anywhere so they stay ignored even if the directory
+# rule above changes or a copy is placed elsewhere in the tree.
+wong_2026_rld.csv
+wong_2026_rld.xlsx
+Paper2_full_RLD_*
+
 # Local Calvin research results and root-architecture presentations.
 # Directory patterns apply at any depth and cover current and future dates.
 [Cc]alvin*/

@@ -40,7 +40,7 @@ See the [engine lifecycle](../deeprootgen/model/engine.py), [attachment diameter
 
 **SO4/T4 uses different observations.** For digitized excavations, align polylines in the soil frame, split below-ground segments at voxel faces and compare spatial length shares, giving each vine equal weight. Evaluate spans and order traits alongside the joint voxel distribution. A match to separate depth and horizontal profiles can conceal incorrect combinations of depth and position. Excavated mature-vine contours can inform parameter ranges, with allowance for broken or missing roots. Calvin’s core observations test those hypotheses on his sampling layout.
 
-See the [diameter and QC methods](research/CALVIN_DIAMETER_CUTOFF_AND_QC_PLAN.md) and [measured and virtual core definitions](research/AREA_MEAN_CORE_METHOD.md).
+See the [measured and virtual core definitions](research/AREA_MEAN_CORE_METHOD.md).
 
 ## How the search compares candidate architectures
 
@@ -58,4 +58,4 @@ Lower loss indicates closer agreement. Where observed RLD is positive and the pr
 
 **Selection uses two additional measurements of performance.** The mean predicted/observed RLD ratio must approach one, and total underground dry mass per subject must fall in the specified range. Compare feasible candidates first. If all miss a range, the search ranks their distance to those ranges before spatial loss. Dry mass in individual cores remains a diagnostic. The search progresses from diameter/taper screening to broader changes in branching, lengths and direction, followed by shortlist and fresh-seed comparisons. New seeds measure simulation variability. Independent field vines would supply evidence about transfer to other vines.
 
-See the [Site 1 search design](tasks/CALVIN_RLD_BIOMASS_SEARCH.md), [SO4/T4 evaluation task](tasks/SO4_T4_SCHEMA4_ISSUE_CLOSURE.md) and [Site 1 exploration notebook](../notebooks/grapevine_root_architecture/calvin_site1_rld_mass_search.ipynb).
+See the [scoring guide](ARCHITECTURE_SCORING.md) and [notebook examples](../notebooks/grapevine_root_architecture/README.md).

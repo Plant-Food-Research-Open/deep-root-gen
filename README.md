@@ -66,9 +66,7 @@ The [dashboard examples](docs/DASH_UI_EXAMPLES.md) cover each UI page with synth
 
 For current model routes, the complete input dictionary, units and a practical
 scientific review workflow, start with the
-[model review guide](docs/MODEL_REVIEW_GUIDE.md). Check
-[PR integration status](docs/PR_INTEGRATION_STATUS.md) for the distinction
-between local research source and merged GitHub code. Calvin settings and
+[model review guide](docs/MODEL_REVIEW_GUIDE.md). Calvin settings and
 result folders are local research artifacts excluded from Git and deployment
 contexts.
 

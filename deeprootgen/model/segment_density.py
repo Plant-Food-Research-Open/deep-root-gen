@@ -24,24 +24,34 @@ def apply_diameter_density(organ, density):
         points = [organ.parent_node.node_data, *data]
         xyz = np.array([(v.x, v.y, v.z) for v in points])
         ends = np.cumsum(np.linalg.norm(np.diff(xyz, axis=0), axis=1))
-        if np.any(np.diff(np.r_[0., ends]) <= 0):
-            raise ValueError("Diameter-dependent density requires positive physical intervals")
+        if np.any(np.diff(np.r_[0.0, ends]) <= 0):
+            raise ValueError(
+                "Diameter-dependent density requires positive physical intervals"
+            )
         length = ends[-1]
         cuts = [profile_cuts(length, taper, mm / 10) for mm in density.bounds_mm]
-        stations = np.unique(np.concatenate(([0.], ends, *cuts)))
+        stations = np.unique(np.concatenate(([0.0], ends, *cuts)))
         left, right = stations[:-1], stations[1:]
         d = point_diameter((left + right) / 2, length, taper)
         if "rate_per_cm" in taper:
             integral = exponential_profile_integral(left, right, length, taper)
         else:
-            a, b = point_diameter(left, length, taper), point_diameter(right, length, taper)
-            integral = (right - left) * (a*a + a*b + b*b) / 3
+            a, b = point_diameter(left, length, taper), point_diameter(
+                right, length, taper
+            )
+            integral = (right - left) * (a * a + a * b + b * b) / 3
         owner = np.searchsorted(ends, right)
         volume = np.bincount(owner, weights=integral, minlength=len(ends))
-        mass = np.bincount(owner, weights=integral * _lookup(d, density), minlength=len(ends))
-        mid = (np.r_[0., ends[:-1]] + ends) / 2
-        effective = np.divide(mass, volume, out=_lookup(point_diameter(mid, length, taper), density),
-                              where=volume > 0)
+        mass = np.bincount(
+            owner, weights=integral * _lookup(d, density), minlength=len(ends)
+        )
+        mid = (np.r_[0.0, ends[:-1]] + ends) / 2
+        effective = np.divide(
+            mass,
+            volume,
+            out=_lookup(point_diameter(mid, length, taper), density),
+            where=volume > 0,
+        )
     for node, value in zip(data, effective):
         node.root_tissue_density = float(value)
     organ.diameter_density_applied = True

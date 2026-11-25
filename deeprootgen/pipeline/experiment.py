@@ -402,30 +402,52 @@ def load_form_parameters(
         tuple:
             The form inputs and toast message.
     """
-    _, content_string = list_of_contents[0].split(",")
-    decoded = base64.b64decode(content_string).decode("utf-8")
-    input_dict = yaml.safe_load(decoded)
+    try:
+        _, content = list_of_contents[0].split(",", 1)
+        document = yaml.safe_load(base64.b64decode(content, validate=True).decode("utf-8"))
+    except (ValueError, yaml.YAMLError) as error:
+        raise ValueError("Choose a readable YAML parameter file.") from error
+    if not isinstance(document, dict):
+        raise ValueError("The parameter file must contain a YAML mapping of setting names and values.")
 
-    app = get_app()
-    form_model = app.settings[form_name]
+    form = get_app().settings[form_name]
+    parameters = _preset_values(document, form.components["parameters"]["children"])
+    inputs = parameters
+    if task:
+        inputs = [parameters, _preset_values(document, form.components[task]["children"])]
 
-    form_inputs = []
-    for input in form_model.components["parameters"]["children"]:
-        k = input["param"]
-        form_inputs.append(input_dict[k])
-
-    if task == "":
-        inputs = form_inputs
-    else:
-        inputs = [form_inputs]
-        calibration_inputs = []
-        for input in form_model.components[task]["children"]:
-            k = input["param"]
-            calibration_inputs.append(input_dict[k])
-        inputs.append(calibration_inputs)
-
-    toast_message = f"Loading parameter specification from: {list_of_names[0]}"
+    toast_message = f"Loaded parameter settings from {list_of_names[0]}"
     return inputs, toast_message
+
+
+def _preset_values(document: dict, specs: list) -> list:
+    values = []
+    for spec in specs:
+        name = spec["param"]
+        handler = spec.get("handler")
+        value = document.get(name)
+        if handler == "boolean_switch":
+            # Legacy exports recorded null because they read the value property.
+            if value is None:
+                value = spec["kwargs"].get("on", False)
+            if not isinstance(value, bool):
+                raise ValueError(f"{name} must be true or false.")
+        elif name not in document:
+            raise ValueError(f"The parameter file is missing {name}.")
+        elif handler == "range_slider":
+            if not isinstance(value, list) or len(value) != 2 or any(
+                isinstance(bound, bool) or not isinstance(bound, (int, float)) or not np.isfinite(bound)
+                for bound in value
+            ):
+                raise ValueError(f"{name} must contain two finite numeric bounds.")
+        elif handler == "dropdown":
+            # Legacy exports could contain entire Dash options instead of values.
+            if isinstance(value, dict):
+                value = value.get("value")
+            elif isinstance(value, list):
+                value = [item.get("value") if isinstance(item, dict) else item for item in value]
+        values.append(value)
+    return values
 
 
 def save_form_parameters(
@@ -466,9 +488,9 @@ def save_form_parameters(
             inputs[k] = calibration_inputs[i]
 
     file_name = f"{get_datetime_now()}-{page_id}.yaml"
-    outfile = osp.join(OUT_DIR, file_name)
-    with open(outfile, "w") as f:
-        yaml.dump(inputs, f, default_flow_style=False, sort_keys=False)
+    outfile = osp.join(get_outdir(), file_name)
+    with open(outfile, "w", encoding="utf-8") as f:
+        yaml.safe_dump(inputs, f, default_flow_style=False, sort_keys=False)
 
     return outfile, file_name
 
