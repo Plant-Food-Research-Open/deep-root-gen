@@ -168,7 +168,8 @@ def reconcile_interval_lengths(coords, stored, enabled=False, *, roundoff_scaled
         or np.any(result <= 0)
     ):
         raise ValueError("Invalid interval geometry/metadata")
-    actual = np.linalg.norm(np.diff(coords, axis=0), axis=1)
+    displacement = np.diff(coords, axis=0)
+    actual = np.linalg.norm(displacement, axis=1)
     eps = np.finfo(float).eps
     scale = np.linalg.norm(coords[:-1], axis=1) + np.linalg.norm(coords[1:], axis=1)
     floor = 64 * eps * scale
@@ -185,14 +186,17 @@ def reconcile_interval_lengths(coords, stored, enabled=False, *, roundoff_scaled
         relative = error / min(actual[k], result[k])
         if error > guard:
             raise ValueError(f"Interval {k} exceeds absolute roundoff agreement guard")
-        # Endpoint rounding alone moves a chord by up to about eps * scale, so a
-        # sub-micron interval far from the origin cannot agree to sqrt(eps) of its
-        # own length. ``roundoff_scaled`` (current native engine) therefore fails
-        # only disagreement beyond both bounds; the default keeps the historical
-        # sqrt(eps) rule that archived protocols reproduce.
         bound = np.sqrt(eps)
         if roundoff_scaled:
-            bound = max(bound, 2 * eps * scale[k] / min(actual[k], result[k]))
+            # Perturb each displacement component at its own endpoint scale.
+            # Rounding perpendicular to the chord affects its length only
+            # quadratically, even when the perpendicular coordinates are large.
+            delta = np.abs(displacement[k])
+            uncertainty = 2 * eps * (np.abs(coords[k]) + np.abs(coords[k + 1]))
+            shortest = np.linalg.norm(np.maximum(delta - uncertainty, 0.0))
+            longest = np.linalg.norm(delta + uncertainty)
+            endpoint_error = max(actual[k] - shortest, longest - actual[k])
+            bound = max(bound, endpoint_error / min(actual[k], result[k]))
         if relative > bound:
             raise ValueError(f"Interval {k} exceeds relative roundoff agreement guard")
         records.append(

@@ -198,6 +198,60 @@ def test_stages_end_to_end_with_identity_checked_cache(spec_dir):
     assert json.loads((out / "frozen_candidate.json").read_text())["config_sha"] == search.sha(frozen["config"])
 
 
+@pytest.mark.parametrize("has_passing_trial", [True, False])
+def test_confirmation_freezes_only_complete_finite_guard_passers(tmp_path, monkeypatch, has_passing_trial):
+    cores = _cores({"a": (0, 0), "b": (10, 0)})
+    cores["fold"] = cores.core_id.map(dict(a=0, b=1))
+    seeds = [1, 2]
+    spec = dict(
+        lattice=dict(x_spacing_cm=300, y_spacing_cm=200, extent=0),
+        objective=dict(ratio_band=[19, 22]), guards=dict(mean_ratio=True),
+        parameters={}, stages=dict(confirm=dict(seeds=seeds, top=5)),
+    )
+    ctx = dict(spec=spec, base={}, cores=cores, identity={})
+
+    def record(seed, rld, mass=4.0):
+        return dict(seed=seed, status="ok", contributions=[[rld]] * len(cores),
+                    root_kg=mass, organs={"1": 1}, seconds=1.0)
+
+    data = {
+        "baseline": [record(seed, 0.1) for seed in seeds],
+        "tpe_trial_0000": [record(1, 0.1), dict(seed=2, status="infeasible", reason="limit")],
+        "tpe_trial_0001": [record(1, 2.0), record(3, 2.0)],
+        "tpe_trial_0002": [record(1, 2.0), record(2, 2.0, mass=np.nan)],
+        "tpe_trial_0003": [record(seed, 0.1) for seed in seeds],
+        "tpe_trial_0004": [record(seed, 2.1 if has_passing_trial else 0.2) for seed in seeds],
+    }
+
+    class RecordedRunner:
+        source_sha = "synthetic"
+
+        def __init__(self, *args):
+            pass
+
+        def run(self, stage, configs, required_seeds, probes=False):
+            assert stage == "confirm" and set(configs) == set(data) and required_seeds == seeds
+            return data
+
+        def close(self):
+            pass
+
+    pd.DataFrame(dict(trial=range(5), J=range(5))).to_csv(tmp_path / "tpe_summary.csv", index=False)
+    monkeypatch.setattr(search, "Runner", RecordedRunner)
+    path = tmp_path / "frozen_candidate.json"
+    if not has_passing_trial:
+        path.write_text('{"label": "stale"}')
+    table, result = search.run_confirm(ctx, tmp_path)
+    assert pd.isna(table.at["tpe_trial_0000", "all_guards"])
+    assert table.at["tpe_trial_0000", "J"] < table.at["tpe_trial_0001", "J"]
+    assert result["all_guards_pass"] is has_passing_trial
+    if has_passing_trial:
+        assert result["label"] == "tpe_trial_0004" and json.loads(path.read_text()) == result
+    else:
+        assert result == dict(label=None, all_guards_pass=False, diagnostic_label="tpe_trial_0003")
+        assert not path.exists()
+
+
 def test_cli_option_is_registered(spec_dir):
     from deeprootgen.cli import _main
 

@@ -456,12 +456,36 @@ def run_tpe(ctx, outdir, log=print):
     return result
 
 
+def _explicit_true(value):
+    return isinstance(value, (bool, np.bool_)) and bool(value)
+
+
+def _confirmation_feasible(candidates, per_seed, records, seeds):
+    """Keep candidates with a complete successful panel and finite scores."""
+    labels = []
+    if per_seed.empty:
+        return candidates.iloc[:0]
+    for label, row in candidates.iterrows():
+        successful = [record["seed"] for record in records[label] if record["status"] == "ok"]
+        if len(successful) != len(seeds) or set(successful) != set(seeds) or not _explicit_true(row["feasible"]):
+            continue
+        scores = per_seed.loc[per_seed.label.eq(label)].drop(columns="label")
+        metrics = row.filter(regex=r"^(J|loss|loss_sd|ensemble_loss|independent_loss|mass_mean|kg_outside|ratio_outside|locality_excess|ens_.*)$")
+        if len(scores) == len(seeds) and np.isfinite(scores.to_numpy(dtype=float)).all() and np.isfinite(metrics.to_numpy(dtype=float)).all():
+            labels.append(label)
+    return candidates.loc[labels]
+
+
 def run_confirm(ctx, outdir, log=print):
     st = ctx["spec"]["stages"]["confirm"]
+    seeds = list(st["seeds"])
+    if not seeds or len(seeds) != len(set(seeds)):
+        raise ValueError("Confirmation requires distinct prescribed seeds")
     outdir = Path(outdir)
     tpe = pd.read_csv(outdir / "tpe_summary.csv").sort_values("J")
     defs = ctx["spec"]["parameters"]
-    values = {st.get("baseline_label", "baseline"): dict(st.get("baseline", {}))}
+    baseline = st.get("baseline_label", "baseline")
+    values = {baseline: dict(st.get("baseline", {}))}
     # Shortlist the best by J and, separately, the best by J among trials that pass the
     # locality guards, so a better spatial fit is not discarded by J alone.
     passing = tpe
@@ -474,19 +498,27 @@ def run_confirm(ctx, outdir, log=print):
     configs = {label: apply_parameters(ctx["base"], defs, v) for label, v in values.items()}
     runner = Runner(ctx, outdir, log)
     try:
-        records = runner.run("confirm", configs, st["seeds"], probes=st.get("probes", False))
+        records = runner.run("confirm", configs, seeds, probes=st.get("probes", False))
     finally:
         runner.close()
-    t, ps = summarise(ctx, outdir, "confirm", values, records, baseline=st.get("baseline_label", "baseline"))
-    candidates = t.drop(index=st.get("baseline_label", "baseline"))
-    locality = [c for c in candidates.columns if c.startswith("guard_") and c not in ("guard_mass_share", "guard_mean_ratio")]
-    passing = candidates[candidates.all_guards.astype(bool)] if "all_guards" in candidates else candidates.iloc[:0]
-    pick = (passing if len(passing) else candidates).sort_values("loss" if len(passing) else "J").index[0]
-    frozen = dict(version=VERSION, label=pick, all_guards_pass=bool(len(passing)), values=values[pick],
-                  config=configs[pick], config_sha=sha(configs[pick]), seeds=list(st["seeds"]),
+    t, ps = summarise(ctx, outdir, "confirm", values, records, baseline=baseline)
+    feasible = _confirmation_feasible(t.drop(index=baseline), ps, records, seeds)
+    guards = ["all_guards", *(f"guard_{name}" for name in (ctx["spec"].get("guards") or {}))]
+    explicit_pass = feasible.reindex(columns=guards).apply(lambda column: column.map(_explicit_true))
+    passing = feasible.loc[explicit_pass.all(axis=1)]
+    frozen_path = outdir / "frozen_candidate.json"
+    if passing.empty:
+        frozen_path.unlink(missing_ok=True)
+        diagnostic = None if feasible.empty else feasible.sort_values("J").index[0]
+        log(f"[confirm] no candidate passed; lowest-J feasible diagnostic: {diagnostic}")
+        return t, dict(label=None, all_guards_pass=False, diagnostic_label=diagnostic)
+
+    pick = passing.sort_values("loss").index[0]
+    frozen = dict(version=VERSION, label=pick, all_guards_pass=True, values=values[pick],
+                  config=configs[pick], config_sha=sha(configs[pick]), seeds=seeds,
                   identity=dict(ctx["identity"], source_sha256=runner.source_sha))
-    (outdir / "frozen_candidate.json").write_text(json.dumps(frozen, indent=1, default=str))
-    log(f"[confirm] frozen candidate {pick}; all guards pass: {bool(len(passing))}")
+    frozen_path.write_text(json.dumps(frozen, indent=1, default=str))
+    log(f"[confirm] frozen candidate {pick}; all guards pass")
     return t, frozen
 
 
@@ -512,5 +544,6 @@ def main(args, log=print):
         return run_tpe(ctx, outdir, logger)
     else:
         table, frozen = run_confirm(ctx, outdir, logger)
-        return dict(frozen_label=frozen["label"], all_guards_pass=frozen["all_guards_pass"])
+        return dict(frozen_label=frozen["label"], all_guards_pass=frozen["all_guards_pass"],
+                    **({"diagnostic_label": frozen["diagnostic_label"]} if "diagnostic_label" in frozen else {}))
     return dict(rows=len(table), summary=str(outdir))

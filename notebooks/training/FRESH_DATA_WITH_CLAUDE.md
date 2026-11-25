@@ -1,9 +1,27 @@
 # Fit DeepRootGen to a fresh dataset with Claude Code
 
-Keep a local notebook as the study record. Use the four [Claude prompts](CLAUDE_PROMPTS.md)
+Keep a local notebook as the study record. Use the numbered [Claude prompts](CLAUDE_PROMPTS.md)
 as separate steps. Claude helps interpret approved training summaries, map
 patterns to implemented options and set up runs. DeepRootGen generates and
 scores the candidates.
+
+### Keep a task log across Claude sessions
+
+Give Claude this instruction at the start of the study. Keep `TASK_LOG.md`
+in the study workspace cleared for Claude. Keep private field results in the
+local study notebook. In plan mode, ask Claude to draft the entry for you to save.
+
+> After each workflow step, and whenever the conversation is getting long,
+> append a dated checkpoint to `TASK_LOG.md` before we compact or end the
+> session. Record the current goal and step, decisions and reasons, checks
+> actually run, failures or open questions, and the next action. Reference
+> saved files by their cleared names. Mark proposed work as pending and
+> preserve earlier entries when a decision changes.
+
+Start the next session with this prompt.
+
+> Read `TASK_LOG.md`, summarise the last verified result and the first
+> unfinished action, then continue from there.
 
 ## 1. Check the data locally
 
@@ -65,7 +83,7 @@ these one at a time before combining them. Check each proposed path against the 
 source and confirm that its consumer is active with `--explain-config`.
 [Schema-4 guide](../../docs/NATIVE_EXECUTION.md)
 
-## 3. Explore the baseline and alternatives in the interface
+## 3. Explore the baseline and alternatives in the interface (optional)
 
 Run **Simulation** on the local dashboard with the base JSON. Open
 **Active laws by order** in **Architecture Search** before choosing bounds.
@@ -86,11 +104,46 @@ review_dir=$(mktemp -d .runtime/training-review.XXXXXX)
 python -m deeprootgen simulate --config examples/synthetic_minimal.json --outdir "$review_dir/baseline"
 ```
 
-Proceed to fitting when the base and a planned comparison both run, the
+Proceed to sensitivity analysis when the base and a planned comparison both run, the
 intended output responds across paired seeds, and measured and simulated
 values describe the same support. Keep the unchanged baseline for comparison.
 
-## 4. Ask Claude to set up the optimisation
+## 4. Run Sobol sensitivity analysis before choosing what to fit
+
+Which active controls drive variation in the outcome you plan to fit? Screen
+each construction law separately, using the development split and the same
+observation rule and loss planned for optimisation.
+
+1. Select numeric controls that can vary independently over plausible ranges.
+   Record their paths, bounds and sampling distributions. Hold the other
+   settings at baseline. If two settings are constrained together, choose
+   independent inputs that generate valid combinations.
+2. For a cleared whole-root target covered by the dashboard's calibration
+   controls, follow the [Dash Sobol exercise](../../docs/DASH_UI_EXAMPLES.md#6-sensitivity-analysis).
+   For schema-4 controls outside that route or for physical cores, ask Claude
+   to draft a local SALib evaluator. For cores, project each simulation onto
+   the development tubes before calculating the loss. Run restricted studies
+   in the private local session.
+3. Choose a power-of-two base sample size `N`. With `D` inputs, a first- and
+   total-order Sobol design takes `N × (D + 2)` settings. The dashboard also
+   estimates second-order effects and uses `N × (2D + 2)`. For a local
+   evaluator, run the same simulation seeds at every setting and return one
+   score per setting using the planned seed aggregation. For example, three
+   inputs, `N = 32` and two seeds take 320 simulations for first- and
+   total-order indices. Budget this separately from the search. [SALib guide](https://salib.readthedocs.io/en/latest/user_guide/basics.html)
+4. Check that every design row has a finite score, in design order, and that
+   the scores vary. Read the first-order index (`S1`) for each control's
+   individual contribution and the total-order index (`ST`) for its
+   contribution including interactions. Check uncertainty and ranking stability
+   as `N` increases. Carry influential controls into optimisation, including
+   those with a small `S1` and a large `ST`. Fix consistently weak controls at
+   a documented value. If uncertainty could change that decision, keep the
+   control open and record why.
+
+Save the design, seeds, index table and fit-or-fix decisions in the study
+notebook. The ranking applies to the chosen law, ranges and outcome.
+
+## 5. Ask Claude to set up the optimisation
 
 Give the last prompt a specific objective and a small trial budget. Review
 the proposed commands and bounds after the preview. For authorised shareable

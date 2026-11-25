@@ -275,6 +275,14 @@ def test_reconciliation_accept_and_each_guard():
         reconcile_interval_lengths([a, b], [chord * (1 + 5e-6)], True, roundoff_scaled=True)
 
 
+def test_endpoint_roundoff_rejects_short_edge_error_perpendicular_to_large_coordinate():
+    from deeprootgen.research.cohort_root_generator import reconcile_interval_lengths
+
+    coords = [[100., 0., 0.], [100., 5e-12, 0.]]
+    with pytest.raises(ValueError, match="relative"):
+        reconcile_interval_lengths(coords, [5.05e-12], True, roundoff_scaled=True)
+
+
 def test_missing_controls_and_impossible_inclination_rejected():
     c = config()
     del c["crown_mass_g"]

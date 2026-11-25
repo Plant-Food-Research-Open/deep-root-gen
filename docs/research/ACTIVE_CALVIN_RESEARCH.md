@@ -1,5 +1,6 @@
 # Active Calvin population research
 
+Start with the local [modelling methods for the coring survey](Calvin_private/CORING_TO_ARCHITECTURE_METHODS.md) and the [Site 1 reference parameters](Calvin_private/SITE1_REFERENCE_PARAMETERS.md). Both files are git-ignored and exist only in a checkout that holds the private material. Definitions and options are in the public [model reference](../MODEL_REFERENCE.md).
 
 ## Final shortlist and dashboard review
 

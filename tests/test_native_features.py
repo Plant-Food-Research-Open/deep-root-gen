@@ -101,6 +101,26 @@ def test_taper_keeps_geometry_conserves_volume_and_classifies_segments(mode):
     assert set(on.result.organ_table.material_law) == {"point_taper"}
 
 
+def test_archived_schema3_taper_uses_historical_reconciliation_bound(monkeypatch):
+    from deeprootgen.model import cohort_geometry
+
+    reconcile = cohort_geometry.reconcile_interval_lengths
+    enabled_bounds = []
+
+    def record_bound(coords, stored, enabled=False, *, roundoff_scaled=False):
+        if enabled:
+            enabled_bounds.append(roundoff_scaled)
+        return reconcile(coords, stored, enabled, roundoff_scaled=roundoff_scaled)
+
+    monkeypatch.setattr(cohort_geometry, "reconcile_interval_lengths", record_bound)
+    value = spec(taper=None)
+    value["features"]["materialization"] = dict(enabled=True, settings=dict(reconcile_length_metadata=True))
+    sim = run(value)
+
+    assert enabled_bounds
+    assert enabled_bounds == [False] * len(organs(sim))
+
+
 @pytest.mark.parametrize("mode", MODES)
 def test_length_laws_respect_their_support(mode):
     on = run(spec(mode, lengths=None))

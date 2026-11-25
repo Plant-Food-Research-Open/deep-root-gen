@@ -42,7 +42,7 @@ A JSON file whose paths are relative to the spec itself:
   - Each trial evaluates its seeds in parallel.
   - With `narrow_from_space`, the bounds come from the best `top_fraction` of feasible space designs. Parameters whose absolute Spearman correlation with J falls below `min_rank_correlation` are fixed at the best design.
   - The callback's `loss` is J; the RLD fold loss is `rld_loss`.
-- **`confirm`** reruns the `top` TPE trials and the baseline on the confirmation seeds. It then freezes a candidate in `frozen_candidate.json`: the lowest-loss candidate that passes every guard, otherwise the lowest J.
+- **`confirm`** reruns the `top` TPE trials and the baseline on the confirmation seeds. It freezes the lowest-loss candidate with finite scores, successful runs on every prescribed seed and an explicit pass on every guard in `frozen_candidate.json`. If no candidate qualifies, the command reports the lowest-J feasible diagnostic when available and leaves the summary and per-seed records for review.
 
 ## Identity and limits
 
