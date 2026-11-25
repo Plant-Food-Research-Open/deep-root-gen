@@ -106,9 +106,30 @@ def site_diameter(plan, site):
     return float(taper_diameter(site, plan["length"], plan["base"], plan["tip"], plan["midpoint"]))
 
 
-def disk_origin(law, rng):
-    """Uniform-area disk position and its polar angle; z below the surface."""
-    phi = rng.uniform(-np.pi, np.pi)
+HALF_PLANE_REJECTION_BUDGET = 1000   # acceptance >= 1/2 for any concentration
+
+
+def disk_origin(law, rng, index=None):
+    """Uniform-area disk position and its polar angle; z below the surface.
+
+    Optional von Mises bearing groups bias the polar angle (and so the radial
+    heading) of their listed birth indices, optionally within the half-plane
+    around the group mean; other primaries keep the uniform angle, as before.
+    """
+    groups = law.get("azimuth_groups")
+    if groups is not None and index is None:
+        raise ValueError("Grouped primary bearings require the primary birth index")
+    azimuth = None if groups is None else next((g for g in groups if index in g["primary_indices"]), None)
+    if azimuth is None:
+        phi = rng.uniform(-np.pi, np.pi)
+    else:
+        mean = np.deg2rad(azimuth["mean_deg"])
+        for _ in range(HALF_PLANE_REJECTION_BUDGET):
+            phi = rng.vonmises(mean, azimuth["concentration"])
+            if not azimuth.get("half_plane") or np.cos(phi - mean) >= 0:
+                break
+        else:
+            raise ValueError("Half-plane bearing rejection budget exhausted")
     radius = law["radius_cm"] * np.sqrt(rng.uniform())
     start = np.array(
         [radius * np.cos(phi), radius * np.sin(phi), -(rng.uniform(*law["depth_range_cm"]) - law["surface_z_cm"])]

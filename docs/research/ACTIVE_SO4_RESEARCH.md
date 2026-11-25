@@ -1,5 +1,34 @@
 # Active SO4/T2 research
 
+## SO4/T4 joint spatial evaluation, 19 November 2026
+
+The local parameter-exploration bundle includes a spatial report, notebook
+and replay records under `Spatial_Evaluation_2026-11-19/`. The same eight
+observations and 96 reserved seeds per candidate support comparisons on
+joint across-row, along-row and depth bins. Use the joint voxel score together
+with across-row by depth and along-row by depth projections. Prior marginal
+profiles and count and length checks retain their original interpretation.
+
+## SO4/T4 parameter exploration, 18 November 2026
+
+The local `Calvin_SO4_Parameter_Exploration_2026-11-18/` bundle contains the
+updated SO4/T4 input, confirmation on 96 simulation seeds, and a reproducible
+notebook. The comparison uses 16 population trait means and marginal
+root-length profiles across the row, along the row and in depth. The v2
+soil frame and eight observed T4 vines define the geometry used for this
+comparison.
+
+## Schema-4 SO4/T4 population starter, 18 November 2026
+
+The local `Calvin_Structural_Optimization_2026-11-18/` bundle includes a
+schema-4 SO4/T4 parameter list, its runnable input, population-level checks
+and a guide to transfer into the mature-vine study. The SO4 comparison uses
+eight T4 vines and fresh simulation seeds. Its receipts are under
+`.runtime/structural-starts-20261118/SO4/`. Keep the T2 qualification and the
+single-vine D-04 study attached to their original populations.
+
+## Prior research state
+
 15 November 2026 continuation: the owner has deferred Claude reviews for now.
 Historical pending-review receipts remain preserved; this is a changed current
 requirement, not a claim that those reviews occurred. The current local task is

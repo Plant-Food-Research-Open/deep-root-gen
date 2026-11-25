@@ -30,6 +30,7 @@ class ForestState:
     trace: list = field(default_factory=list)
     scaffold: dict = field(default_factory=dict)
     direction_nodes: dict = field(default_factory=dict)
+    tropism: dict = field(default_factory=dict)
     curves: dict = field(default_factory=dict)
     axes: dict = field(default_factory=dict)
     diagnostics: dict = field(default_factory=dict)
@@ -348,13 +349,20 @@ def _place_construction_points(organ, curve):
 
 def _irrigated_directions(state, order, organs, law, transverse):
     zone = getattr(state.resolved.config, "irrigation", None)
-    if zone is None or zone.peak_multiplier == 1 or order != zone.parent_order + 1:
+    if zone is None or zone.peak_multiplier == 1:
         return transverse
-    from .irrigation_branching import recruit_terminals
+    terminal = order == zone.parent_order + 1
+    upstream = None if terminal else zone.upstream_sensitivity().get(order)
+    if not terminal and not upstream:
+        return transverse
+    from .irrigation_branching import recruit, recruit_terminals
     from .sibling_placement import sibling_directions
 
     before = len(organs)
-    recruit_terminals(state, zone)
+    if terminal:
+        recruit_terminals(state, zone)
+    else:
+        recruit(state, zone, order - 1, upstream)
     if "sibling_sectors" in law:
         if zone.response == "redistribute":
             return sibling_directions(state, organs, law["sibling_sectors"])
@@ -436,6 +444,10 @@ def _realize_native(state):
         state.diagnostics["daughter_placement"] = dict(settings=bearing.model_dump(exclude_none=True),
                                                        max_probe_cm=BEARING_PROBE_CM, softmax_gain=BEARING_GAIN)
     first_native_lateral = True
+    state.tropism = {order: t for order in range(1, int(p.max_order) + 1)
+                     if (t := _moisture_tropism(state, order)) is not None}
+    if state.tropism:
+        state.diagnostics["moisture_tropism"] = {str(k): t.gain for k, t in state.tropism.items()}
     for order in range(1, int(p.max_order) + 1):
         if order in laws.direction:
             _realize_replaced_order(state, order, tangent_at, placement, transfer, bearing, receipts, skipped)
@@ -494,6 +506,19 @@ def _realize_construction_curve(state, organ, law):
     return AxisCurve(organ_id(organ), stations, points, arcs, dict(law), receipt)
 
 
+def _moisture_tropism(state, order):
+    """Moisture-directed growth for this order, or None (no zone, inactive, zero gain)."""
+    zone = getattr(state.resolved.config, "irrigation", None)
+    if zone is None or zone.peak_multiplier == 1 or not zone.moisture_tropism:
+        return None
+    gain = zone.moisture_tropism.get(str(order), 0.0)
+    if not gain:
+        return None
+    from .irrigation import MoistureTropism
+
+    return MoistureTropism(zone, state.laws.surface_z_cm, gain)
+
+
 def _realize_native_curve(state, organ, law, tangent_at, transverse=None, bearing=None):
     """Curvature on a natively constructed axis, from its realized attachment."""
     from ..utils.tropism import insertion_heading, row_axial_insertion_heading
@@ -529,7 +554,8 @@ def _realize_native_curve(state, organ, law, tangent_at, transverse=None, bearin
                 state, bearing, tangent, heading, position, length_cm, order, oid,
             )
         curve = realize_correlated_curvature(organ, law, state.streams, start=position, heading=heading,
-                                             reserve_stations=state.budget.reserve)
+                                             reserve_stations=state.budget.reserve,
+                                             bias=state.tropism.get(int(organ.segments[0].node_data.order)))
         if transverse is not None:
             curve.receipt["sibling_sector_applied"] = True
         if axial_receipt is not None:
@@ -539,8 +565,10 @@ def _realize_native_curve(state, organ, law, tangent_at, transverse=None, bearin
         return curve
     if law["initial_heading"] == "origin_heading":
         return realize_correlated_curvature(organ, law, state.streams, heading=organ.plan["initial_heading"],
-                                            reserve_stations=state.budget.reserve)
-    return realize_correlated_curvature(organ, law, state.streams, reserve_stations=state.budget.reserve)
+                                            reserve_stations=state.budget.reserve,
+                                            bias=state.tropism.get(int(organ.segments[0].node_data.order)))
+    return realize_correlated_curvature(organ, law, state.streams, reserve_stations=state.budget.reserve,
+                                        bias=state.tropism.get(int(organ.segments[0].node_data.order)))
 
 
 def _tangent(state, node, chord):
@@ -629,10 +657,16 @@ def emit(state):
 def check(state):
     """Pure integrity and law postconditions; draw nothing, repair nothing."""
     check_graph(state)
+    reconciles = (state.resolved.source_schema == "4"
+                  and state.laws.materialization.get("reconcile_length_metadata", False))
     for organ in state.organs_in_birth_order():
-        curve = state.curves.get(organ_id(organ))
+        oid = organ_id(organ)
+        curve = state.curves.get(oid)
         if curve is not None:
-            check_curve_postconditions(organ, curve, curve.law["surface_z_cm"])
+            retained_cuts = None
+            if reconciles and state.material_laws.get(oid) == "point_taper":
+                retained_cuts = [event.cut_cm for event in state.axes[oid]]
+            check_curve_postconditions(organ, curve, curve.law["surface_z_cm"], retained_cuts=retained_cuts)
 
 
 def check_graph(state):

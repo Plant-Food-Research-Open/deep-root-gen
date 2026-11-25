@@ -49,6 +49,7 @@ class EmittedInterval:
     ``data`` is a complete node record for laws that classify each segment;
     otherwise ``template`` supplies context and the optional geometry overrides.
     ``source`` is the construction point this cut retains, if any.
+    ``cut_cm`` retains the original station when edge metadata may be reconciled.
     """
 
     template: Any
@@ -57,6 +58,7 @@ class EmittedInterval:
     length: Optional[float] = None
     diameter: Optional[float] = None
     data: Any = None
+    cut_cm: Optional[float] = None
 
 
 def identity_axis(organ):
@@ -122,7 +124,7 @@ def materialize_forest(organs, curves, state=None):
     return axes
 
 
-def check_curve_postconditions(organ, curve, surface_z, *, rtol=1e-9):
+def check_curve_postconditions(organ, curve, surface_z, *, rtol=1e-9, retained_cuts=None):
     """Pure checks of a published realized axis; draws and repairs nothing."""
     xyz = np.array([[n.node_data.x, n.node_data.y, n.node_data.z] for n in organ.segments], float)
     parent = organ.parent_node.node_data
@@ -137,6 +139,23 @@ def check_curve_postconditions(organ, curve, surface_z, *, rtol=1e-9):
     total = float(curve.construction_arcs[-1])
     if not np.isclose(lengths.sum(), total, rtol=1e-12, atol=1e-12):
         raise ValueError(f"Realized axis {curve.organ_id} does not conserve contour length")
+    if retained_cuts is not None:
+        # Reconciled lengths are geometric chords and can shift cumulative
+        # length away from the original station even when its vertex survives.
+        cuts = np.asarray(retained_cuts)
+        stations = curve.stations[1:-1]
+        indices = np.searchsorted(cuts, stations)
+        tip_tolerance = 64 * np.finfo(float).eps * total
+        # Splitting an attachment interval can perturb the summed tip arc.
+        # The tip still follows the curve at that cut. Interior stations are
+        # retained as exact cuts and must have their original vertices.
+        if (len(cuts) != len(xyz)
+                or abs(cuts[-1] - curve.stations[-1]) > tip_tolerance
+                or not np.array_equal(xyz[-1], curve.position(cuts[-1:])[0])
+                or np.any(indices >= len(cuts) - 1) or not np.array_equal(cuts[indices], stations)
+                or not np.array_equal(xyz[indices], curve.points[1:-1])):
+            raise ValueError(f"Realized axis {curve.organ_id} lost a direction corner")
+        return
     published_arcs = np.cumsum(lengths)
     for station in curve.stations[1:]:
         if np.min(np.abs(published_arcs - station)) > 64 * np.finfo(float).eps * max(total, abs(station)):

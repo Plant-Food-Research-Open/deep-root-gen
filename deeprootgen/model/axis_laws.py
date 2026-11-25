@@ -21,7 +21,7 @@ def scaffold_chord_heading(organ):
 
 
 def realize_correlated_curvature(organ, law, streams, *, start=None, heading=None, length=None, arcs=None,
-                                 rng=None, reserve_stations=None):
+                                 rng=None, reserve_stations=None, bias=None):
     """Correlated (OU) curvature over the organ's sampled contour length.
 
     Construction intervals keep their lengths and material; their boundaries
@@ -70,7 +70,7 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
         rng,
         surface_z=law["surface_z_cm"],
         row_alignment_per_cm=alignment["row_alignment_per_cm"] if alignment else 0.0,
-        deep_carrier=carrier, carrier_receipt=carrier_receipt,
+        deep_carrier=carrier, carrier_receipt=carrier_receipt, bias=bias,
     )
     unit_heading = np.asarray(heading, dtype=float)
     receipt = dict(
@@ -87,6 +87,8 @@ def realize_correlated_curvature(organ, law, streams, *, start=None, heading=Non
     )
     if carrier is not None:
         receipt["deep_carrier"] = carrier_receipt
+    if bias is not None:
+        receipt["moisture_tropism_gain"] = float(getattr(bias, "gain", np.nan))
     if alignment is not None:
         widths = np.diff(stations)
         along_row = np.diff(points[:, 1]) / widths

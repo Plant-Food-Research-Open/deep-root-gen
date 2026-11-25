@@ -168,14 +168,31 @@ def _main(argv, run_config, explain=None):
         action="store_true",
         help="print the resolved laws, inactive values and hashes, then exit without running",
     )
-    group = commands.add_parser("neighbourhood", help="grow vines at supplied horizontal offsets")
+    group = commands.add_parser("neighbourhood", help="grow vines at configured spacing or supplied offsets",
+                                description="Use planting_layout from the model JSON, or supply both distances or explicit origins.")
     group.add_argument("--config", type=Path, required=True, help="seeded model parameter JSON")
     group.add_argument("--origins", type=Path, help="JSON array of [x_cm, y_cm] offsets")
     group.add_argument("--vine-distance-cm", type=float, help="distance along a row")
     group.add_argument("--row-distance-cm", type=float, help="distance between rows")
     group.add_argument("--mode", choices=("translated", "independent"), default="translated")
     group.add_argument("--outdir", type=Path, required=True, help="new graph export directory")
+    search = commands.add_parser(
+        "core-search", help="opt-in research search over the lattice soil-core score (arms, space, tpe, confirm)"
+    )
+    search.add_argument("--spec", type=Path, required=True, help="search spec JSON (docs/research/CORE_LATTICE_SEARCH.md)")
+    search.add_argument("--stage", choices=("arms", "space", "tpe", "confirm"), required=True)
+    search.add_argument("--name", help="arm set from the spec, for --stage arms")
+    search.add_argument("--outdir", type=Path, required=True, help="local search output directory")
     args = parser.parse_args(argv)
+    if args.command == "core-search":
+        from .research.core_lattice_search import main as search_main
+
+        try:
+            result = search_main(args)
+        except (OSError, ValueError, TypeError, KeyError, RuntimeError) as exc:
+            parser.exit(1, f"Core search failed: {exc}\n")
+        print(json.dumps(result, indent=2, default=str))
+        return 0
     if args.command == "neighbourhood":
         from .research.neighbourhood import export_neighbourhood
         try:

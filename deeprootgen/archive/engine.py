@@ -114,7 +114,7 @@ def _place_planned(state):
 
     for index, primary in enumerate(sim.organs.get(1, [])):
         oid = organ_id(primary)
-        start, phi = disk_origin(laws.origins, law_stream(state.streams, laws.streams, "origin", oid))
+        start, phi = disk_origin(laws.origins, law_stream(state.streams, laws.streams, "origin", oid), index)
         anchor = sim.G.bases[index].node_data
         anchor.x, anchor.y, anchor.z = (float(v) for v in start)
         primary.plan["initial_heading"] = radial_inclination(

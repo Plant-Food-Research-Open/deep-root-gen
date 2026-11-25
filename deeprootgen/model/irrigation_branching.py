@@ -1,4 +1,9 @@
-"""Recruit terminal daughters after parent placement and before final curve emission."""
+"""Recruit wet-zone daughters after parent placement and before their curves are realized.
+
+Terminal daughters (parent_order + 1) are the original pilot law. Optional
+non-terminal recruitment adds order-k daughters on realized order k-1 parents
+and gives each one the native branching subtree of an ordinary daughter.
+"""
 
 import numpy as np
 
@@ -94,6 +99,52 @@ def _move_child(child, node, parent, state):
         child.plan.update(base=material["base"], tip=material["tip"])
 
 
+def _register(state, organ):
+    """Direction lookups for nodes created after the direction phase began."""
+    for node in organ.segments:
+        state.direction_nodes[node.node_data.node_id] = node
+        data = node.node_data
+        state.scaffold[data.node_id] = np.array([data.x, data.y, data.z])
+
+
+def _build_subtree(state, root):
+    """Native biology for a recruited non-terminal daughter, as in init_organs.
+
+    Branch sites, lengths and taper use the same feature laws, keyed by the new
+    organ IDs; descendants join the order lists before their orders realize.
+    """
+    sim, p = state.simulation, state.parameters
+    _register(state, root)
+    frontier, order, born = [root], int(root.segments[0].node_data.order), 0
+    while frontier and order < int(p.max_order):
+        nxt = []
+        for parent in frontier:
+            laws = parent.feature_laws
+            laws.filter_branch_sites(parent)
+            while parent.lateral_attachment_nodes:
+                child = parent.add_child_organ(
+                    floor_threshold=p.floor_threshold,
+                    ceiling_threshold=p.ceiling_threshold,
+                )
+                laws.assign_daughter(child, parent)
+                sim.organs[order + 1].append(child)
+                child.construct_root_from_parent(
+                    p.segments_per_root or 1, p.apex_diameter
+                )
+                laws.after_construction(child)
+                child.axis_state.birth_parent_biological_id = int(
+                    child.parent_node.node_data.organ_id
+                )
+                child.axis_state.sampled_lengths_cm = tuple(
+                    float(v) for v in child.get_lengths()
+                )
+                _register(state, child)
+                nxt.append(child)
+        born += len(nxt)
+        frontier, order = nxt, order + 1
+    return born
+
+
 def _add_child(parent, node, state, oid, j):
     laws = parent.feature_laws
     parent.lateral_attachment_nodes.append(node)
@@ -111,7 +162,7 @@ def _add_child(parent, node, state, oid, j):
 
 
 def _realize_proposals(
-    state, zone, parent, curve, terminals, threshold, contour, lo, h, expected, receipt
+    state, zone, parent, curve, daughters, threshold, contour, lo, h, expected, receipt
 ):
     oid = parent.axis_state.biological_id
     ends = curve.construction_arcs
@@ -174,8 +225,10 @@ def _realize_proposals(
             _move_child(child, node, parent, state)
         else:
             child = _add_child(parent, node, state, oid, j)
-            terminals.append(child)
+            daughters.append(child)
             receipt["accepted_extra"] += 1
+            if "subtree_organs" in receipt:
+                receipt["subtree_organs"] += _build_subtree(state, child)
         xyz = survey_points(curve.position([site]), zone, surface)[0]
         receipt["births"].append(
             dict(
@@ -191,7 +244,8 @@ def _realize_proposals(
     parent.plan["irrigation_extra_placed"] = receipt["accepted_extra"]
 
 
-def _recruit_parent(parent, curve, state, zone, terminals, threshold):
+def _measure_parent(parent, curve, state, zone, threshold, sensitivity=None):
+    """Eligible wet contour, exposure integral and expected extra count of one parent."""
     surface = state.laws.surface_z_cm
     oid = parent.axis_state.biological_id
     lo, hi, rate, active, decision = _support(parent, curve)
@@ -213,7 +267,8 @@ def _recruit_parent(parent, curve, state, zone, terminals, threshold):
         else None
     )
     h = 0.0 if contour is None else contour.H
-    expected = (zone.peak_multiplier - 1) * rate * h if active else 0.0
+    scale = 1.0 if sensitivity is None else sensitivity
+    expected = scale * (zone.peak_multiplier - 1) * rate * h if active else 0.0
     receipt = dict(
         parent_id=oid,
         decision=decision,
@@ -229,41 +284,67 @@ def _recruit_parent(parent, curve, state, zone, terminals, threshold):
         coincident=0,
         births=[],
     )
+    if sensitivity is not None:
+        receipt["subtree_organs"] = 0
     _exposure_bins(receipt, contour, zone)
-    _realize_proposals(
-        state,
-        zone,
-        parent,
-        curve,
-        terminals,
-        threshold,
-        contour,
-        lo,
-        h,
-        expected,
-        receipt,
-    )
-    return receipt
+    return contour, lo, h, expected, receipt
 
 
 def recruit_terminals(state, zone):
-    sim, order = state.simulation, zone.parent_order
-    parents, terminals = sim.organs[order], sim.organs[order + 1]
+    """The terminal pilot law: order parent_order + 1 on order parent_order."""
+    recruit(state, zone, zone.parent_order)
+
+
+def recruit(state, zone, order, sensitivity=None):
+    """Wet-zone daughters of order + 1 on realized order parents.
+
+    ``sensitivity`` None is the terminal law; a value s scales the expected
+    extra births by s and builds each recruited daughter's native subtree.
+    """
+    sim = state.simulation
+    parents, daughters = sim.organs[order], sim.organs[order + 1]
     threshold = max(0.093, state.parameters.min_branching_diameter_cm)
     records = []
-    state.diagnostics["irrigation"] = dict(
-        settings=zone.model_dump(exclude_none=True),
-        minimum_parent_diameter_cm=threshold,
-        parents=records,
+    report = state.diagnostics.setdefault(
+        "irrigation",
+        dict(
+            settings=zone.model_dump(exclude_none=True),
+            minimum_parent_diameter_cm=threshold,
+        ),
     )
+    if sensitivity is None:
+        report["parents"] = records
+    else:
+        report.setdefault("upstream", {})[str(order + 1)] = dict(
+            sensitivity=sensitivity, parents=records
+        )
+    # Measure every parent first (each uses only its own realized curve), so an
+    # optional budget can scale all expectations equally before any draw.
+    entries = []
     for parent in parents:
         oid = parent.axis_state.biological_id
         curve = state.curves.get(oid)
         if curve is None or parent.invalid_root:
-            records.append(
-                dict(parent_id=oid, decision="invalid_parent", accepted_extra=0)
-            )
+            entries.append((None, dict(parent_id=oid, decision="invalid_parent", accepted_extra=0)))
             continue
-        records.append(
-            _recruit_parent(parent, curve, state, zone, terminals, threshold)
-        )
+        entries.append(((parent, curve), _measure_parent(parent, curve, state, zone, threshold, sensitivity)))
+    factor = 1.0
+    if zone.max_extra_fraction is not None and zone.response != "redistribute":
+        total = sum(m[3] for p, m in entries if p is not None)
+        budget = zone.max_extra_fraction * len(daughters)
+        factor = min(1.0, budget / total) if total > 0 else 1.0
+        target = report if sensitivity is None else report["upstream"][str(order + 1)]
+        target["budget"] = dict(max_extra_fraction=zone.max_extra_fraction, baseline_daughters=len(daughters),
+                                uncapped_expected_extra=total, scale=factor)
+    for placed, measured in entries:
+        if placed is None:
+            records.append(measured)
+            continue
+        parent, curve = placed
+        contour, lo, h, expected, receipt = measured
+        if factor != 1.0:
+            receipt["uncapped_expected_extra"] = expected
+            expected *= factor
+            receipt["expected_extra"] = expected
+        _realize_proposals(state, zone, parent, curve, daughters, threshold, contour, lo, h, expected, receipt)
+        records.append(receipt)
