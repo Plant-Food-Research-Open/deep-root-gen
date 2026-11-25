@@ -561,7 +561,8 @@ def test_tropism_guard_and_canonical_keys():
 def test_half_plane_bearing_groups():
     d = forest()
     count = len(run(d).organs[1])
-    toward = list(range(count - 1)); away = [count - 1]
+    toward = list(range(count - 1))
+    away = [count - 1]
 
     def groups(flag):
         g = json.loads(json.dumps(d))
